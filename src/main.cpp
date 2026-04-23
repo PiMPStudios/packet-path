@@ -64,6 +64,22 @@ struct LogEntry {
     float       timestamp; // GetTime() at moment of trigger
 };
 
+enum SimMode { SIM_IDLE, SIM_SELECTING_DST, SIM_ANIMATING };
+
+struct PacketAnim {
+    ForwardResult result;
+    int   hop       = 0;     // current hop segment index (path[hop] → path[hop+1])
+    float t         = 0.f;   // interpolation within current hop [0..1]
+    bool  done      = false;
+    float failPulse = 0.f;   // countdown for red-pulse effect (seconds)
+};
+
+struct SimState {
+    SimMode    mode  = SIM_IDLE;
+    int        srcId = -1;
+    PacketAnim anim;
+};
+
 // ── Device types & node struct ─────────────────────────────────────────────
 enum DeviceType { PC, ROUTER, SWITCH };
 
@@ -718,7 +734,7 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
 void UpdateContextMenuHover(ContextMenu& menu, Vector2 screenMouse) {
     if (!menu.visible) { menu.hoverItem = -1; return; }
 
-    static const char* nodeItems[]   = {"Rename", "Delete", nullptr};
+    static const char* nodeItems[]   = {"Rename", "Delete", "Send Packet To\xe2\x80\xa6", nullptr};
     static const char* cableItems[]  = {"Delete Cable", nullptr};
     static const char* canvasItems[] = {"Add PC Here", "Add Router Here",
                                         "Add Switch Here", "Reset View", nullptr};
@@ -747,7 +763,7 @@ void DrawContextMenu(const ContextMenu& menu, Vector2 screenMouse) {
     (void)screenMouse;
     if (!menu.visible) return;
 
-    static const char* nodeItems[]   = {"Rename", "Delete", nullptr};
+    static const char* nodeItems[]   = {"Rename", "Delete", "Send Packet To\xe2\x80\xa6", nullptr};
     static const char* cableItems[]  = {"Delete Cable", nullptr};
     static const char* canvasItems[] = {"Add PC Here", "Add Router Here",
                                         "Add Switch Here", "Reset View", nullptr};
@@ -779,7 +795,7 @@ void DrawContextMenu(const ContextMenu& menu, Vector2 screenMouse) {
 
 void ExecuteMenuAction(ContextMenu& menu, std::vector<DeviceNode>& nodes,
                        std::vector<Cable>& cables, int& selectedId,
-                       PanelState& ps, Camera2D& camera)
+                       PanelState& ps, Camera2D& camera, SimState& simState)
 {
     int item = menu.hoverItem;
     if (menu.ctx == CTX_NODE) {
@@ -797,6 +813,11 @@ void ExecuteMenuAction(ContextMenu& menu, std::vector<DeviceNode>& nodes,
                 [&](const DeviceNode& n){ return n.id == menu.targetId; }),
                 nodes.end());
             if (selectedId == menu.targetId) { selectedId = -1; ps.activeField = -1; }
+        } else if (item == 2) {  // Send Packet To…
+            if (simState.mode == SIM_IDLE) {
+                simState.mode  = SIM_SELECTING_DST;
+                simState.srcId = menu.targetId;
+            }
         }
     } else if (menu.ctx == CTX_CABLE) {
         if (item == 0 && menu.targetId >= 0 && menu.targetId < (int)cables.size())
@@ -837,6 +858,7 @@ int main() {
     int         prevSelectedId = -2;  // -2 forces reset on first frame
     ContextMenu contextMenu;
     std::vector<LogEntry> logEntries;
+    SimState simState;
 
     while (!WindowShouldClose()) {
         Vector2 screenMouse = GetMousePosition();
@@ -845,7 +867,8 @@ int main() {
                          screenMouse.y < (float)CANVAS_H);
 
         // ── Spawn / delete / cancel ────────────────────────────────────
-        if (inCanvas && ps.activeField == -1 && ps.activeRouteField == -1) {
+        if (inCanvas && ps.activeField == -1 && ps.activeRouteField == -1 &&
+            simState.mode == SIM_IDLE) {
             if (IsKeyPressed(KEY_P)) nodes.push_back(SpawnNode(PC,     worldMouse));
             if (IsKeyPressed(KEY_R)) nodes.push_back(SpawnNode(ROUTER, worldMouse));
             if (IsKeyPressed(KEY_S)) nodes.push_back(SpawnNode(SWITCH, worldMouse));
@@ -861,6 +884,9 @@ int main() {
                 connecting  = false;
                 hoverNodeId = -1;
                 hoverPort   = -1;
+            } else if (simState.mode == SIM_SELECTING_DST) {
+                simState.mode  = SIM_IDLE;
+                simState.srcId = -1;
             }
         }
 
@@ -900,7 +926,7 @@ int main() {
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             if (contextMenu.visible) {
                 if (contextMenu.hoverItem != -1)
-                    ExecuteMenuAction(contextMenu, nodes, cables, selectedId, ps, camera);
+                    ExecuteMenuAction(contextMenu, nodes, cables, selectedId, ps, camera, simState);
                 contextMenu.visible = false;
             } else if (inCanvas) {
             int pNode = -1, pPort = -1;
@@ -1131,7 +1157,29 @@ int main() {
                 }
 
                 for (const auto& n : nodes) DrawDeviceNode(n);
+
+                // SIM_SELECTING_DST — ring on all eligible destination nodes
+                if (simState.mode == SIM_SELECTING_DST) {
+                    for (const auto& n : nodes) {
+                        if (n.id == simState.srcId) {
+                            // Bright ring on source
+                            DrawCircleLinesV(n.position, NODE_W * 0.6f,
+                                             Color{34, 197, 94, 200});
+                        } else {
+                            // Faint blue ring on valid destinations
+                            DrawCircleLinesV(n.position, NODE_W * 0.6f,
+                                             Color{96, 165, 250, 100});
+                        }
+                    }
+                }
             EndMode2D();
+
+            if (simState.mode == SIM_SELECTING_DST) {
+                const char* hint = "Click destination node  \xe2\x80\x94  ESC to cancel";
+                int tw = MeasureText(hint, 12);
+                DrawText(hint, (CANVAS_W - tw) / 2, 12, 12,
+                         Color{148, 163, 184, 255});
+            }
 
             DrawPanel(selectedId, nodes, ps);
             DrawContextMenu(contextMenu, screenMouse);
