@@ -245,13 +245,14 @@ int main() {
                             }
                         }
 
-                        simState.anim = PacketAnim{.result = fr};
-                        le.success    = fr.success;
-                        le.pathStr    = BuildPathStr(fr.path, nodes);
-                        le.reason     = fr.reason;
-                        le.type       = LOG_FORWARD;
-                        le.timestamp  = GetTime();
-                        simState.mode = SIM_ANIMATING;
+                        simState.anim  = PacketAnim{.result = fr};
+                        le.success     = fr.success;
+                        le.pathStr     = BuildPathStr(fr.path, nodes);
+                        le.reason      = fr.reason;
+                        le.type        = LOG_FORWARD;
+                        le.traceResult = fr;
+                        le.timestamp   = GetTime();
+                        simState.mode  = SIM_ANIMATING;
                     }
                     pushLog(le);
                     // Check all win conditions after every simulation attempt

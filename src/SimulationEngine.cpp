@@ -8,10 +8,10 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
                               const std::vector<Cable>& cables)
 {
     if (!FindNode(nodes, srcId))
-        return {false, {}, "source node not found", {}};
+        return {false, {}, "source node not found", {}, {}};
 
     if (!ValidateIPOnly(destIp))
-        return {false, {srcId}, "invalid destination", {}};
+        return {false, {srcId}, "invalid destination", {}, {}};
 
     static constexpr int MAX_HOPS = 16;
 
@@ -34,6 +34,14 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
             if (!IpInSubnet(destIp, route.dest)) continue;
 
             if (route.src == ROUTE_CONNECTED) {
+                HopDecision hd;
+                hd.nodeId     = currentId;
+                hd.nodeLabel  = cur->label;
+                hd.routeType  = "C";
+                hd.destPrefix = route.dest;
+                hd.nextHopIp  = "delivered";
+                hd.outPort    = -1;
+                result.hops.push_back(hd);
                 result.success = true;
                 result.reason  = "delivered";
                 return result;
@@ -87,6 +95,19 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
                 return result;
             }
 
+            {
+                HopDecision hd;
+                hd.nodeId     = currentId;
+                hd.nodeLabel  = cur->label;
+                if      (route.src == ROUTE_STATIC)  hd.routeType = "S";
+                else if (route.src == ROUTE_OSPF)    hd.routeType = "O";
+                else if (route.src == ROUTE_OSPF_IA) hd.routeType = "O IA";
+                else                                  hd.routeType = "?";
+                hd.destPrefix = route.dest;
+                hd.nextHopIp  = route.nextHop;
+                hd.outPort    = route.outPort;
+                result.hops.push_back(hd);
+            }
             visited.insert(neighborId);
             result.path.push_back(neighborId);
             currentId = neighborId;

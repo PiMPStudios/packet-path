@@ -60,19 +60,30 @@ struct ArpEvent {
     bool        cacheHit = false;
 };
 
+struct HopDecision {
+    int         nodeId;
+    std::string nodeLabel;
+    std::string routeType;   // "C"=connected, "S"=static, "O"=OSPF, "O IA"=inter-area
+    std::string destPrefix;  // matched route prefix, e.g. "10.0.1.0/24"
+    std::string nextHopIp;   // next-hop IP, or "delivered" for connected routes
+    int         outPort;     // egress port index, -1 if delivered
+};
+
 struct ForwardResult {
-    bool                  success = false;
-    std::vector<int>      path;
-    std::string           reason;
-    std::vector<ArpEvent> arpEvents;
+    bool                     success = false;
+    std::vector<int>         path;
+    std::string              reason;
+    std::vector<ArpEvent>    arpEvents;
+    std::vector<HopDecision> hops;
 };
 
 struct LogEntry {
-    bool        success   = false;
-    std::string pathStr;
-    std::string reason;
-    float       timestamp = 0.f;
-    LogType     type      = LOG_FORWARD;
+    bool          success     = false;
+    std::string   pathStr;
+    std::string   reason;
+    float         timestamp   = 0.f;
+    LogType       type        = LOG_FORWARD;
+    ForwardResult traceResult;   // populated for LOG_FORWARD entries only
 };
 
 // ── Device types & node struct ────────────────────────────────────────────
