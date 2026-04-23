@@ -10,7 +10,7 @@ Rectangle PnlPortFieldRect(int port) {
             (float)(PANEL_W - 92), 24.0f};
 }
 
-float PnlTabW() { return (PANEL_W - 24 - 8) / 3.0f; }
+float PnlTabW() { return (PANEL_W - 24 - 12) / 4.0f; }
 Rectangle PnlConfigTabRect() {
     return {(float)(CANVAS_W + 12), 88.0f, PnlTabW(), 26.0f};
 }
@@ -20,8 +20,12 @@ Rectangle PnlRoutesTabRect() {
 Rectangle PnlArpTabRect() {
     return {(float)(CANVAS_W + 12) + 2.0f * (PnlTabW() + 4.0f), 88.0f, PnlTabW(), 26.0f};
 }
-Rectangle PnlOspfTabRect()    { return {0.f, 0.f, 0.f, 0.f}; }
-Rectangle PnlOspfEnableRect() { return {0.f, 0.f, 0.f, 0.f}; }
+Rectangle PnlOspfTabRect() {
+    return {(float)(CANVAS_W + 12) + 3.0f * (PnlTabW() + 4.0f), 88.0f, PnlTabW(), 26.0f};
+}
+Rectangle PnlOspfEnableRect() {
+    return {(float)(CANVAS_W + 12), 120.0f, (float)(PANEL_W - 24), 26.0f};
+}
 Rectangle PnlRouteDeleteRect(int rowIdx) {
     return {(float)(CANVAS_W + PANEL_W - 22),
             (float)(RTE_ROW_Y0 + rowIdx * RTE_ROW_H + 4), 16.0f, 14.0f};

@@ -32,6 +32,7 @@ int main() {
     SimState simState;
 
     while (!WindowShouldClose()) {
+        float dt = GetFrameTime();
         Vector2 screenMouse = GetMousePosition();
         Vector2 worldMouse  = GetScreenToWorld2D(screenMouse, camera);
         bool inCanvas = (screenMouse.x < (float)CANVAS_W &&
@@ -424,7 +425,6 @@ int main() {
 
         // ── OSPF engine tick ─────────────────────────────────────────────
         {
-            float dt = GetFrameTime();
             auto ospfEvents = UpdateOspf(dt, nodes, cables);
             auto pushLog = [&](LogEntry entry) {
                 if (logEntries.size() >= 50) logEntries.erase(logEntries.begin());
@@ -434,7 +434,7 @@ int main() {
                 LogEntry e;
                 e.success   = true;
                 e.pathStr   = msg;
-                e.type      = LOG_FORWARD;
+                e.type      = LOG_OSPF;
                 e.timestamp = GetTime();
                 pushLog(e);
             }
@@ -442,7 +442,7 @@ int main() {
 
         // ── Packet animation update ───────────────────────────────────────
         if (simState.mode == SIM_ANIMATING) {
-            UpdatePacketAnim(simState.anim, GetFrameTime(), nodes, cables);
+            UpdatePacketAnim(simState.anim, dt, nodes, cables);
             if (simState.anim.done && simState.anim.failPulse    <= 0.f
                                    && simState.anim.successPulse <= 0.f) {
                 simState.mode  = SIM_IDLE;

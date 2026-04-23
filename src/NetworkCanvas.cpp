@@ -240,6 +240,10 @@ void DrawLogConsole(const std::vector<LogEntry>& entries) {
                 icon    = "~";
                 icColor = Color{140, 140, 140, 255};
                 break;
+            case LOG_OSPF:
+                icon    = "O";
+                icColor = Color{59, 130, 246, 255};
+                break;
             default:
                 icon    = e.success ? "\xe2\x9c\x93" : "\xe2\x9c\x97";
                 icColor = e.success ? Color{34, 197, 94, 255}

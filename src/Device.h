@@ -48,7 +48,7 @@ struct OspfNeighbor {
 };
 
 // ── ARP & log types ───────────────────────────────────────────────────────
-enum LogType { LOG_FORWARD, LOG_ARP_REQ, LOG_ARP_REPLY, LOG_ARP_HIT };
+enum LogType { LOG_FORWARD, LOG_ARP_REQ, LOG_ARP_REPLY, LOG_ARP_HIT, LOG_OSPF };
 
 struct ArpEvent {
     int         nodeId   = 0;
