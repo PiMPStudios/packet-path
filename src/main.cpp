@@ -169,6 +169,59 @@ Rectangle PnlPortFieldRect(int port) {
     return {(float)(CANVAS_W + 80), 240.0f + port * 44, (float)(PANEL_W - 92), 24.0f};
 }
 
+// ── Context menu ──────────────────────────────────────────────────────────
+enum ContextType { CTX_NONE, CTX_NODE, CTX_CABLE, CTX_CANVAS };
+
+struct ContextMenu {
+    bool        visible   = false;
+    Vector2     screenPos = {0.0f, 0.0f};
+    Vector2     worldPos  = {0.0f, 0.0f};
+    ContextType ctx       = CTX_NONE;
+    int         targetId  = -1;    // nodeId for CTX_NODE; cable index for CTX_CABLE
+    int         hoverItem = -1;
+};
+
+// Returns cable index if worldMouse is within threshold of any cable bezier, else -1
+int HitTestCable(const std::vector<Cable>& cables,
+                 const std::vector<DeviceNode>& nodes,
+                 Vector2 worldMouse, float threshold)
+{
+    for (int ci = 0; ci < (int)cables.size(); ++ci) {
+        const Cable& c   = cables[ci];
+        const DeviceNode* from = FindNode(nodes, c.fromId);
+        const DeviceNode* to   = FindNode(nodes, c.toId);
+        if (!from || !to) continue;
+
+        Vector2 p0 = GetPortPosition(*from, c.fromPort);
+        Vector2 p3 = GetPortPosition(*to,   c.toPort);
+
+        const float offset = 60.0f;
+        auto ctrl = [&](Vector2 p, int port) -> Vector2 {
+            switch (port) {
+                case 0: return {p.x,           p.y - offset};
+                case 1: return {p.x + offset,  p.y         };
+                case 2: return {p.x,           p.y + offset};
+                case 3: return {p.x - offset,  p.y         };
+            }
+            return p;
+        };
+        Vector2 c1 = ctrl(p0, c.fromPort);
+        Vector2 c2 = ctrl(p3, c.toPort);
+
+        for (int s = 0; s <= 20; ++s) {
+            float t  = (float)s / 20.0f;
+            float it = 1.0f - t;
+            Vector2 pt = {
+                it*it*it*p0.x + 3*it*it*t*c1.x + 3*it*t*t*c2.x + t*t*t*p3.x,
+                it*it*it*p0.y + 3*it*it*t*c1.y + 3*it*t*t*c2.y + t*t*t*p3.y
+            };
+            if (CheckCollisionPointCircle(worldMouse, pt, threshold))
+                return ci;
+        }
+    }
+    return -1;
+}
+
 bool ValidateIP(const std::string& ip) {
     if (ip.empty()) return false;
     int a, b, c, d, prefix, consumed = 0;
@@ -297,6 +350,75 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
     }
 }
 
+// ── Context menu draw & action ────────────────────────────────────────────
+void DrawContextMenu(ContextMenu& menu, Vector2 screenMouse) {
+    if (!menu.visible) return;
+
+    static const char* nodeItems[]   = {"Rename", "Delete", nullptr};
+    static const char* cableItems[]  = {"Delete Cable", nullptr};
+    static const char* canvasItems[] = {"Add PC Here", "Add Router Here",
+                                        "Add Switch Here", "Reset View", nullptr};
+
+    const char** items = nullptr;
+    if      (menu.ctx == CTX_NODE)   items = nodeItems;
+    else if (menu.ctx == CTX_CABLE)  items = cableItems;
+    else if (menu.ctx == CTX_CANVAS) items = canvasItems;
+    else return;
+
+    int count = 0;
+    while (items[count]) ++count;
+
+    const int ITEM_H = 28, MENU_W = 160;
+    float h = (float)(count * ITEM_H + 8);
+    float x = std::min(menu.screenPos.x, (float)(CANVAS_W - MENU_W - 4));
+    float y = std::min(menu.screenPos.y, (float)(SCREEN_H - (int)h - 4));
+
+    DrawRectangleRounded({x, y, (float)MENU_W, h}, 0.08f, 4, Color{30, 41, 59, 255});
+    DrawRectangleRoundedLinesEx({x, y, (float)MENU_W, h}, 0.08f, 4, 1.0f, PANEL_BORDER);
+
+    menu.hoverItem = -1;
+    for (int i = 0; i < count; ++i) {
+        Rectangle ir = {x + 4, y + 4 + (float)(i * ITEM_H),
+                        (float)(MENU_W - 8), (float)ITEM_H};
+        if (CheckCollisionPointRec(screenMouse, ir)) {
+            DrawRectangleRounded(ir, 0.08f, 4, Color{51, 65, 85, 255});
+            menu.hoverItem = i;
+        }
+        DrawText(items[i], (int)ir.x + 8, (int)ir.y + 7, 13, WHITE);
+    }
+}
+
+void ExecuteMenuAction(ContextMenu& menu, std::vector<DeviceNode>& nodes,
+                       std::vector<Cable>& cables, int& selectedId,
+                       PanelState& ps, Camera2D& camera)
+{
+    int item = menu.hoverItem;
+    if (menu.ctx == CTX_NODE) {
+        if (item == 0) {  // Rename — select node and focus hostname field
+            selectedId = menu.targetId;
+            for (auto& n : nodes) n.selected = (n.id == selectedId);
+            ps.activeField = 0;
+        } else if (item == 1) {  // Delete
+            cables.erase(std::remove_if(cables.begin(), cables.end(),
+                [&](const Cable& c){
+                    return c.fromId == menu.targetId || c.toId == menu.targetId;
+                }), cables.end());
+            nodes.erase(std::remove_if(nodes.begin(), nodes.end(),
+                [&](const DeviceNode& n){ return n.id == menu.targetId; }),
+                nodes.end());
+            if (selectedId == menu.targetId) { selectedId = -1; ps.activeField = -1; }
+        }
+    } else if (menu.ctx == CTX_CABLE) {
+        if (item == 0 && menu.targetId >= 0 && menu.targetId < (int)cables.size())
+            cables.erase(cables.begin() + menu.targetId);
+    } else if (menu.ctx == CTX_CANVAS) {
+        if      (item == 0) nodes.push_back(SpawnNode(PC,     menu.worldPos));
+        else if (item == 1) nodes.push_back(SpawnNode(ROUTER, menu.worldPos));
+        else if (item == 2) nodes.push_back(SpawnNode(SWITCH, menu.worldPos));
+        else if (item == 3) { camera.target = {0.0f, 0.0f}; camera.zoom = 1.0f; }
+    }
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────
 int main() {
     InitWindow(SCREEN_W, SCREEN_H, "Packet Path");
@@ -321,8 +443,9 @@ int main() {
     int  hoverNodeId     = -1;
     int  hoverPort       = -1;
 
-    PanelState ps;
-    int        prevSelectedId = -2;  // -2 forces reset on first frame
+    PanelState  ps;
+    int         prevSelectedId = -2;  // -2 forces reset on first frame
+    ContextMenu contextMenu;
 
     while (!WindowShouldClose()) {
         Vector2 screenMouse = GetMousePosition();
@@ -337,6 +460,7 @@ int main() {
         }
 
         if (IsKeyPressed(KEY_ESCAPE)) {
+            contextMenu.visible = false;
             if (ps.activeField != -1) {
                 ps.activeField = -1;
             } else if (connecting) {
@@ -376,7 +500,12 @@ int main() {
         }
 
         // ── LMB pressed ───────────────────────────────────────────────
-        if (inCanvas && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+            if (contextMenu.visible) {
+                if (contextMenu.hoverItem != -1)
+                    ExecuteMenuAction(contextMenu, nodes, cables, selectedId, ps, camera);
+                contextMenu.visible = false;
+            } else if (inCanvas) {
             int pNode = -1, pPort = -1;
             if (HitTestPort(nodes, worldMouse, -1, pNode, pPort)) {
                 connecting      = true;
@@ -403,6 +532,7 @@ int main() {
                     dragging   = false;
                 }
             }
+            }  // closes else if (inCanvas)
         }
 
         // ── LMB held ──────────────────────────────────────────────────
@@ -440,6 +570,39 @@ int main() {
             dragging    = false;
             hoverNodeId = -1;
             hoverPort   = -1;
+        }
+
+        // ── RMB pressed — open context menu ───────────────────────────
+        if (inCanvas && IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
+            contextMenu.screenPos = screenMouse;
+            contextMenu.worldPos  = worldMouse;
+            contextMenu.hoverItem = -1;
+            ps.activeField        = -1;
+
+            // Priority: node body > cable > canvas
+            int hitIdx = -1;
+            for (int i = (int)nodes.size() - 1; i >= 0; --i) {
+                if (CheckCollisionPointRec(worldMouse, GetNodeRect(nodes[i]))) {
+                    hitIdx = i;
+                    break;
+                }
+            }
+            if (hitIdx != -1) {
+                contextMenu.visible  = true;
+                contextMenu.ctx      = CTX_NODE;
+                contextMenu.targetId = nodes[hitIdx].id;
+            } else {
+                int ci = HitTestCable(cables, nodes, worldMouse, 6.0f);
+                if (ci != -1) {
+                    contextMenu.visible  = true;
+                    contextMenu.ctx      = CTX_CABLE;
+                    contextMenu.targetId = ci;
+                } else {
+                    contextMenu.visible  = true;
+                    contextMenu.ctx      = CTX_CANVAS;
+                    contextMenu.targetId = -1;
+                }
+            }
         }
 
         // ── Panel click-to-focus ───────────────────────────────────────
@@ -504,6 +667,7 @@ int main() {
             EndMode2D();
 
             DrawPanel(selectedId, nodes, ps);
+            DrawContextMenu(contextMenu, screenMouse);
 
             // HUD — screen space, outside camera
             DrawFPS(CANVAS_W - 80, 10);
