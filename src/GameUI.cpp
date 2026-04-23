@@ -57,20 +57,24 @@ void DrawWinOverlay(const LevelDef& def, bool hasNextLevel) {
              (int)(r.x + (r.width - ttw) / 2.0f), (int)r.y + 50, 12,
              Color{148, 163, 184, 255});
 
-    // Three gold stars (UTF-8 filled star ★ = \xe2\x98\x85)
-    const char* star   = "\xe2\x98\x85";
-    Color       starC  = Color{234, 179, 8, 255};
-    int         sx     = (int)(r.x + (r.width - 72) / 2.0f);
-    DrawText(star, sx,      (int)r.y + 76, 24, starC);
-    DrawText(star, sx + 24, (int)r.y + 76, 24, starC);
-    DrawText(star, sx + 48, (int)r.y + 76, 24, starC);
+    // Three gold circles as star stand-ins (★ U+2605 is outside raylib default font)
+    Color starC = Color{234, 179, 8, 255};
+    float sy    = r.y + 88.0f;
+    float scx   = r.x + r.width / 2.0f;
+    DrawCircle((int)(scx - 28), (int)sy, 9.0f, starC);
+    DrawCircle((int)scx,        (int)sy, 9.0f, starC);
+    DrawCircle((int)(scx + 28), (int)sy, 9.0f, starC);
 
-    // Win conditions checklist
+    // Win conditions checklist (capped at 4 to stay above buttons)
     int cy = (int)r.y + 116;
+    int shownConditions = 0;
     for (const auto& wc : def.winConditions) {
-        std::string line = "\xe2\x9c\x93 " + wc.description;  // UTF-8 ✓
-        DrawText(line.c_str(), (int)(r.x + 20), cy, 11, Color{34, 197, 94, 255});
+        if (shownConditions >= 4) break;
+        char lineBuf[128];
+        std::snprintf(lineBuf, sizeof(lineBuf), "\xe2\x9c\x93 %s", wc.description.c_str());
+        DrawText(lineBuf, (int)(r.x + 20), cy, 11, Color{34, 197, 94, 255});
         cy += 18;
+        ++shownConditions;
     }
 
     // Retry button
