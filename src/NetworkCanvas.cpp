@@ -47,9 +47,25 @@ void DrawAllCables(const std::vector<Cable>& cables,
         Vector2 p0 = GetPortPosition(*from, c.fromPort);
         Vector2 p3 = GetPortPosition(*to,   c.toPort);
 
+        Color cableColor = Color{148, 163, 184, 255};  // default slate-gray
+
+        if (from->ospfEnabled && to->ospfEnabled) {
+            OspfState stateAB = OSPF_DOWN, stateBA = OSPF_DOWN;
+            for (const auto& nbr : from->ospfNeighbors)
+                if (nbr.neighborNodeId == to->id) { stateAB = nbr.state; break; }
+            for (const auto& nbr : to->ospfNeighbors)
+                if (nbr.neighborNodeId == from->id) { stateBA = nbr.state; break; }
+
+            OspfState best = std::max(stateAB, stateBA);
+            if (best == OSPF_FULL)
+                cableColor = Color{34, 197, 94, 220};   // green
+            else if (best >= OSPF_INIT)
+                cableColor = Color{234, 179, 8, 220};   // yellow
+        }
+
         DrawSplineSegmentBezierCubic(p0, BezierCtrl(p0, c.fromPort),
                                      BezierCtrl(p3, c.toPort), p3,
-                                     2.0f, Color{148, 163, 184, 255});
+                                     2.0f, cableColor);
     }
 }
 
