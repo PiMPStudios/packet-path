@@ -50,7 +50,7 @@ static void RebuildAllLsdbs(std::vector<DeviceNode>& nodes) {
 
         while (!q.empty()) {
             std::string rid = q.front(); q.pop();
-            const RouterLsa& lsa = node.lsdb[rid];
+            RouterLsa lsa = node.lsdb[rid];
             for (const auto& adj : lsa.adjacencies) {
                 if (visited.count(adj.neighborRouterId)) continue;
                 visited.insert(adj.neighborRouterId);
@@ -100,9 +100,12 @@ static void RunSpf(DeviceNode& self) {
         if (rid == self.routerId) continue;
         if (dist[rid] == INT_MAX) continue;
 
+        std::unordered_set<std::string> seen;
         std::string cur = rid;
-        while (prev.count(cur) && prev.at(cur) != self.routerId)
+        while (prev.count(cur) && prev.at(cur) != self.routerId) {
+            if (!seen.insert(cur).second) break;
             cur = prev.at(cur);
+        }
         const std::string& firstHopRid = cur;
 
         std::string nextHopIp;
@@ -178,6 +181,10 @@ std::vector<std::string> UpdateOspf(float dt,
             } else {
                 continue;
             }
+
+            if (localPort < 0 || localPort >= PORTS_PER_NODE ||
+                bPort    < 0 || bPort    >= PORTS_PER_NODE)
+                continue;
 
             DeviceNode* nodeB = FindNodeMut(nodes, bId);
             if (!nodeB || !nodeB->ospfEnabled || nodeB->type != ROUTER
