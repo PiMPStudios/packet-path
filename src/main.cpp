@@ -37,8 +37,8 @@ int main() {
     int         currentLevel         = 0;
     LevelDef    activeLevelDef;
     int         lastConditionsPassed = 0;
-    bool traceModalOpen = false;
-    int  selectedLogIdx = -1;
+    bool          traceModalOpen = false;
+    ForwardResult activeTrace;
 
     while (!WindowShouldClose()) {
         float dt = GetFrameTime();
@@ -75,12 +75,14 @@ int main() {
                             hoverNodeId          = -1;
                             hoverPort            = -1;
                             contextMenu.visible  = false;
+                            traceModalOpen       = false;
                         }
                     }
                 }
                 if (IsKeyPressed(KEY_ZERO)) {
-                    gameMode     = GAME_SANDBOX;
-                    currentLevel = 0;
+                    gameMode       = GAME_SANDBOX;
+                    currentLevel   = 0;
+                    traceModalOpen = false;
                 }
             }
         }
@@ -158,6 +160,7 @@ int main() {
                     hoverNodeId          = -1;
                     hoverPort            = -1;
                     contextMenu.visible  = false;
+                    traceModalOpen       = false;
                 } else if (CheckCollisionPointRec(screenMouse, WinNextBtnRect()) &&
                            currentLevel < 4) {
                     int nextLevel = currentLevel + 1;
@@ -178,6 +181,7 @@ int main() {
                         hoverNodeId          = -1;
                         hoverPort            = -1;
                         contextMenu.visible  = false;
+                        traceModalOpen       = false;
                     }
                 }
                 // any other click on the WIN screen is silently consumed
@@ -289,7 +293,7 @@ int main() {
                 // Log console click — open trace modal for LOG_FORWARD entries
                 int hitIdx = LogConsoleHitTest(screenMouse, logEntries);
                 if (hitIdx >= 0) {
-                    selectedLogIdx = hitIdx;
+                    activeTrace    = logEntries[hitIdx].traceResult;
                     traceModalOpen = true;
                 }
             } else if (inCanvas) {
@@ -659,9 +663,8 @@ int main() {
             DrawPanel(selectedId, nodes, ps);
             DrawContextMenu(contextMenu, screenMouse);
             DrawLogConsole(logEntries);
-            if (traceModalOpen && selectedLogIdx >= 0 &&
-                selectedLogIdx < (int)logEntries.size())
-                DrawTraceModal(logEntries[selectedLogIdx].traceResult);
+            if (traceModalOpen)
+                DrawTraceModal(activeTrace);
 
             // Level HUD badge (top-left) and win overlay
             if (gameMode == GAME_PLAYING || gameMode == GAME_WIN) {

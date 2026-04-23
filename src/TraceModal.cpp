@@ -76,7 +76,7 @@ void DrawTraceModal(const ForwardResult& trace) {
             DrawText(h.routeType.c_str(), (int)(MX + 40.f), (int)(rowY + 16.f), 10, rtCol);
 
             // Matched prefix → next hop
-            char detail[128];
+            char detail[256];
             std::snprintf(detail, sizeof(detail), "%s \xe2\x86\x92 %s",
                           h.destPrefix.c_str(), h.nextHopIp.c_str());
             DrawText(detail, (int)(MX + 72.f), (int)(rowY + 16.f), 10,
