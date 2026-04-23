@@ -1008,6 +1008,7 @@ int main() {
         }
 
         if (ps.activeField == -1 && ps.activeRouteField == -1 &&
+            simState.mode == SIM_IDLE &&
             IsKeyPressed(KEY_DELETE) && selectedId != -1) {
             nodes.erase(std::remove_if(nodes.begin(), nodes.end(),
                 [&](const DeviceNode& n){ return n.id == selectedId; }),
@@ -1155,37 +1156,43 @@ int main() {
 
         // ── RMB pressed — open context menu ───────────────────────────
         if (inCanvas && IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
-            connecting  = false;
-            hoverNodeId = -1;
-            hoverPort   = -1;
-            contextMenu.screenPos = screenMouse;
-            contextMenu.worldPos  = worldMouse;
-            contextMenu.hoverItem = -1;
-            ps.activeField        = -1;
-            ps.activeRouteField   = -1;
-
-            // Priority: node body > cable > canvas
-            int hitIdx = -1;
-            for (int i = (int)nodes.size() - 1; i >= 0; --i) {
-                if (CheckCollisionPointRec(worldMouse, GetNodeRect(nodes[i]))) {
-                    hitIdx = i;
-                    break;
-                }
-            }
-            if (hitIdx != -1) {
-                contextMenu.visible  = true;
-                contextMenu.ctx      = CTX_NODE;
-                contextMenu.targetId = nodes[hitIdx].id;
+            if (simState.mode == SIM_SELECTING_DST) {
+                simState.mode  = SIM_IDLE;
+                simState.srcId = -1;
+                // Swallow the RMB — don't open a context menu while cancelling
             } else {
-                int ci = HitTestCable(cables, nodes, worldMouse, 6.0f);
-                if (ci != -1) {
+                connecting  = false;
+                hoverNodeId = -1;
+                hoverPort   = -1;
+                contextMenu.screenPos = screenMouse;
+                contextMenu.worldPos  = worldMouse;
+                contextMenu.hoverItem = -1;
+                ps.activeField        = -1;
+                ps.activeRouteField   = -1;
+
+                // Priority: node body > cable > canvas
+                int hitIdx = -1;
+                for (int i = (int)nodes.size() - 1; i >= 0; --i) {
+                    if (CheckCollisionPointRec(worldMouse, GetNodeRect(nodes[i]))) {
+                        hitIdx = i;
+                        break;
+                    }
+                }
+                if (hitIdx != -1) {
                     contextMenu.visible  = true;
-                    contextMenu.ctx      = CTX_CABLE;
-                    contextMenu.targetId = ci;
+                    contextMenu.ctx      = CTX_NODE;
+                    contextMenu.targetId = nodes[hitIdx].id;
                 } else {
-                    contextMenu.visible  = true;
-                    contextMenu.ctx      = CTX_CANVAS;
-                    contextMenu.targetId = -1;
+                    int ci = HitTestCable(cables, nodes, worldMouse, 6.0f);
+                    if (ci != -1) {
+                        contextMenu.visible  = true;
+                        contextMenu.ctx      = CTX_CABLE;
+                        contextMenu.targetId = ci;
+                    } else {
+                        contextMenu.visible  = true;
+                        contextMenu.ctx      = CTX_CANVAS;
+                        contextMenu.targetId = -1;
+                    }
                 }
             }
         }
