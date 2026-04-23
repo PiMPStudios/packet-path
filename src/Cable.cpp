@@ -6,6 +6,12 @@ const DeviceNode* FindNode(const std::vector<DeviceNode>& nodes, int id) {
     return nullptr;
 }
 
+DeviceNode* FindNodeMut(std::vector<DeviceNode>& nodes, int id) {
+    for (auto& n : nodes)
+        if (n.id == id) return &n;
+    return nullptr;
+}
+
 Vector2 BezierCtrl(Vector2 p, int port) {
     const float offset = 60.0f;
     switch (port) {

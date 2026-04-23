@@ -15,13 +15,36 @@ static const int   NODE_FONT_SZ   =  14;
 static const float PORT_RADIUS    =   6.0f;
 
 // ── Routing types ─────────────────────────────────────────────────────────
-enum RouteSource { ROUTE_CONNECTED, ROUTE_STATIC };
+enum RouteSource { ROUTE_CONNECTED, ROUTE_STATIC, ROUTE_OSPF };
 
 struct RouteEntry {
     std::string dest;
     std::string nextHop;
     int         outPort;
     RouteSource src;
+};
+
+// ── OSPF types ────────────────────────────────────────────────────────────
+enum OspfState { OSPF_DOWN, OSPF_INIT, OSPF_TWOWAY, OSPF_FULL };
+
+struct OspfAdjacency {
+    std::string neighborRouterId;
+    int         cost = 1;
+};
+
+struct RouterLsa {
+    std::string                routerId;
+    std::vector<OspfAdjacency> adjacencies;
+    std::vector<std::string>   networks;   // CIDR subnets owned by this router
+};
+
+struct OspfNeighbor {
+    std::string neighborRouterId;
+    std::string neighborIp;      // neighbor's port IP on the link facing us (used as next-hop)
+    int         neighborNodeId = -1;
+    int         localPort      = -1;
+    OspfState   state          = OSPF_DOWN;
+    float       deadTimer      = 0.f;
 };
 
 // ── ARP & log types ───────────────────────────────────────────────────────
@@ -62,6 +85,13 @@ struct DeviceNode {
     std::string portIp[PORTS_PER_NODE];
     std::vector<RouteEntry> staticRoutes;
     std::unordered_map<std::string, std::string> arpTable;
+    // OSPF state (routers only)
+    bool        ospfEnabled  = false;
+    std::string routerId;
+    float       helloTimer   = 0.f;
+    std::vector<OspfNeighbor>                  ospfNeighbors;
+    std::unordered_map<std::string, RouterLsa> lsdb;
+    std::vector<RouteEntry>                    ospfRoutes;
 };
 
 // ── Device geometry helpers (no draw calls) ───────────────────────────────
