@@ -387,7 +387,7 @@ int main() {
         }
 
         // ── RMB pressed — open context menu ───────────────────────────
-        if (inCanvas && IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
+        if (inCanvas && !traceModalOpen && IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
             if (simState.mode == SIM_SELECTING_DST || simState.mode == SIM_ANIMATING) {
                 if (simState.mode == SIM_SELECTING_DST) {
                     simState.mode  = SIM_IDLE;
