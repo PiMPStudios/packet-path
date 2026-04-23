@@ -10,6 +10,8 @@ static const int   SCREEN_H     = 720;
 static const float NODE_W       = 120.0f;
 static const float NODE_H       =  60.0f;
 static const int   NODE_FONT_SZ =  14;
+static const float PORT_RADIUS    =  6.0f;
+static const int   PORTS_PER_NODE =  4;    // top=0, right=1, bottom=2, left=3
 static const Color BG_COLOR     = {15, 23, 42, 255};
 
 // ── Device types & node struct ─────────────────────────────────────────────
@@ -39,6 +41,17 @@ Rectangle GetNodeRect(const DeviceNode& n) {
             NODE_W, NODE_H};
 }
 
+Vector2 GetPortPosition(const DeviceNode& n, int port) {
+    float hw = NODE_W / 2.0f, hh = NODE_H / 2.0f;
+    switch (port) {
+        case 0: return {n.position.x,       n.position.y - hh};  // top
+        case 1: return {n.position.x + hw,  n.position.y      };  // right
+        case 2: return {n.position.x,       n.position.y + hh};  // bottom
+        case 3: return {n.position.x - hw,  n.position.y      };  // left
+        default: return n.position;
+    }
+}
+
 void DrawDeviceNode(const DeviceNode& n) {
     Rectangle r = GetNodeRect(n);
     Color     c = GetDeviceColor(n.type);
@@ -52,6 +65,11 @@ void DrawDeviceNode(const DeviceNode& n) {
              (int)(n.position.x - tw / 2.0f),
              (int)(n.position.y - NODE_FONT_SZ / 2.0f),
              NODE_FONT_SZ, WHITE);
+    for (int i = 0; i < PORTS_PER_NODE; ++i) {
+        Vector2 pp = GetPortPosition(n, i);
+        DrawCircleV(pp, PORT_RADIUS,        Color{51,  65,  85, 255});
+        DrawCircleV(pp, PORT_RADIUS - 2.0f, Color{100, 116, 139, 255});
+    }
 }
 
 // ── Dot-grid background (drawn inside BeginMode2D) ────────────────────────
@@ -68,6 +86,65 @@ void DrawDotGrid(const Camera2D& cam) {
     for (float x = startX; x <= botRight.x; x += spacing)
         for (float y = startY; y <= botRight.y; y += spacing)
             DrawCircleV({x, y}, 1.5f / cam.zoom, dot);
+}
+
+// ── Cable struct and helpers ──────────────────────────────────────────────
+struct Cable {
+    int fromId, fromPort;
+    int toId,   toPort;
+};
+
+DeviceNode* FindNode(std::vector<DeviceNode>& nodes, int id) {
+    for (auto& n : nodes)
+        if (n.id == id) return &n;
+    return nullptr;
+}
+
+void DrawAllCables(const std::vector<Cable>& cables,
+                   std::vector<DeviceNode>& nodes)
+{
+    for (const auto& c : cables) {
+        DeviceNode* from = FindNode(nodes, c.fromId);
+        DeviceNode* to   = FindNode(nodes, c.toId);
+        if (!from || !to) continue;
+
+        Vector2 p0 = GetPortPosition(*from, c.fromPort);
+        Vector2 p3 = GetPortPosition(*to,   c.toPort);
+
+        auto ctrl = [](Vector2 p, int port) -> Vector2 {
+            const float offset = 60.0f;
+            switch (port) {
+                case 0: return {p.x,           p.y - offset};
+                case 1: return {p.x + offset,  p.y         };
+                case 2: return {p.x,           p.y + offset};
+                case 3: return {p.x - offset,  p.y         };
+                default: return p;
+            }
+        };
+
+        DrawSplineSegmentBezierCubic(p0, ctrl(p0, c.fromPort),
+                                     ctrl(p3, c.toPort), p3,
+                                     2.0f, Color{148, 163, 184, 255});
+    }
+}
+
+// Returns true and sets outNode/outPort if worldMouse is near any port.
+// excludeId: skip this node's ports (prevents self-connect during connect mode).
+bool HitTestPort(const std::vector<DeviceNode>& nodes, Vector2 worldMouse,
+                 int excludeId, int& outNode, int& outPort)
+{
+    for (int i = (int)nodes.size() - 1; i >= 0; --i) {
+        if (nodes[i].id == excludeId) continue;
+        for (int p = 0; p < PORTS_PER_NODE; ++p) {
+            Vector2 pp = GetPortPosition(nodes[i], p);
+            if (CheckCollisionPointCircle(worldMouse, pp, PORT_RADIUS * 1.5f)) {
+                outNode = nodes[i].id;
+                outPort = p;
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 // ── Spawn helper ──────────────────────────────────────────────────────────
@@ -101,6 +178,13 @@ int main() {
     int     selectedId = -1;
     bool    dragging   = false;
     Vector2 dragOffset = {0.0f, 0.0f};
+
+    std::vector<Cable> cables;
+    bool connecting      = false;
+    int  connectFromId   = -1;
+    int  connectFromPort = -1;
+    int  hoverNodeId     = -1;
+    int  hoverPort       = -1;
 
     while (!WindowShouldClose()) {
         Vector2 screenMouse = GetMousePosition();
@@ -137,40 +221,73 @@ int main() {
             camera.target.y   += beforeZoom.y - afterZoom.y;
         }
 
-        // ── Node select + drag (world-space mouse) ─────────────────────
+        // ── LMB pressed ───────────────────────────────────────────────
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-            int hitIdx = -1;
-            for (int i = (int)nodes.size() - 1; i >= 0; --i) {
-                if (CheckCollisionPointRec(worldMouse, GetNodeRect(nodes[i]))) {
-                    hitIdx = i;
-                    break;
-                }
-            }
-            for (auto& n : nodes) n.selected = false;
-            if (hitIdx != -1) {
-                nodes[hitIdx].selected = true;
-                selectedId = nodes[hitIdx].id;
-                dragging   = true;
-                dragOffset = {worldMouse.x - nodes[hitIdx].position.x,
-                              worldMouse.y - nodes[hitIdx].position.y};
+            int pNode = -1, pPort = -1;
+            if (HitTestPort(nodes, worldMouse, -1, pNode, pPort)) {
+                connecting      = true;
+                connectFromId   = pNode;
+                connectFromPort = pPort;
+                dragging        = false;
             } else {
-                selectedId = -1;
-                dragging   = false;
-            }
-        }
-
-        if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && dragging) {
-            for (auto& n : nodes) {
-                if (n.id == selectedId) {
-                    n.position = {worldMouse.x - dragOffset.x,
-                                  worldMouse.y - dragOffset.y};
-                    break;
+                int hitIdx = -1;
+                for (int i = (int)nodes.size() - 1; i >= 0; --i) {
+                    if (CheckCollisionPointRec(worldMouse, GetNodeRect(nodes[i]))) {
+                        hitIdx = i;
+                        break;
+                    }
+                }
+                for (auto& n : nodes) n.selected = false;
+                if (hitIdx != -1) {
+                    nodes[hitIdx].selected = true;
+                    selectedId = nodes[hitIdx].id;
+                    dragging   = true;
+                    dragOffset = {worldMouse.x - nodes[hitIdx].position.x,
+                                  worldMouse.y - nodes[hitIdx].position.y};
+                } else {
+                    selectedId = -1;
+                    dragging   = false;
                 }
             }
         }
 
-        if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT))
-            dragging = false;
+        // ── LMB held ──────────────────────────────────────────────────
+        if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+            if (dragging) {
+                for (auto& n : nodes) {
+                    if (n.id == selectedId) {
+                        n.position = {worldMouse.x - dragOffset.x,
+                                      worldMouse.y - dragOffset.y};
+                        break;
+                    }
+                }
+            }
+            if (connecting) {
+                hoverNodeId = -1;
+                hoverPort   = -1;
+                HitTestPort(nodes, worldMouse, connectFromId, hoverNodeId, hoverPort);
+            }
+        }
+
+        // ── LMB released ──────────────────────────────────────────────
+        if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+            if (connecting && hoverNodeId != -1) {
+                bool exists = false;
+                for (const auto& c : cables) {
+                    if ((c.fromId == connectFromId && c.fromPort == connectFromPort &&
+                         c.toId   == hoverNodeId   && c.toPort   == hoverPort) ||
+                        (c.fromId == hoverNodeId   && c.fromPort == hoverPort &&
+                         c.toId   == connectFromId && c.toPort   == connectFromPort))
+                    { exists = true; break; }
+                }
+                if (!exists)
+                    cables.push_back({connectFromId, connectFromPort,
+                                      hoverNodeId,   hoverPort});
+            }
+            connecting  = false;
+            dragging    = false;
+            hoverNodeId = -1;
+        }
 
         // ── Draw ───────────────────────────────────────────────────────
         BeginDrawing();
@@ -178,12 +295,31 @@ int main() {
 
             BeginMode2D(camera);
                 DrawDotGrid(camera);
+                DrawAllCables(cables, nodes);
+
+                if (connecting) {
+                    DeviceNode* fromNode = FindNode(nodes, connectFromId);
+                    if (fromNode) {
+                        Vector2 p0 = GetPortPosition(*fromNode, connectFromPort);
+                        DrawLineEx(p0, worldMouse, 2.0f, Color{148, 163, 184, 180});
+                        DrawCircleV(worldMouse, 4.0f, WHITE);
+                    }
+                }
+
+                if (hoverNodeId != -1) {
+                    DeviceNode* hNode = FindNode(nodes, hoverNodeId);
+                    if (hNode) {
+                        Vector2 pp = GetPortPosition(*hNode, hoverPort);
+                        DrawCircleV(pp, PORT_RADIUS + 3.0f, Color{34, 197, 94, 200});
+                    }
+                }
+
                 for (const auto& n : nodes) DrawDeviceNode(n);
             EndMode2D();
 
             // HUD — screen space, outside camera
             DrawFPS(SCREEN_W - 80, 10);
-            DrawText("P=PC  R=Router  S=Switch  Del=Delete  MMB=Pan  Scroll=Zoom",
+            DrawText("P=PC  R=Router  S=Switch  Del=Delete  MMB=Pan  Scroll=Zoom  Drag-port=Cable",
                      10, SCREEN_H - 24, 12, Color{100, 116, 139, 255});
         EndDrawing();
     }
