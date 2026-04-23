@@ -814,7 +814,7 @@ void ExecuteMenuAction(ContextMenu& menu, std::vector<DeviceNode>& nodes,
                 nodes.end());
             if (selectedId == menu.targetId) { selectedId = -1; ps.activeField = -1; }
         } else if (item == 2) {  // Send Packet To…
-            if (simState.mode == SIM_IDLE) {
+            if (simState.mode == SIM_IDLE || simState.mode == SIM_SELECTING_DST) {
                 simState.mode  = SIM_SELECTING_DST;
                 simState.srcId = menu.targetId;
             }
