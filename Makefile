@@ -6,7 +6,7 @@ LIBS     = $(shell pkg-config --libs   raylib 2>/dev/null || echo "-L/usr/local/
              -framework CoreAudio -framework CoreVideo")
 
 TARGET = packet-path
-SRC    = src/main.cpp
+SRC    = $(wildcard src/*.cpp)
 
 all: $(TARGET)
 
