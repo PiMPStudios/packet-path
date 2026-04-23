@@ -33,9 +33,6 @@ static const int RTE_ROW_Y0       = 142;  // first route row Y
 static const int RTE_HEADER_SEP_Y = 136;  // separator below column headers
 static const int RTE_ROW_H        = 22;   // route row height
 static const int RTE_ADD_SEP_Y    = 420;  // separator above add-route form
-static const int RTE_DEST_Y       = 464;  // destination field Y
-static const int RTE_NEXT_Y       = 516;  // next-hop field Y
-static const int RTE_BTN_Y        = 554;  // [Add] button Y
 
 void DrawDeviceNode(const DeviceNode& n) {
     Rectangle r = GetNodeRect(n);

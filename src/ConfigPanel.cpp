@@ -4,23 +4,13 @@
 static const int PANEL_W         = 280;
 static const int SCREEN_W        = 1280;
 static const int CANVAS_W        = SCREEN_W - PANEL_W;
-static const int LOG_H           = 90;
-static const int SCREEN_H        = 720;
-static const int CANVAS_H        = SCREEN_H - LOG_H;
-static const int MENU_ITEM_H     = 28;
-static const int CONTEXT_MENU_W  = 160;
-static const int CFG_HOSTNAME_Y  = 158;
-static const int CFG_MGMTIP_Y    = 210;
-static const int CFG_IFACE_SEP_Y = 246;
 static const int CFG_PORT_Y0     = 272;
 static const int CFG_PORT_STRIDE = 44;
-static const int RTE_ROW_Y0       = 142;
-static const int RTE_HEADER_SEP_Y = 136;
-static const int RTE_ROW_H        = 22;
-static const int RTE_ADD_SEP_Y    = 420;
-static const int RTE_DEST_Y       = 464;
-static const int RTE_NEXT_Y       = 516;
-static const int RTE_BTN_Y        = 554;
+static const int RTE_ROW_Y0      = 142;
+static const int RTE_ROW_H       = 22;
+static const int RTE_DEST_Y      = 464;
+static const int RTE_NEXT_Y      = 516;
+static const int RTE_BTN_Y       = 554;
 
 Rectangle PnlFieldRect(int yOffset) {
     return {(float)(CANVAS_W + 12), (float)yOffset, (float)(PANEL_W - 24), 26.0f};
