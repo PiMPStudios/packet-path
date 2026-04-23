@@ -28,10 +28,10 @@ struct RouteEntry {
 enum LogType { LOG_FORWARD, LOG_ARP_REQ, LOG_ARP_REPLY, LOG_ARP_HIT };
 
 struct ArpEvent {
-    int         nodeId;
+    int         nodeId   = 0;
     std::string ip;
     std::string mac;
-    bool        cacheHit;
+    bool        cacheHit = false;
 };
 
 struct ForwardResult {
