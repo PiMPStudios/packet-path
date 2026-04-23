@@ -31,8 +31,9 @@ static const int CFG_PORT_Y0      = 272;  // first port row Y
 static const int CFG_PORT_STRIDE  = 44;   // port row vertical stride
 // ── Routes tab layout ─────────────────────────────────────────────────────
 static const int RTE_ROW_Y0       = 142;  // first route row Y
+static const int RTE_HEADER_SEP_Y = 136;  // separator below column headers
 static const int RTE_ROW_H        = 22;   // route row height
-[[maybe_unused]] static const int RTE_ADD_SEP_Y    = 420;  // separator above add-route form
+static const int RTE_ADD_SEP_Y    = 420;  // separator above add-route form
 static const int RTE_DEST_Y       = 464;  // destination field Y
 static const int RTE_NEXT_Y       = 516;  // next-hop field Y
 static const int RTE_BTN_Y        = 554;  // [Add] button Y
@@ -411,9 +412,85 @@ void DrawConfigTab(const DeviceNode* n, const PanelState& ps) {
 }
 
 void DrawRoutesTab(const DeviceNode* n, const PanelState& ps) {
-    (void)n; (void)ps;
-    DrawText("ROUTING TABLE", CANVAS_W + 12, 124, 10, Color{100, 116, 139, 255});
-    DrawText("(coming in Task 3)", CANVAS_W + 12, 142, 11, Color{51, 65, 85, 255});
+    // Column headers
+    DrawText("T", CANVAS_W + 12, 124, 10, Color{100, 116, 139, 255});
+    DrawText("DESTINATION",  CANVAS_W + 30, 124, 10, Color{100, 116, 139, 255});
+    DrawText("NEXT-HOP",     CANVAS_W + 130, 124, 10, Color{100, 116, 139, 255});
+    DrawText("VIA",          CANVAS_W + 210, 124, 10, Color{100, 116, 139, 255});
+    DrawLineEx({(float)CANVAS_W, (float)RTE_HEADER_SEP_Y}, {(float)(CANVAS_W+PANEL_W), (float)RTE_HEADER_SEP_Y},
+               1.0f, PANEL_BORDER);
+
+    auto table = GetRoutingTable(*n);
+
+    if (table.empty()) {
+        DrawText("No routes configured", CANVAS_W + 20, RTE_ROW_Y0, 11,
+                 Color{51, 65, 85, 255});
+    } else {
+        int displayed = std::min((int)table.size(), 8);
+        for (int i = 0; i < displayed; ++i) {
+            const RouteEntry& r = table[i];
+            int ry = RTE_ROW_Y0 + i * RTE_ROW_H;
+            Color rowColor = (r.src == ROUTE_CONNECTED)
+                             ? Color{34, 197, 94, 255}
+                             : Color{59, 130, 246, 255};
+
+            // Type letter
+            const char* typeLetter = (r.src == ROUTE_CONNECTED) ? "C" : "S";
+            DrawText(typeLetter, CANVAS_W + 12, ry + 3, 11, rowColor);
+
+            // Destination
+            DrawText(r.dest.c_str(), CANVAS_W + 30, ry + 3, 10, rowColor);
+
+            // Next-hop
+            DrawText(r.nextHop.c_str(), CANVAS_W + 130, ry + 3, 10, rowColor);
+
+            // Via (port name or em-dash for mgmt/static)
+            if (r.outPort >= 0) {
+                std::string via = GetPortName(n->type, r.outPort);
+                DrawText(via.c_str(), CANVAS_W + 210, ry + 3, 10, rowColor);
+            } else {
+                DrawText("\xe2\x80\x94", CANVAS_W + 210, ry + 3, 10, rowColor);
+            }
+
+            // [×] delete button for static routes only
+            if (r.src == ROUTE_STATIC) {
+                Rectangle delBtn = PnlRouteDeleteRect(i);
+                DrawRectangleRounded(delBtn, 0.3f, 4, Color{51, 65, 85, 255});
+                DrawText("x", (int)(delBtn.x + 4), (int)(delBtn.y + 1), 11,
+                         Color{239, 68, 68, 255});
+            }
+        }
+    }
+
+    // Add-form separator and labels
+    DrawLineEx({(float)CANVAS_W,           (float)RTE_ADD_SEP_Y},
+               {(float)(CANVAS_W+PANEL_W), (float)RTE_ADD_SEP_Y},
+               1.0f, PANEL_BORDER);
+    DrawText("ADD STATIC ROUTE", CANVAS_W + 12, RTE_ADD_SEP_Y + 8, 10,
+             Color{100, 116, 139, 255});
+
+    // Destination field (active=false until Task 4 wires it up)
+    DrawTextField(PnlRouteDestRect(), "Destination", "x.x.x.x/xx",
+                  ps.newRouteDest, false, ValidateIP(ps.newRouteDest));
+
+    // Next-hop field (active=false until Task 4)
+    DrawTextField(PnlRouteNextRect(), "Next-Hop", "x.x.x.x",
+                  ps.newRouteNext, false, ValidateIPOnly(ps.newRouteNext));
+
+    // [Add Route] button (dim until Task 4 wires it up)
+    bool canAdd = ValidateIP(ps.newRouteDest) && ValidateIPOnly(ps.newRouteNext);
+    DrawRectangleRec(PnlRouteAddBtnRect(),
+                     canAdd ? Color{30, 58, 138, 255} : Color{22, 33, 62, 255});
+    DrawRectangleLinesEx(PnlRouteAddBtnRect(), 1.0f,
+                         canAdd ? Color{59, 130, 246, 255} : PANEL_BORDER);
+    {
+        int tw = MeasureText("Add Route", 12);
+        Rectangle btn = PnlRouteAddBtnRect();
+        DrawText("Add Route",
+                 (int)(btn.x + (btn.width - tw) / 2),
+                 (int)(btn.y + 8), 12,
+                 canAdd ? WHITE : Color{51, 65, 85, 255});
+    }
 }
 
 void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
