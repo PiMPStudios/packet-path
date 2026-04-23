@@ -18,3 +18,6 @@ docs/RFCs/*.pdf
 
 # raylib compiled libs (install locally)
 lib/
+
+# Visual brainstorming companion (local sessions only)
+.superpowers/
