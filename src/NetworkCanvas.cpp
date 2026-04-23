@@ -445,7 +445,7 @@ void DrawOspfTab(const DeviceNode* n) {
         if ((int)rid.size() > 11) rid = rid.substr(rid.size() - 11);
         DrawText(rid.c_str(), CANVAS_W + 12, y, 10, WHITE);
 
-        int si = (int)nbr.state;
+        int si = std::clamp((int)nbr.state, 0, 3);
         DrawText(stateNames[si], CANVAS_W + 110, y, 10, stateColors[si]);
 
         char deadBuf[8];
@@ -554,7 +554,7 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
         DrawRoutesTab(n, ps);
     else if (ps.activeTab == TAB_ARP)
         DrawArpTab(n);
-    else
+    else if (ps.activeTab == TAB_OSPF)
         DrawOspfTab(n);
 }
 
