@@ -1,0 +1,4 @@
+CompileFlags:
+  Add:
+    - -I/opt/homebrew/Cellar/raylib/5.5/include
+    - -std=c++17
