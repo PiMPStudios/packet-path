@@ -56,6 +56,7 @@ void DrawDeviceNode(const DeviceNode& n) {
 // ── Spawn helper ──────────────────────────────────────────────────────────
 static int nextId = 1;
 
+// Requires InitWindow() — uses raylib RNG (GetRandomValue).
 DeviceNode SpawnNode(DeviceType type) {
     const char* names[] = {"PC", "RTR", "SW"};
     DeviceNode n;
@@ -93,29 +94,28 @@ int main() {
                 [&](const DeviceNode& n){ return n.id == selectedId; }),
                 nodes.end());
             selectedId = -1;
+            dragging   = false;
         }
 
         // LMB: select + start drag (back-to-front hit detection for correct z-order)
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-            int hitId = -1;
+            int hitIdx = -1;
             for (int i = (int)nodes.size() - 1; i >= 0; --i) {
                 if (CheckCollisionPointRec(mouse, GetNodeRect(nodes[i]))) {
-                    hitId = nodes[i].id;
+                    hitIdx = i;
                     break;
                 }
             }
-            for (auto& n : nodes) n.selected = (n.id == hitId);
-            selectedId = hitId;
-
-            if (selectedId != -1) {
-                dragging = true;
-                for (auto& n : nodes) {
-                    if (n.id == selectedId) {
-                        dragOffset = {mouse.x - n.position.x,
-                                      mouse.y - n.position.y};
-                        break;
-                    }
-                }
+            for (auto& n : nodes) n.selected = false;
+            if (hitIdx != -1) {
+                nodes[hitIdx].selected = true;
+                selectedId = nodes[hitIdx].id;
+                dragging   = true;
+                dragOffset = {mouse.x - nodes[hitIdx].position.x,
+                              mouse.y - nodes[hitIdx].position.y};
+            } else {
+                selectedId = -1;
+                dragging   = false;
             }
         }
 
