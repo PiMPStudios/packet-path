@@ -384,6 +384,77 @@ void DrawArpTab(const DeviceNode* n) {
     }
 }
 
+void DrawOspfTab(const DeviceNode* n) {
+    if (!n) {
+        DrawText("No device selected", CANVAS_W + 20, 130, 12, Color{100,116,139,255});
+        return;
+    }
+    if (n->type != ROUTER) {
+        DrawText("OSPF: routers only", CANVAS_W + 20, 130, 12, Color{100,116,139,255});
+        return;
+    }
+
+    // Enable/disable button
+    Rectangle btn = PnlOspfEnableRect();
+    Color btnColor = n->ospfEnabled ? Color{34,197,94,255} : Color{51,65,85,255};
+    DrawRectangleRec(btn, btnColor);
+    DrawRectangleLinesEx(btn, 1.0f, Color{71,85,105,255});
+    const char* btnLabel = n->ospfEnabled ? "OSPF: Enabled" : "OSPF: Disabled";
+    int tw = MeasureText(btnLabel, 12);
+    DrawText(btnLabel, (int)(btn.x + (btn.width - tw) / 2), (int)(btn.y + 7), 12,
+             n->ospfEnabled ? Color{15,23,42,255} : Color{148,163,184,255});
+
+    if (!n->ospfEnabled) return;
+
+    // Router ID and Area
+    int y = 160;
+    DrawText("Router ID", CANVAS_W + 12, y, 11, Color{100,116,139,255});
+    DrawText(n->routerId.empty() ? "(none)" : n->routerId.c_str(),
+             CANVAS_W + 90, y, 11, WHITE);
+    y += 20;
+    DrawText("Area", CANVAS_W + 12, y, 11, Color{100,116,139,255});
+    DrawText("0", CANVAS_W + 90, y, 11, WHITE);
+    y += 24;
+
+    // Separator
+    DrawLineEx({(float)CANVAS_W, (float)y}, {(float)(CANVAS_W + PANEL_W), (float)y},
+               1.0f, PANEL_BORDER);
+    y += 6;
+    DrawText("Neighbors", CANVAS_W + 12, y, 11, Color{100,116,139,255});
+    y += 18;
+
+    if (n->ospfNeighbors.empty()) {
+        DrawText("(none)", CANVAS_W + 20, y, 11, Color{71,85,105,255});
+        return;
+    }
+
+    // Header row
+    DrawText("Router-ID",   CANVAS_W + 12,  y, 10, Color{71,85,105,255});
+    DrawText("State",       CANVAS_W + 110, y, 10, Color{71,85,105,255});
+    DrawText("Dead",        CANVAS_W + 190, y, 10, Color{71,85,105,255});
+    y += 14;
+
+    static const char* stateNames[] = { "DOWN", "INIT", "2WAY", "FULL" };
+    static const Color stateColors[] = {
+        {100,116,139,255}, {234,179,8,255}, {59,130,246,255}, {34,197,94,255}
+    };
+
+    for (const auto& nbr : n->ospfNeighbors) {
+        if (y > CANVAS_H - 20) break;
+        std::string rid = nbr.neighborRouterId;
+        if ((int)rid.size() > 11) rid = rid.substr(rid.size() - 11);
+        DrawText(rid.c_str(), CANVAS_W + 12, y, 10, WHITE);
+
+        int si = (int)nbr.state;
+        DrawText(stateNames[si], CANVAS_W + 110, y, 10, stateColors[si]);
+
+        char deadBuf[8];
+        std::snprintf(deadBuf, sizeof(deadBuf), "%.1fs", nbr.deadTimer);
+        DrawText(deadBuf, CANVAS_W + 190, y, 10, Color{148,163,184,255});
+        y += 16;
+    }
+}
+
 void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
                const PanelState& ps)
 {
@@ -459,6 +530,20 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
                  arpActive ? WHITE : Color{100, 116, 139, 255});
     }
 
+    Rectangle ospfTab    = PnlOspfTabRect();
+    bool      ospfActive = (ps.activeTab == TAB_OSPF);
+    DrawRectangleRec(ospfTab, ospfActive ? Color{30,41,59,255} : PANEL_BG);
+    if (ospfActive)
+        DrawLineEx({ospfTab.x, ospfTab.y + ospfTab.height},
+                   {ospfTab.x + ospfTab.width, ospfTab.y + ospfTab.height}, 2.0f,
+                   Color{59, 130, 246, 255});
+    {
+        int twO = MeasureText("OSPF", 12);
+        DrawText("OSPF", (int)(ospfTab.x + (ospfTab.width - twO) / 2),
+                 (int)(ospfTab.y + 7), 12,
+                 ospfActive ? WHITE : Color{100, 116, 139, 255});
+    }
+
     DrawLineEx({(float)CANVAS_W, 116.0f}, {(float)(CANVAS_W + PANEL_W), 116.0f},
                1.0f, PANEL_BORDER);
 
@@ -467,8 +552,10 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
         DrawConfigTab(n, ps);
     else if (ps.activeTab == TAB_ROUTES)
         DrawRoutesTab(n, ps);
-    else
+    else if (ps.activeTab == TAB_ARP)
         DrawArpTab(n);
+    else
+        DrawOspfTab(n);
 }
 
 // ── Context menu draw ────────────────────────────────────────────────────
