@@ -1,5 +1,7 @@
 #include "NetworkCanvas.h"
 #include "OspfEngine.h"
+#include "Level.h"
+#include "GameUI.h"
 
 // ── Main ──────────────────────────────────────────────────────────────────
 int main() {
@@ -30,6 +32,10 @@ int main() {
     ContextMenu contextMenu;
     std::vector<LogEntry> logEntries;
     SimState simState;
+    GameMode    gameMode             = GAME_SANDBOX;
+    int         currentLevel         = 0;
+    LevelDef    activeLevelDef;
+    int         lastConditionsPassed = 0;
 
     while (!WindowShouldClose()) {
         float dt = GetFrameTime();
@@ -44,6 +50,30 @@ int main() {
             if (IsKeyPressed(KEY_P)) nodes.push_back(SpawnNode(PC,     worldMouse));
             if (IsKeyPressed(KEY_R)) nodes.push_back(SpawnNode(ROUTER, worldMouse));
             if (IsKeyPressed(KEY_S)) nodes.push_back(SpawnNode(SWITCH, worldMouse));
+            // Level shortcuts: 1–4 load JSON levels, 0 returns to sandbox
+            if (ps.activePortAreaField == -1) {
+                for (int k = 1; k <= 4; ++k) {
+                    if (IsKeyPressed(KEY_ONE + (k - 1))) {
+                        char path[64];
+                        std::snprintf(path, sizeof(path), "levels/level_%02d.json", k);
+                        LevelDef def;
+                        if (LoadLevel(path, def)) {
+                            activeLevelDef       = def;
+                            ApplyLevel(def, nodes, cables, selectedId);
+                            ps                   = PanelState{};
+                            simState             = SimState{};
+                            logEntries.clear();
+                            lastConditionsPassed = 0;
+                            gameMode             = GAME_PLAYING;
+                            currentLevel         = k;
+                        }
+                    }
+                }
+                if (IsKeyPressed(KEY_ZERO)) {
+                    gameMode     = GAME_SANDBOX;
+                    currentLevel = 0;
+                }
+            }
         }
 
         if (IsKeyPressed(KEY_ESCAPE)) {
@@ -101,6 +131,33 @@ int main() {
 
         // ── LMB pressed ───────────────────────────────────────────────
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+            if (gameMode == GAME_WIN) {
+                // Win overlay clicks — consume event; don't fall through to canvas
+                if (CheckCollisionPointRec(screenMouse, WinRetryBtnRect())) {
+                    ApplyLevel(activeLevelDef, nodes, cables, selectedId);
+                    ps                   = PanelState{};
+                    simState             = SimState{};
+                    logEntries.clear();
+                    lastConditionsPassed = 0;
+                    gameMode             = GAME_PLAYING;
+                } else if (CheckCollisionPointRec(screenMouse, WinNextBtnRect()) &&
+                           currentLevel < 4) {
+                    ++currentLevel;
+                    char path[64];
+                    std::snprintf(path, sizeof(path), "levels/level_%02d.json", currentLevel);
+                    LevelDef def;
+                    if (LoadLevel(path, def)) {
+                        activeLevelDef       = def;
+                        ApplyLevel(def, nodes, cables, selectedId);
+                        ps                   = PanelState{};
+                        simState             = SimState{};
+                        logEntries.clear();
+                        lastConditionsPassed = 0;
+                        gameMode             = GAME_PLAYING;
+                    }
+                }
+                // any other click on the WIN screen is silently consumed
+            } else {
             if (contextMenu.visible) {
                 if (contextMenu.hoverItem != -1)
                     ExecuteMenuAction(contextMenu, nodes, cables, selectedId, ps, camera, simState);
@@ -180,6 +237,15 @@ int main() {
                         simState.mode = SIM_ANIMATING;
                     }
                     pushLog(le);
+                    // Check all win conditions after every simulation attempt
+                    if (gameMode == GAME_PLAYING &&
+                        !activeLevelDef.winConditions.empty()) {
+                        int passed = CheckWinConditions(
+                                         activeLevelDef, nodes, cables);
+                        lastConditionsPassed = passed;
+                        if (passed == (int)activeLevelDef.winConditions.size())
+                            gameMode = GAME_WIN;
+                    }
                     if (simState.mode != SIM_ANIMATING) {
                         simState.mode  = SIM_IDLE;
                         simState.srcId = -1;
@@ -214,6 +280,7 @@ int main() {
                 }
             }
             }  // closes else if (inCanvas)
+            }  // closes else (gameMode != GAME_WIN)
         }
 
         // ── LMB held ──────────────────────────────────────────────────
@@ -553,10 +620,21 @@ int main() {
             DrawContextMenu(contextMenu, screenMouse);
             DrawLogConsole(logEntries);
 
+            // Level HUD badge (top-left) and win overlay
+            if (gameMode == GAME_PLAYING || gameMode == GAME_WIN) {
+                DrawLevelHUD(currentLevel, activeLevelDef.title,
+                             lastConditionsPassed,
+                             (int)activeLevelDef.winConditions.size());
+            }
+            if (gameMode == GAME_WIN) {
+                DrawWinOverlay(activeLevelDef, currentLevel < 4);
+            }
+
             // HUD — screen space, outside camera
             DrawFPS(CANVAS_W - 80, 10);
-            DrawText("P=PC  R=Router  S=Switch  Del=Delete  MMB=Pan  Scroll=Zoom  Drag-port=Cable  Esc=Cancel",
-                     10, CANVAS_H - 24, 12, Color{100, 116, 139, 255});
+            DrawText("P=PC  R=Router  S=Switch  Del=Delete  MMB=Pan  Scroll=Zoom  "
+                     "Drag-port=Cable  Esc=Cancel  1-4=Level  0=Sandbox",
+                     10, CANVAS_H - 24, 10, Color{100, 116, 139, 255});
         EndDrawing();
     }
 
