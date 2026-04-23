@@ -881,6 +881,7 @@ void ExecuteMenuAction(ContextMenu& menu, std::vector<DeviceNode>& nodes,
                 [&](const DeviceNode& n){ return n.id == menu.targetId; }),
                 nodes.end());
             if (selectedId == menu.targetId) { selectedId = -1; ps.activeField = -1; }
+            if (simState.srcId == menu.targetId) { simState.mode = SIM_IDLE; simState.srcId = -1; }
         } else if (item == 2) {  // Send Packet To…
             if (simState.mode == SIM_IDLE || simState.mode == SIM_SELECTING_DST) {
                 simState.mode  = SIM_SELECTING_DST;
@@ -966,6 +967,7 @@ int main() {
             cables.erase(std::remove_if(cables.begin(), cables.end(),
                 [&](const Cable& c){ return c.fromId == selectedId || c.toId == selectedId; }),
                 cables.end());
+            if (simState.srcId == selectedId) { simState.mode = SIM_IDLE; simState.srcId = -1; }
             selectedId = -1;
             dragging   = false;
         }
