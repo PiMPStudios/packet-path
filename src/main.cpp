@@ -45,7 +45,8 @@ int main() {
                          screenMouse.y < (float)CANVAS_H);
 
         // ── Spawn / delete / cancel ────────────────────────────────────
-        if (inCanvas && ps.activeField == -1 && ps.activeRouteField == -1 &&
+        if (inCanvas && gameMode != GAME_WIN &&
+            ps.activeField == -1 && ps.activeRouteField == -1 &&
             simState.mode == SIM_IDLE) {
             if (IsKeyPressed(KEY_P)) nodes.push_back(SpawnNode(PC,     worldMouse));
             if (IsKeyPressed(KEY_R)) nodes.push_back(SpawnNode(ROUTER, worldMouse));
@@ -58,6 +59,7 @@ int main() {
                         std::snprintf(path, sizeof(path), "levels/level_%02d.json", k);
                         LevelDef def;
                         if (LoadLevel(path, def)) {
+                            currentLevel         = k;
                             activeLevelDef       = def;
                             ApplyLevel(def, nodes, cables, selectedId);
                             ps                   = PanelState{};
@@ -65,7 +67,11 @@ int main() {
                             logEntries.clear();
                             lastConditionsPassed = 0;
                             gameMode             = GAME_PLAYING;
-                            currentLevel         = k;
+                            dragging             = false;
+                            connecting           = false;
+                            hoverNodeId          = -1;
+                            hoverPort            = -1;
+                            contextMenu.visible  = false;
                         }
                     }
                 }
@@ -140,13 +146,19 @@ int main() {
                     logEntries.clear();
                     lastConditionsPassed = 0;
                     gameMode             = GAME_PLAYING;
+                    dragging             = false;
+                    connecting           = false;
+                    hoverNodeId          = -1;
+                    hoverPort            = -1;
+                    contextMenu.visible  = false;
                 } else if (CheckCollisionPointRec(screenMouse, WinNextBtnRect()) &&
                            currentLevel < 4) {
-                    ++currentLevel;
+                    int nextLevel = currentLevel + 1;
                     char path[64];
-                    std::snprintf(path, sizeof(path), "levels/level_%02d.json", currentLevel);
+                    std::snprintf(path, sizeof(path), "levels/level_%02d.json", nextLevel);
                     LevelDef def;
                     if (LoadLevel(path, def)) {
+                        currentLevel         = nextLevel;
                         activeLevelDef       = def;
                         ApplyLevel(def, nodes, cables, selectedId);
                         ps                   = PanelState{};
@@ -154,6 +166,11 @@ int main() {
                         logEntries.clear();
                         lastConditionsPassed = 0;
                         gameMode             = GAME_PLAYING;
+                        dragging             = false;
+                        connecting           = false;
+                        hoverNodeId          = -1;
+                        hoverPort            = -1;
+                        contextMenu.visible  = false;
                     }
                 }
                 // any other click on the WIN screen is silently consumed
@@ -366,7 +383,7 @@ int main() {
         }
 
         // ── Panel click-to-focus ───────────────────────────────────────
-        if (!inCanvas && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        if (gameMode != GAME_WIN && !inCanvas && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             if (selectedId != -1) {
                 // Tab clicks
                 if (CheckCollisionPointRec(screenMouse, PnlConfigTabRect())) {
