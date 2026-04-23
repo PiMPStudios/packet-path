@@ -1,5 +1,4 @@
 #include "Device.h"
-#include <algorithm>
 
 Color GetDeviceColor(DeviceType t) {
     switch (t) {
