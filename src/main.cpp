@@ -24,18 +24,18 @@ static const int   MENU_ITEM_H    = 28;
 static const int   CONTEXT_MENU_W = 160;
 
 // ── Config tab layout ─────────────────────────────────────────────────────
-[[maybe_unused]] static const int CFG_HOSTNAME_Y   = 158;  // hostname field Y
-[[maybe_unused]] static const int CFG_MGMTIP_Y     = 210;  // mgmt IP field Y
-[[maybe_unused]] static const int CFG_IFACE_SEP_Y  = 246;  // separator above interfaces section
-[[maybe_unused]] static const int CFG_PORT_Y0      = 272;  // first port row Y
-[[maybe_unused]] static const int CFG_PORT_STRIDE  = 44;   // port row vertical stride
+static const int CFG_HOSTNAME_Y   = 158;  // hostname field Y
+static const int CFG_MGMTIP_Y     = 210;  // mgmt IP field Y
+static const int CFG_IFACE_SEP_Y  = 246;  // separator above interfaces section
+static const int CFG_PORT_Y0      = 272;  // first port row Y
+static const int CFG_PORT_STRIDE  = 44;   // port row vertical stride
 // ── Routes tab layout ─────────────────────────────────────────────────────
-[[maybe_unused]] static const int RTE_ROW_Y0       = 142;  // first route row Y
-[[maybe_unused]] static const int RTE_ROW_H        = 22;   // route row height
+static const int RTE_ROW_Y0       = 142;  // first route row Y
+static const int RTE_ROW_H        = 22;   // route row height
 [[maybe_unused]] static const int RTE_ADD_SEP_Y    = 420;  // separator above add-route form
-[[maybe_unused]] static const int RTE_DEST_Y       = 464;  // destination field Y
-[[maybe_unused]] static const int RTE_NEXT_Y       = 516;  // next-hop field Y
-[[maybe_unused]] static const int RTE_BTN_Y        = 554;  // [Add] button Y
+static const int RTE_DEST_Y       = 464;  // destination field Y
+static const int RTE_NEXT_Y       = 516;  // next-hop field Y
+static const int RTE_BTN_Y        = 554;  // [Add] button Y
 
 // ── Routing ───────────────────────────────────────────────────────────────
 enum RouteSource { ROUTE_CONNECTED, ROUTE_STATIC };
@@ -199,8 +199,24 @@ Rectangle PnlFieldRect(int yOffset) {
 }
 
 Rectangle PnlPortFieldRect(int port) {
-    return {(float)(CANVAS_W + 80), 240.0f + port * 44, (float)(PANEL_W - 92), 24.0f};
+    return {(float)(CANVAS_W + 80), (float)(CFG_PORT_Y0 + port * CFG_PORT_STRIDE),
+            (float)(PANEL_W - 92), 24.0f};
 }
+
+static float PnlTabW() { return (PANEL_W - 24 - 4) / 2.0f; }
+Rectangle PnlConfigTabRect() {
+    return {(float)(CANVAS_W + 12), 88.0f, PnlTabW(), 26.0f};
+}
+Rectangle PnlRoutesTabRect() {
+    return {(float)(CANVAS_W + 12) + PnlTabW() + 4.0f, 88.0f, PnlTabW(), 26.0f};
+}
+Rectangle PnlRouteDeleteRect(int rowIdx) {
+    return {(float)(CANVAS_W + PANEL_W - 22),
+            (float)(RTE_ROW_Y0 + rowIdx * RTE_ROW_H + 4), 16.0f, 14.0f};
+}
+Rectangle PnlRouteDestRect()   { return {(float)(CANVAS_W+12),(float)RTE_DEST_Y,(float)(PANEL_W-24),26.0f}; }
+Rectangle PnlRouteNextRect()   { return {(float)(CANVAS_W+12),(float)RTE_NEXT_Y,(float)(PANEL_W-24),26.0f}; }
+Rectangle PnlRouteAddBtnRect() { return {(float)(CANVAS_W+12),(float)RTE_BTN_Y, (float)(PANEL_W-24),28.0f}; }
 
 // ── Context menu ──────────────────────────────────────────────────────────
 enum ContextType { CTX_NONE, CTX_NODE, CTX_CABLE, CTX_CANVAS };
@@ -375,6 +391,31 @@ DeviceNode SpawnNode(DeviceType type, Vector2 worldPos) {
     return n;
 }
 
+void DrawConfigTab(const DeviceNode* n, const PanelState& ps) {
+    DrawText("GENERAL", CANVAS_W + 12, 124, 10, Color{100, 116, 139, 255});
+    DrawTextField(PnlFieldRect(CFG_HOSTNAME_Y), "Hostname", nullptr,
+                  n->label, ps.activeField == 0, !n->label.empty());
+    DrawTextField(PnlFieldRect(CFG_MGMTIP_Y), "Mgmt IP", "x.x.x.x/xx",
+                  n->mgmtIp, ps.activeField == 1, ValidateIP(n->mgmtIp));
+    DrawLineEx({(float)CANVAS_W,           (float)CFG_IFACE_SEP_Y},
+               {(float)(CANVAS_W+PANEL_W), (float)CFG_IFACE_SEP_Y},
+               1.0f, PANEL_BORDER);
+    DrawText("INTERFACES", CANVAS_W + 12, CFG_IFACE_SEP_Y + 10, 10, Color{100, 116, 139, 255});
+    for (int i = 0; i < PORTS_PER_NODE; ++i) {
+        std::string pname = GetPortName(n->type, i);
+        DrawTextField(PnlPortFieldRect(i), "", "x.x.x.x/xx",
+                      n->portIp[i], ps.activeField == 2 + i, ValidateIP(n->portIp[i]));
+        DrawText(pname.c_str(), CANVAS_W + 16, CFG_PORT_Y0 + i * CFG_PORT_STRIDE + 7,
+                 11, Color{148, 163, 184, 255});
+    }
+}
+
+void DrawRoutesTab(const DeviceNode* n, const PanelState& ps) {
+    (void)n; (void)ps;
+    DrawText("ROUTING TABLE", CANVAS_W + 12, 124, 10, Color{100, 116, 139, 255});
+    DrawText("(coming in Task 3)", CANVAS_W + 12, 142, 11, Color{51, 65, 85, 255});
+}
+
 void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
                const PanelState& ps)
 {
@@ -396,34 +437,54 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
     const DeviceNode* n = FindNode(nodes, selectedId);
     if (!n) return;
 
+    // Device type badge
     const char* typeNames[] = {"PC", "Router", "Switch"};
     int bw = MeasureText(typeNames[(int)n->type], 11) + 16;
     DrawRectangleRounded({(float)(CANVAS_W + 12), 50.0f, (float)bw, 22.0f},
                          0.5f, 4, GetDeviceColor(n->type));
     DrawText(typeNames[(int)n->type], CANVAS_W + 20, 56, 11, WHITE);
     DrawText(n->label.c_str(), CANVAS_W + 16 + bw, 56, 13, WHITE);
-
     DrawLineEx({(float)CANVAS_W, 84.0f}, {(float)(CANVAS_W + PANEL_W), 84.0f},
                1.0f, PANEL_BORDER);
-    DrawText("GENERAL", CANVAS_W + 12, 94, 10, Color{100, 116, 139, 255});
 
-    DrawTextField(PnlFieldRect(126), "Hostname", nullptr,
-                  n->label, ps.activeField == 0, !n->label.empty());
-    DrawTextField(PnlFieldRect(178), "Mgmt IP", "x.x.x.x/xx",
-                  n->mgmtIp, ps.activeField == 1, ValidateIP(n->mgmtIp));
+    // Tab header
+    Rectangle cfgTab = PnlConfigTabRect();
+    Rectangle rteTab = PnlRoutesTabRect();
 
-    DrawLineEx({(float)CANVAS_W, 214.0f}, {(float)(CANVAS_W + PANEL_W), 214.0f},
-               1.0f, PANEL_BORDER);
-    DrawText("INTERFACES", CANVAS_W + 12, 224, 10, Color{100, 116, 139, 255});
-
-    for (int i = 0; i < PORTS_PER_NODE; ++i) {
-        std::string pname = GetPortName(n->type, i);
-        int ry = 240 + i * 44;
-        DrawTextField(PnlPortFieldRect(i), "", "x.x.x.x/xx",
-                      n->portIp[i], ps.activeField == 2 + i,
-                      ValidateIP(n->portIp[i]));
-        DrawText(pname.c_str(), CANVAS_W + 16, ry + 7, 11, Color{148, 163, 184, 255});
+    bool cfgActive = (ps.activeTab == TAB_CONFIG);
+    DrawRectangleRec(cfgTab, cfgActive ? Color{30,41,59,255} : PANEL_BG);
+    if (cfgActive)
+        DrawLineEx({cfgTab.x, cfgTab.y + cfgTab.height},
+                   {cfgTab.x + cfgTab.width, cfgTab.y + cfgTab.height}, 2.0f,
+                   Color{59, 130, 246, 255});
+    {
+        int tw2 = MeasureText("Config", 12);
+        DrawText("Config", (int)(cfgTab.x + (cfgTab.width - tw2) / 2),
+                 (int)(cfgTab.y + 7), 12,
+                 cfgActive ? WHITE : Color{100, 116, 139, 255});
     }
+
+    bool rteActive = (ps.activeTab == TAB_ROUTES);
+    DrawRectangleRec(rteTab, rteActive ? Color{30,41,59,255} : PANEL_BG);
+    if (rteActive)
+        DrawLineEx({rteTab.x, rteTab.y + rteTab.height},
+                   {rteTab.x + rteTab.width, rteTab.y + rteTab.height}, 2.0f,
+                   Color{59, 130, 246, 255});
+    {
+        int tw3 = MeasureText("Routes", 12);
+        DrawText("Routes", (int)(rteTab.x + (rteTab.width - tw3) / 2),
+                 (int)(rteTab.y + 7), 12,
+                 rteActive ? WHITE : Color{100, 116, 139, 255});
+    }
+
+    DrawLineEx({(float)CANVAS_W, 116.0f}, {(float)(CANVAS_W + PANEL_W), 116.0f},
+               1.0f, PANEL_BORDER);
+
+    // Tab content
+    if (ps.activeTab == TAB_CONFIG)
+        DrawConfigTab(n, ps);
+    else
+        DrawRoutesTab(n, ps);
 }
 
 // ── Context menu draw & action ────────────────────────────────────────────
@@ -564,6 +625,8 @@ int main() {
             contextMenu.visible = false;
             if (ps.activeField != -1) {
                 ps.activeField = -1;
+            } else if (ps.activeRouteField != -1) {
+                ps.activeRouteField = -1;
             } else if (connecting) {
                 connecting  = false;
                 hoverNodeId = -1;
@@ -713,13 +776,28 @@ int main() {
 
         // ── Panel click-to-focus ───────────────────────────────────────
         if (!inCanvas && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-            ps.activeField = -1;
             if (selectedId != -1) {
-                if (CheckCollisionPointRec(screenMouse, PnlFieldRect(126))) ps.activeField = 0;
-                if (CheckCollisionPointRec(screenMouse, PnlFieldRect(178))) ps.activeField = 1;
-                for (int i = 0; i < PORTS_PER_NODE; ++i)
-                    if (CheckCollisionPointRec(screenMouse, PnlPortFieldRect(i)))
-                        ps.activeField = 2 + i;
+                // Tab clicks
+                if (CheckCollisionPointRec(screenMouse, PnlConfigTabRect())) {
+                    ps.activeTab        = TAB_CONFIG;
+                    ps.activeField      = -1;
+                    ps.activeRouteField = -1;
+                }
+                if (CheckCollisionPointRec(screenMouse, PnlRoutesTabRect())) {
+                    ps.activeTab        = TAB_ROUTES;
+                    ps.activeField      = -1;
+                    ps.activeRouteField = -1;
+                }
+                // Config tab field focus
+                if (ps.activeTab == TAB_CONFIG) {
+                    ps.activeField = -1;
+                    if (CheckCollisionPointRec(screenMouse, PnlFieldRect(CFG_HOSTNAME_Y))) ps.activeField = 0;
+                    if (CheckCollisionPointRec(screenMouse, PnlFieldRect(CFG_MGMTIP_Y)))  ps.activeField = 1;
+                    for (int i = 0; i < PORTS_PER_NODE; ++i)
+                        if (CheckCollisionPointRec(screenMouse, PnlPortFieldRect(i)))
+                            ps.activeField = 2 + i;
+                }
+                // Routes tab interactions handled in Task 4
             }
         }
 
@@ -740,8 +818,12 @@ int main() {
 
         // Reset active field when selection changes
         if (selectedId != prevSelectedId) {
-            ps.activeField  = -1;
-            prevSelectedId  = selectedId;
+            ps.activeField      = -1;
+            ps.activeTab        = TAB_CONFIG;
+            ps.activeRouteField = -1;
+            ps.newRouteDest.clear();
+            ps.newRouteNext.clear();
+            prevSelectedId      = selectedId;
         }
 
         // ── Draw ───────────────────────────────────────────────────────
