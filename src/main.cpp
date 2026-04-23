@@ -4,9 +4,10 @@
 // ── Constants ─────────────────────────────────────────────────────────────
 static const int   SCREEN_W = 1280;
 static const int   SCREEN_H = 720;
-static const float NODE_W   = 120.0f;
-static const float NODE_H   =  60.0f;
-static const Color BG_COLOR = {15, 23, 42, 255};
+static const float NODE_W      = 120.0f;
+static const float NODE_H      =  60.0f;
+static const int   NODE_FONT_SZ =  14;
+static const Color BG_COLOR    = {15, 23, 42, 255};
 
 // ── Device types & node struct ─────────────────────────────────────────────
 enum DeviceType { PC, ROUTER, SWITCH };
@@ -22,11 +23,11 @@ struct DeviceNode {
 // ── Helper functions ───────────────────────────────────────────────────────
 Color GetDeviceColor(DeviceType t) {
     switch (t) {
-        case PC:     return {59,  130, 246, 255};  // blue
-        case ROUTER: return {249, 115,  22, 255};  // orange
-        case SWITCH: return {34,  197,  94, 255};  // green
+        case PC:     return {59,  130, 246, 255};
+        case ROUTER: return {249, 115,  22, 255};
+        case SWITCH: return {34,  197,  94, 255};
+        default:     return WHITE;
     }
-    return WHITE;
 }
 
 Rectangle GetNodeRect(const DeviceNode& n) {
@@ -49,12 +50,11 @@ void DrawDeviceNode(const DeviceNode& n) {
         DrawRectangleRoundedLinesEx(r, 0.3f, 8, 2.5f, WHITE);
 
     // centred label
-    int fsz = 14;
-    int tw  = MeasureText(n.label.c_str(), fsz);
+    int tw  = MeasureText(n.label.c_str(), NODE_FONT_SZ);
     DrawText(n.label.c_str(),
              (int)(n.position.x - tw / 2.0f),
-             (int)(n.position.y - fsz / 2.0f),
-             fsz, WHITE);
+             (int)(n.position.y - NODE_FONT_SZ / 2.0f),
+             NODE_FONT_SZ, WHITE);
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────
