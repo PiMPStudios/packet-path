@@ -4,6 +4,7 @@ bin/
 *.o
 *.a
 *.out
+packet-path
 
 # macOS
 .DS_Store
