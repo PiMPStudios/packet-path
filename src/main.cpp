@@ -15,10 +15,12 @@ static const float PORT_RADIUS    =  6.0f;
 static const int   PORTS_PER_NODE =  4;    // top=0, right=1, bottom=2, left=3
 static const Color BG_COLOR     = {15, 23, 42, 255};
 
-static const int   PANEL_W      = 280;
-static const int   CANVAS_W     = SCREEN_W - PANEL_W;   // 1000
-static const Color PANEL_BG     = {22, 33, 62, 255};
-static const Color PANEL_BORDER = {51, 65, 85, 255};
+static const int   PANEL_W        = 280;
+static const int   CANVAS_W       = SCREEN_W - PANEL_W;   // 1000
+static const Color PANEL_BG       = {22, 33, 62, 255};
+static const Color PANEL_BORDER   = {51, 65, 85, 255};
+static const int   MENU_ITEM_H    = 28;
+static const int   CONTEXT_MENU_W = 160;
 
 // ── Device types & node struct ─────────────────────────────────────────────
 enum DeviceType { PC, ROUTER, SWITCH };
@@ -108,6 +110,17 @@ const DeviceNode* FindNode(const std::vector<DeviceNode>& nodes, int id) {
     return nullptr;
 }
 
+static Vector2 BezierCtrl(Vector2 p, int port) {
+    const float offset = 60.0f;
+    switch (port) {
+        case 0: return {p.x,           p.y - offset};
+        case 1: return {p.x + offset,  p.y         };
+        case 2: return {p.x,           p.y + offset};
+        case 3: return {p.x - offset,  p.y         };
+        default: return p;
+    }
+}
+
 void DrawAllCables(const std::vector<Cable>& cables,
                    const std::vector<DeviceNode>& nodes)
 {
@@ -119,19 +132,8 @@ void DrawAllCables(const std::vector<Cable>& cables,
         Vector2 p0 = GetPortPosition(*from, c.fromPort);
         Vector2 p3 = GetPortPosition(*to,   c.toPort);
 
-        auto ctrl = [](Vector2 p, int port) -> Vector2 {
-            const float offset = 60.0f;
-            switch (port) {
-                case 0: return {p.x,           p.y - offset};
-                case 1: return {p.x + offset,  p.y         };
-                case 2: return {p.x,           p.y + offset};
-                case 3: return {p.x - offset,  p.y         };
-                default: return p;
-            }
-        };
-
-        DrawSplineSegmentBezierCubic(p0, ctrl(p0, c.fromPort),
-                                     ctrl(p3, c.toPort), p3,
+        DrawSplineSegmentBezierCubic(p0, BezierCtrl(p0, c.fromPort),
+                                     BezierCtrl(p3, c.toPort), p3,
                                      2.0f, Color{148, 163, 184, 255});
     }
 }
@@ -195,18 +197,8 @@ int HitTestCable(const std::vector<Cable>& cables,
         Vector2 p0 = GetPortPosition(*from, c.fromPort);
         Vector2 p3 = GetPortPosition(*to,   c.toPort);
 
-        const float offset = 60.0f;
-        auto ctrl = [&](Vector2 p, int port) -> Vector2 {
-            switch (port) {
-                case 0: return {p.x,           p.y - offset};
-                case 1: return {p.x + offset,  p.y         };
-                case 2: return {p.x,           p.y + offset};
-                case 3: return {p.x - offset,  p.y         };
-            }
-            return p;
-        };
-        Vector2 c1 = ctrl(p0, c.fromPort);
-        Vector2 c2 = ctrl(p3, c.toPort);
+        Vector2 c1 = BezierCtrl(p0, c.fromPort);
+        Vector2 c2 = BezierCtrl(p3, c.toPort);
 
         for (int s = 0; s <= 20; ++s) {
             float t  = (float)s / 20.0f;
@@ -368,18 +360,17 @@ void DrawContextMenu(ContextMenu& menu, Vector2 screenMouse) {
     int count = 0;
     while (items[count]) ++count;
 
-    const int ITEM_H = 28, MENU_W = 160;
-    float h = (float)(count * ITEM_H + 8);
-    float x = std::min(menu.screenPos.x, (float)(CANVAS_W - MENU_W - 4));
+    float h = (float)(count * MENU_ITEM_H + 8);
+    float x = std::min(menu.screenPos.x, (float)(CANVAS_W - CONTEXT_MENU_W - 4));
     float y = std::min(menu.screenPos.y, (float)(SCREEN_H - (int)h - 4));
 
-    DrawRectangleRounded({x, y, (float)MENU_W, h}, 0.08f, 4, Color{30, 41, 59, 255});
-    DrawRectangleRoundedLinesEx({x, y, (float)MENU_W, h}, 0.08f, 4, 1.0f, PANEL_BORDER);
+    DrawRectangleRounded({x, y, (float)CONTEXT_MENU_W, h}, 0.08f, 4, Color{30, 41, 59, 255});
+    DrawRectangleRoundedLinesEx({x, y, (float)CONTEXT_MENU_W, h}, 0.08f, 4, 1.0f, PANEL_BORDER);
 
     menu.hoverItem = -1;
     for (int i = 0; i < count; ++i) {
-        Rectangle ir = {x + 4, y + 4 + (float)(i * ITEM_H),
-                        (float)(MENU_W - 8), (float)ITEM_H};
+        Rectangle ir = {x + 4, y + 4 + (float)(i * MENU_ITEM_H),
+                        (float)(CONTEXT_MENU_W - 8), (float)MENU_ITEM_H};
         if (CheckCollisionPointRec(screenMouse, ir)) {
             DrawRectangleRounded(ir, 0.08f, 4, Color{51, 65, 85, 255});
             menu.hoverItem = i;
@@ -574,6 +565,9 @@ int main() {
 
         // ── RMB pressed — open context menu ───────────────────────────
         if (inCanvas && IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
+            connecting  = false;
+            hoverNodeId = -1;
+            hoverPort   = -1;
             contextMenu.screenPos = screenMouse;
             contextMenu.worldPos  = worldMouse;
             contextMenu.hoverItem = -1;
