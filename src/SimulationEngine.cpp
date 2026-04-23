@@ -119,5 +119,5 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
     }
 
     result.reason = "ttl exceeded";
-    return result;
+    return result;  // hops is partial; callers must check success/reason
 }

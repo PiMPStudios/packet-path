@@ -61,12 +61,12 @@ struct ArpEvent {
 };
 
 struct HopDecision {
-    int         nodeId;
+    int         nodeId    = -1;
     std::string nodeLabel;
     std::string routeType;   // "C"=connected, "S"=static, "O"=OSPF, "O IA"=inter-area
     std::string destPrefix;  // matched route prefix, e.g. "10.0.1.0/24"
     std::string nextHopIp;   // next-hop IP, or "delivered" for connected routes
-    int         outPort;     // egress port index, -1 if delivered
+    int         outPort   = -1;
 };
 
 struct ForwardResult {
