@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstdio>    // sscanf
 #include <cstdint>   // uint32_t
+#include <unordered_set>
 
 // ── Constants ─────────────────────────────────────────────────────────────
 static const int   SCREEN_W     = 1280;
@@ -390,13 +391,19 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
                               const std::vector<DeviceNode>& nodes,
                               const std::vector<Cable>& cables)
 {
+    if (!FindNode(nodes, srcId))
+        return {false, {}, "source node not found"};
+
     if (!ValidateIPOnly(destIp))
         return {false, {srcId}, "invalid destination"};
 
+    static constexpr int MAX_HOPS = 16;
+
     int currentId = srcId;
     std::vector<int> path = {srcId};
+    std::unordered_set<int> visited = {srcId};
 
-    for (int hop = 0; hop < 16; ++hop) {
+    for (int i = 0; i < MAX_HOPS; ++i) {
         const DeviceNode* cur = FindNode(nodes, currentId);
         if (!cur) return {false, path, "node not found"};
 
@@ -438,6 +445,10 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
             if (neighborId == -1)
                 return {false, path, "next-hop unreachable: " + route.nextHop};
 
+            if (visited.count(neighborId))
+                return {false, path, "loop detected"};
+
+            visited.insert(neighborId);
             path.push_back(neighborId);
             currentId = neighborId;
             matched = true;
