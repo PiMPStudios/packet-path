@@ -146,6 +146,19 @@ void DrawPacketAnim(const PacketAnim& anim,
     const auto& path = anim.result.path;
     if (path.empty()) return;
 
+    // Success pulse — green ring expanding on the destination node
+    if (anim.successPulse > 0.f) {
+        const DeviceNode* destNode = FindNode(nodes, path.back());
+        if (destNode) {
+            float frac = anim.successPulse / 0.5f;   // 1..0 as pulse fades
+            float r    = 30.f + 20.f * (1.f - frac);
+            DrawCircleV(destNode->position, r,
+                        Color{34, 197, 94, (unsigned char)(frac * 80.f)});
+            DrawCircleLinesV(destNode->position, r, Color{34, 197, 94, (unsigned char)(frac * 180.f)});
+        }
+        return;
+    }
+
     // Failure pulse — red ring expanding on the last node
     if (anim.failPulse > 0.f) {
         const DeviceNode* failNode = FindNode(nodes, path.back());

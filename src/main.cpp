@@ -166,7 +166,7 @@ int main() {
                             }
                         }
 
-                        simState.anim = PacketAnim{fr, 0, 0.f, false, 0.f, 0.f};
+                        simState.anim = PacketAnim{.result = fr};
                         le.success    = fr.success;
                         le.pathStr    = BuildPathStr(fr.path, nodes);
                         le.reason     = fr.reason;
@@ -400,7 +400,8 @@ int main() {
         // ── Packet animation update ───────────────────────────────────────
         if (simState.mode == SIM_ANIMATING) {
             UpdatePacketAnim(simState.anim, GetFrameTime(), nodes, cables);
-            if (simState.anim.done && simState.anim.failPulse <= 0.f) {
+            if (simState.anim.done && simState.anim.failPulse    <= 0.f
+                                   && simState.anim.successPulse <= 0.f) {
                 simState.mode  = SIM_IDLE;
                 simState.srcId = -1;
             }
