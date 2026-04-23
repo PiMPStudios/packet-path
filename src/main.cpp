@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>    // sscanf
+#include <cstdint>   // uint32_t
 
 // ── Constants ─────────────────────────────────────────────────────────────
 static const int   SCREEN_W     = 1280;
@@ -22,6 +23,30 @@ static const Color PANEL_BORDER   = {51, 65, 85, 255};
 static const int   MENU_ITEM_H    = 28;
 static const int   CONTEXT_MENU_W = 160;
 
+// ── Config tab layout ─────────────────────────────────────────────────────
+[[maybe_unused]] static const int CFG_HOSTNAME_Y   = 158;  // hostname field Y
+[[maybe_unused]] static const int CFG_MGMTIP_Y     = 210;  // mgmt IP field Y
+[[maybe_unused]] static const int CFG_IFACE_SEP_Y  = 246;  // separator above interfaces section
+[[maybe_unused]] static const int CFG_PORT_Y0      = 272;  // first port row Y
+[[maybe_unused]] static const int CFG_PORT_STRIDE  = 44;   // port row vertical stride
+// ── Routes tab layout ─────────────────────────────────────────────────────
+[[maybe_unused]] static const int RTE_ROW_Y0       = 142;  // first route row Y
+[[maybe_unused]] static const int RTE_ROW_H        = 22;   // route row height
+[[maybe_unused]] static const int RTE_ADD_SEP_Y    = 420;  // separator above add-route form
+[[maybe_unused]] static const int RTE_DEST_Y       = 464;  // destination field Y
+[[maybe_unused]] static const int RTE_NEXT_Y       = 516;  // next-hop field Y
+[[maybe_unused]] static const int RTE_BTN_Y        = 554;  // [Add] button Y
+
+// ── Routing ───────────────────────────────────────────────────────────────
+enum RouteSource { ROUTE_CONNECTED, ROUTE_STATIC };
+
+struct RouteEntry {
+    std::string dest;    // network prefix e.g. "10.0.0.0/24" or "0.0.0.0/0"
+    std::string nextHop; // "direct" for connected; "10.0.0.1" for static
+    int         outPort; // port index 0-3 for connected; -1 for mgmt/static
+    RouteSource src;
+};
+
 // ── Device types & node struct ─────────────────────────────────────────────
 enum DeviceType { PC, ROUTER, SWITCH };
 
@@ -31,8 +56,9 @@ struct DeviceNode {
     Vector2     position = {0.0f, 0.0f};
     std::string label;
     bool        selected = false;
-    std::string mgmtIp;        // "x.x.x.x/xx", empty = unconfigured
-    std::string portIp[4];     // per-port IPs, same format
+    std::string mgmtIp;
+    std::string portIp[4];
+    std::vector<RouteEntry> staticRoutes;
 };
 
 // ── Helper functions ───────────────────────────────────────────────────────
@@ -158,9 +184,14 @@ bool HitTestPort(const std::vector<DeviceNode>& nodes, Vector2 worldMouse,
 }
 
 // ── Panel UI state ────────────────────────────────────────────────────────
+enum PanelTab { TAB_CONFIG, TAB_ROUTES };
+
 struct PanelState {
-    int activeField = -1;
-    // -1=none  0=label(hostname)  1=mgmtIp  2-5=portIp[0-3]
+    int         activeField      = -1;    // Config tab: -1=none 0=label 1=mgmtIp 2-5=portIp[0-3]
+    PanelTab    activeTab        = TAB_CONFIG;
+    std::string newRouteDest;             // Routes tab add-form: destination buffer
+    std::string newRouteNext;             // Routes tab add-form: next-hop buffer
+    int         activeRouteField = -1;   // -1=none, 0=newRouteDest, 1=newRouteNext
 };
 
 Rectangle PnlFieldRect(int yOffset) {
@@ -214,6 +245,47 @@ int HitTestCable(const std::vector<Cable>& cables,
     return -1;
 }
 
+std::string NetworkAddress(const std::string& cidr) {
+    int a, b, c, d, prefix;
+    if (std::sscanf(cidr.c_str(), "%d.%d.%d.%d/%d", &a, &b, &c, &d, &prefix) != 5)
+        return cidr;
+    uint32_t ip   = ((uint32_t)a << 24) | ((uint32_t)b << 16) |
+                    ((uint32_t)c <<  8) |  (uint32_t)d;
+    uint32_t mask = prefix ? (~0u << (32 - prefix)) : 0u;
+    uint32_t net  = ip & mask;
+    return std::to_string((net >> 24) & 0xFF) + "." +
+           std::to_string((net >> 16) & 0xFF) + "." +
+           std::to_string((net >>  8) & 0xFF) + "." +
+           std::to_string( net        & 0xFF) + "/" +
+           std::to_string(prefix);
+}
+
+bool IpInSubnet(const std::string& ip, const std::string& subnet) {
+    int a1, b1, c1, d1, a2, b2, c2, d2, prefix;
+    if (std::sscanf(ip.c_str(),     "%d.%d.%d.%d",    &a1,&b1,&c1,&d1) != 4) return false;
+    if (std::sscanf(subnet.c_str(), "%d.%d.%d.%d/%d", &a2,&b2,&c2,&d2,&prefix) != 5) return false;
+    uint32_t ipBits  = ((uint32_t)a1 << 24) | ((uint32_t)b1 << 16) |
+                       ((uint32_t)c1 <<  8) |  (uint32_t)d1;
+    uint32_t netBits = ((uint32_t)a2 << 24) | ((uint32_t)b2 << 16) |
+                       ((uint32_t)c2 <<  8) |  (uint32_t)d2;
+    uint32_t mask    = prefix ? (~0u << (32 - prefix)) : 0u;
+    return (ipBits & mask) == (netBits & mask);
+}
+
+bool ValidateIPOnly(const std::string& ip) {
+    if (ip.empty()) return false;
+    int a, b, c, d, consumed = 0;
+    std::sscanf(ip.c_str(), "%d.%d.%d.%d%n", &a, &b, &c, &d, &consumed);
+    return (consumed == (int)ip.size() &&
+            a >= 0 && a <= 255 && b >= 0 && b <= 255 &&
+            c >= 0 && c <= 255 && d >= 0 && d <= 255);
+}
+
+int PrefixLen(const std::string& cidr) {
+    const char* slash = std::strchr(cidr.c_str(), '/');
+    return slash ? std::atoi(slash + 1) : 0;
+}
+
 bool ValidateIP(const std::string& ip) {
     if (ip.empty()) return false;
     int a, b, c, d, prefix, consumed = 0;
@@ -222,6 +294,18 @@ bool ValidateIP(const std::string& ip) {
             a >= 0 && a <= 255 && b >= 0 && b <= 255 &&
             c >= 0 && c <= 255 && d >= 0 && d <= 255 &&
             prefix >= 0 && prefix <= 32);
+}
+
+std::vector<RouteEntry> GetRoutingTable(const DeviceNode& n) {
+    std::vector<RouteEntry> table;
+    if (ValidateIP(n.mgmtIp))
+        table.push_back({NetworkAddress(n.mgmtIp), "direct", -1, ROUTE_CONNECTED});
+    for (int i = 0; i < PORTS_PER_NODE; ++i)
+        if (ValidateIP(n.portIp[i]))
+            table.push_back({NetworkAddress(n.portIp[i]), "direct", i, ROUTE_CONNECTED});
+    for (const auto& r : n.staticRoutes)
+        table.push_back(r);
+    return table;
 }
 
 std::string GetPortName(DeviceType type, int port) {
@@ -343,7 +427,36 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
 }
 
 // ── Context menu draw & action ────────────────────────────────────────────
-void DrawContextMenu(ContextMenu& menu, Vector2 screenMouse) {
+void UpdateContextMenuHover(ContextMenu& menu, Vector2 screenMouse) {
+    if (!menu.visible) { menu.hoverItem = -1; return; }
+
+    static const char* nodeItems[]   = {"Rename", "Delete", nullptr};
+    static const char* cableItems[]  = {"Delete Cable", nullptr};
+    static const char* canvasItems[] = {"Add PC Here", "Add Router Here",
+                                        "Add Switch Here", "Reset View", nullptr};
+    const char** items = nullptr;
+    if      (menu.ctx == CTX_NODE)   items = nodeItems;
+    else if (menu.ctx == CTX_CABLE)  items = cableItems;
+    else if (menu.ctx == CTX_CANVAS) items = canvasItems;
+    else { menu.hoverItem = -1; return; }
+
+    int count = 0;
+    while (items[count]) ++count;
+
+    float h = (float)(count * MENU_ITEM_H + 8);
+    float x = std::min(menu.screenPos.x, (float)(CANVAS_W - CONTEXT_MENU_W - 4));
+    float y = std::min(menu.screenPos.y, (float)(SCREEN_H - (int)h - 4));
+
+    menu.hoverItem = -1;
+    for (int i = 0; i < count; ++i) {
+        Rectangle ir = {x + 4, y + 4 + (float)(i * MENU_ITEM_H),
+                        (float)(CONTEXT_MENU_W - 8), (float)MENU_ITEM_H};
+        if (CheckCollisionPointRec(screenMouse, ir)) { menu.hoverItem = i; break; }
+    }
+}
+
+void DrawContextMenu(const ContextMenu& menu, Vector2 screenMouse) {
+    (void)screenMouse;
     if (!menu.visible) return;
 
     static const char* nodeItems[]   = {"Rename", "Delete", nullptr};
@@ -367,14 +480,11 @@ void DrawContextMenu(ContextMenu& menu, Vector2 screenMouse) {
     DrawRectangleRounded({x, y, (float)CONTEXT_MENU_W, h}, 0.08f, 4, Color{30, 41, 59, 255});
     DrawRectangleRoundedLinesEx({x, y, (float)CONTEXT_MENU_W, h}, 0.08f, 4, 1.0f, PANEL_BORDER);
 
-    menu.hoverItem = -1;
     for (int i = 0; i < count; ++i) {
         Rectangle ir = {x + 4, y + 4 + (float)(i * MENU_ITEM_H),
                         (float)(CONTEXT_MENU_W - 8), (float)MENU_ITEM_H};
-        if (CheckCollisionPointRec(screenMouse, ir)) {
+        if (menu.hoverItem == i)
             DrawRectangleRounded(ir, 0.08f, 4, Color{51, 65, 85, 255});
-            menu.hoverItem = i;
-        }
         DrawText(items[i], (int)ir.x + 8, (int)ir.y + 7, 13, WHITE);
     }
 }
@@ -489,6 +599,8 @@ int main() {
             camera.target.x   += beforeZoom.x - afterZoom.x;
             camera.target.y   += beforeZoom.y - afterZoom.y;
         }
+
+        UpdateContextMenuHover(contextMenu, screenMouse);
 
         // ── LMB pressed ───────────────────────────────────────────────
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
