@@ -1156,10 +1156,12 @@ int main() {
 
         // ── RMB pressed — open context menu ───────────────────────────
         if (inCanvas && IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
-            if (simState.mode == SIM_SELECTING_DST) {
-                simState.mode  = SIM_IDLE;
-                simState.srcId = -1;
-                // Swallow the RMB — don't open a context menu while cancelling
+            if (simState.mode == SIM_SELECTING_DST || simState.mode == SIM_ANIMATING) {
+                if (simState.mode == SIM_SELECTING_DST) {
+                    simState.mode  = SIM_IDLE;
+                    simState.srcId = -1;
+                }
+                // Swallow the RMB — don't open context menu during sim
             } else {
                 connecting  = false;
                 hoverNodeId = -1;
