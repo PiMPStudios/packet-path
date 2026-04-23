@@ -25,6 +25,7 @@ static const int   MENU_ITEM_H    = 28;
 static const int   CONTEXT_MENU_W = 160;
 static const int   LOG_H          = 90;
 static const int   CANVAS_H       = SCREEN_H - LOG_H;  // 630
+static const float HOP_DURATION   = 0.4f;  // seconds per hop segment
 
 // ── Config tab layout ─────────────────────────────────────────────────────
 static const int CFG_HOSTNAME_Y   = 158;  // hostname field Y
@@ -487,6 +488,73 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
     return {false, path, "ttl exceeded"};
 }
 
+// Returns first valid plain IP (no prefix) from a node's interfaces.
+std::string GetFirstValidIp(const DeviceNode& n) {
+    for (int i = 0; i < PORTS_PER_NODE; ++i) {
+        const auto& ip = n.portIp[i];
+        auto slash = ip.find('/');
+        std::string plain = (slash != std::string::npos) ? ip.substr(0, slash) : ip;
+        if (ValidateIPOnly(plain)) return plain;
+    }
+    auto slash = n.mgmtIp.find('/');
+    std::string plain = (slash != std::string::npos)
+                      ? n.mgmtIp.substr(0, slash) : n.mgmtIp;
+    if (ValidateIPOnly(plain)) return plain;
+    return "";
+}
+
+// Returns first cable connecting node a to node b (either direction).
+const Cable* FindCable(const std::vector<Cable>& cables, int a, int b) {
+    for (const auto& c : cables)
+        if ((c.fromId == a && c.toId == b) || (c.fromId == b && c.toId == a))
+            return &c;
+    return nullptr;
+}
+
+Vector2 EvaluateCubicBezier(Vector2 p0, Vector2 c1, Vector2 c2, Vector2 p3, float t) {
+    float it = 1.f - t;
+    return {
+        it*it*it*p0.x + 3*it*it*t*c1.x + 3*it*t*t*c2.x + t*t*t*p3.x,
+        it*it*it*p0.y + 3*it*it*t*c1.y + 3*it*t*t*c2.y + t*t*t*p3.y
+    };
+}
+
+std::string BuildPathStr(const std::vector<int>& path,
+                         const std::vector<DeviceNode>& nodes) {
+    std::string s;
+    for (int i = 0; i < (int)path.size(); ++i) {
+        if (i > 0) s += " \xe2\x86\x92 ";   // UTF-8 →
+        const DeviceNode* n = FindNode(nodes, path[i]);
+        s += n ? n->label : "?";
+    }
+    return s;
+}
+
+void UpdatePacketAnim(PacketAnim& anim, float dt,
+                      const std::vector<DeviceNode>& nodes,
+                      const std::vector<Cable>& cables)
+{
+    (void)nodes; (void)cables;
+    if (anim.done) {
+        anim.failPulse = std::max(0.f, anim.failPulse - dt);
+        return;
+    }
+
+    const auto& path = anim.result.path;
+    if ((int)path.size() <= 1) { anim.done = true; return; }
+
+    anim.t += dt / HOP_DURATION;
+    if (anim.t >= 1.f) {
+        anim.t = 0.f;
+        anim.hop++;
+        if (anim.hop >= (int)path.size() - 1) {
+            anim.done = true;
+            if (!anim.result.success)
+                anim.failPulse = 0.5f;
+        }
+    }
+}
+
 // ── Log console (drawn outside BeginMode2D, full-width bottom strip) ─────
 void DrawLogConsole(const std::vector<LogEntry>& entries) {
     DrawRectangle(0, CANVAS_H, SCREEN_W, LOG_H, Color{10, 15, 28, 255});
@@ -928,6 +996,46 @@ int main() {
                 if (contextMenu.hoverItem != -1)
                     ExecuteMenuAction(contextMenu, nodes, cables, selectedId, ps, camera, simState);
                 contextMenu.visible = false;
+            } else if (simState.mode == SIM_SELECTING_DST && inCanvas) {
+                // Destination selection — find clicked node
+                int dstId = -1;
+                for (int i = (int)nodes.size() - 1; i >= 0; --i) {
+                    if (CheckCollisionPointRec(worldMouse, GetNodeRect(nodes[i]))) {
+                        dstId = nodes[i].id;
+                        break;
+                    }
+                }
+                // Clicking empty canvas or src node is a no-op
+                if (dstId != -1 && dstId != simState.srcId) {
+                    const DeviceNode* dst = FindNode(nodes, dstId);
+                    std::string destIp = dst ? GetFirstValidIp(*dst) : "";
+                    LogEntry le;
+                    if (destIp.empty()) {
+                        le.success   = false;
+                        const DeviceNode* src = FindNode(nodes, simState.srcId);
+                        le.pathStr   = (src ? src->label : "?") + " \xe2\x86\x92 " +
+                                       (dst ? dst->label : "?");
+                        le.reason    = "destination has no configured IP";
+                        le.timestamp = GetTime();
+                    } else {
+                        ForwardResult fr = SimulateForward(simState.srcId, destIp,
+                                                           nodes, cables);
+                        simState.anim = PacketAnim{fr, 0, 0.f, false, 0.f};
+                        le.success    = fr.success;
+                        le.pathStr    = BuildPathStr(fr.path, nodes);
+                        le.reason     = fr.reason;
+                        le.timestamp  = GetTime();
+                        simState.mode = SIM_ANIMATING;
+                    }
+                    if (logEntries.size() >= 50)
+                        logEntries.erase(logEntries.begin());
+                    logEntries.push_back(le);
+                    if (simState.mode != SIM_ANIMATING) {
+                        simState.mode  = SIM_IDLE;
+                        simState.srcId = -1;
+                    }
+                }
+                // else: no-op, stay in SIM_SELECTING_DST
             } else if (inCanvas) {
             int pNode = -1, pPort = -1;
             if (HitTestPort(nodes, worldMouse, -1, pNode, pPort)) {
@@ -1129,6 +1237,15 @@ int main() {
             ps.newRouteDest.clear();
             ps.newRouteNext.clear();
             prevSelectedId      = selectedId;
+        }
+
+        // ── Packet animation update ───────────────────────────────────────
+        if (simState.mode == SIM_ANIMATING) {
+            UpdatePacketAnim(simState.anim, GetFrameTime(), nodes, cables);
+            if (simState.anim.done && simState.anim.failPulse <= 0.f) {
+                simState.mode  = SIM_IDLE;
+                simState.srcId = -1;
+            }
         }
 
         // ── Draw ───────────────────────────────────────────────────────
