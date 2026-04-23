@@ -1,4 +1,5 @@
 #include "NetworkCanvas.h"
+#include "OspfEngine.h"
 
 // ── Main ──────────────────────────────────────────────────────────────────
 int main() {
@@ -312,6 +313,11 @@ int main() {
                     ps.activeField      = -1;
                     ps.activeRouteField = -1;
                 }
+                if (CheckCollisionPointRec(screenMouse, PnlOspfTabRect())) {
+                    ps.activeTab        = TAB_OSPF;
+                    ps.activeField      = -1;
+                    ps.activeRouteField = -1;
+                }
                 // Config tab field focus
                 if (ps.activeTab == TAB_CONFIG) {
                     ps.activeField = -1;
@@ -364,6 +370,25 @@ int main() {
                         }
                     }
                 }
+
+                // OSPF tab: enable/disable toggle
+                if (ps.activeTab == TAB_OSPF) {
+                    DeviceNode* selNode = nullptr;
+                    for (auto& nd : nodes)
+                        if (nd.id == selectedId) { selNode = &nd; break; }
+                    if (selNode && selNode->type == ROUTER) {
+                        if (CheckCollisionPointRec(screenMouse, PnlOspfEnableRect())) {
+                            selNode->ospfEnabled = !selNode->ospfEnabled;
+                            if (!selNode->ospfEnabled) {
+                                selNode->ospfNeighbors.clear();
+                                selNode->lsdb.clear();
+                                selNode->ospfRoutes.clear();
+                                selNode->helloTimer = 0.f;
+                                selNode->routerId.clear();
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -395,6 +420,24 @@ int main() {
             ps.newRouteDest.clear();
             ps.newRouteNext.clear();
             prevSelectedId      = selectedId;
+        }
+
+        // ── OSPF engine tick ─────────────────────────────────────────────
+        {
+            float dt = GetFrameTime();
+            auto ospfEvents = UpdateOspf(dt, nodes, cables);
+            auto pushLog = [&](LogEntry entry) {
+                if (logEntries.size() >= 50) logEntries.erase(logEntries.begin());
+                logEntries.push_back(entry);
+            };
+            for (const auto& msg : ospfEvents) {
+                LogEntry e;
+                e.success   = true;
+                e.pathStr   = msg;
+                e.type      = LOG_FORWARD;
+                e.timestamp = GetTime();
+                pushLog(e);
+            }
         }
 
         // ── Packet animation update ───────────────────────────────────────

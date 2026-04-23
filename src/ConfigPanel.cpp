@@ -20,6 +20,8 @@ Rectangle PnlRoutesTabRect() {
 Rectangle PnlArpTabRect() {
     return {(float)(CANVAS_W + 12) + 2.0f * (PnlTabW() + 4.0f), 88.0f, PnlTabW(), 26.0f};
 }
+Rectangle PnlOspfTabRect()    { return {0.f, 0.f, 0.f, 0.f}; }
+Rectangle PnlOspfEnableRect() { return {0.f, 0.f, 0.f, 0.f}; }
 Rectangle PnlRouteDeleteRect(int rowIdx) {
     return {(float)(CANVAS_W + PANEL_W - 22),
             (float)(RTE_ROW_Y0 + rowIdx * RTE_ROW_H + 4), 16.0f, 14.0f};
