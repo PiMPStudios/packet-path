@@ -79,6 +79,7 @@ int main() {
                             contextMenu.visible  = false;
                             traceModalOpen       = false;
                             failAnnotationTimer  = 0.f;
+                            lastFailedTrace      = {};
                         }
                     }
                 }
@@ -87,6 +88,7 @@ int main() {
                     currentLevel        = 0;
                     traceModalOpen      = false;
                     failAnnotationTimer = 0.f;
+                    lastFailedTrace     = {};
                 }
             }
         }
@@ -166,6 +168,7 @@ int main() {
                     contextMenu.visible  = false;
                     traceModalOpen       = false;
                     failAnnotationTimer  = 0.f;
+                    lastFailedTrace      = {};
                 } else if (CheckCollisionPointRec(screenMouse, WinNextBtnRect()) &&
                            currentLevel < 4) {
                     int nextLevel = currentLevel + 1;
@@ -188,6 +191,7 @@ int main() {
                         contextMenu.visible  = false;
                         traceModalOpen       = false;
                         failAnnotationTimer  = 0.f;
+                        lastFailedTrace      = {};
                     }
                 }
                 // any other click on the WIN screen is silently consumed
@@ -631,6 +635,7 @@ int main() {
             BeginMode2D(camera);
                 DrawDotGrid(camera);
                 DrawAllCables(cables, nodes);
+                // Annotation first (background layer) — packet anim renders on top
                 if (failAnnotationTimer > 0.f)
                     DrawBrokenPath(nodes, cables, lastFailedTrace);
                 DrawPacketAnim(simState.anim, nodes, cables);
