@@ -570,7 +570,7 @@ void DrawPacketAnim(const PacketAnim& anim,
             float r    = 30.f + 20.f * (1.f - frac);
             DrawCircleV(failNode->position, r,
                         Color{239, 68, 68, (unsigned char)(frac * 80.f)});
-            DrawCircleLinesV(failNode->position, r, Color{239, 68, 68, 180});
+            DrawCircleLinesV(failNode->position, r, Color{239, 68, 68, (unsigned char)(frac * 180.f)});
         }
         return;
     }
@@ -912,6 +912,7 @@ void ExecuteMenuAction(ContextMenu& menu, std::vector<DeviceNode>& nodes,
                        std::vector<Cable>& cables, int& selectedId,
                        PanelState& ps, Camera2D& camera, SimState& simState)
 {
+    if (simState.mode == SIM_ANIMATING) return;  // no mutations while packet is in-flight
     int item = menu.hoverItem;
     if (menu.ctx == CTX_NODE) {
         if (item == 0) {  // Rename — select node and focus hostname field
