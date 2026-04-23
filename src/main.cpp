@@ -2,6 +2,7 @@
 #include "OspfEngine.h"
 #include "Level.h"
 #include "GameUI.h"
+#include "TraceModal.h"
 
 // ── Main ──────────────────────────────────────────────────────────────────
 int main() {
@@ -36,6 +37,8 @@ int main() {
     int         currentLevel         = 0;
     LevelDef    activeLevelDef;
     int         lastConditionsPassed = 0;
+    bool traceModalOpen = false;
+    int  selectedLogIdx = -1;
 
     while (!WindowShouldClose()) {
         float dt = GetFrameTime();
@@ -83,21 +86,25 @@ int main() {
         }
 
         if (IsKeyPressed(KEY_ESCAPE)) {
-            contextMenu.visible = false;
-            if (ps.activeField != -1) {
-                ps.activeField = -1;
-            } else if (ps.activeRouteField != -1) {
-                ps.activeRouteField = -1;
-            } else if (ps.activePortAreaField != -1) {
-                ps.activePortAreaField = -1;
-                ps.portAreaBuf.clear();
-            } else if (connecting) {
-                connecting  = false;
-                hoverNodeId = -1;
-                hoverPort   = -1;
-            } else if (simState.mode == SIM_SELECTING_DST) {
-                simState.mode  = SIM_IDLE;
-                simState.srcId = -1;
+            if (traceModalOpen) {
+                traceModalOpen = false;
+            } else {
+                contextMenu.visible = false;
+                if (ps.activeField != -1) {
+                    ps.activeField = -1;
+                } else if (ps.activeRouteField != -1) {
+                    ps.activeRouteField = -1;
+                } else if (ps.activePortAreaField != -1) {
+                    ps.activePortAreaField = -1;
+                    ps.portAreaBuf.clear();
+                } else if (connecting) {
+                    connecting  = false;
+                    hoverNodeId = -1;
+                    hoverPort   = -1;
+                } else if (simState.mode == SIM_SELECTING_DST) {
+                    simState.mode  = SIM_IDLE;
+                    simState.srcId = -1;
+                }
             }
         }
 
@@ -174,6 +181,12 @@ int main() {
                     }
                 }
                 // any other click on the WIN screen is silently consumed
+            } else if (traceModalOpen) {
+                const float MW = 480.f, MH = 360.f;
+                Rectangle modal = {(SCREEN_W - MW) / 2.f, (SCREEN_H - MH) / 2.f, MW, MH};
+                if (!CheckCollisionPointRec(screenMouse, modal))
+                    traceModalOpen = false;
+                // all clicks consumed while modal is open
             } else {
             if (contextMenu.visible) {
                 if (contextMenu.hoverItem != -1)
@@ -270,6 +283,15 @@ int main() {
                     }
                 }
                 // else: no-op, stay in SIM_SELECTING_DST
+            } else if (screenMouse.y >= (float)CANVAS_H &&
+                       screenMouse.y <  (float)SCREEN_H  &&
+                       screenMouse.x <  (float)CANVAS_W) {
+                // Log console click — open trace modal for LOG_FORWARD entries
+                int hitIdx = LogConsoleHitTest(screenMouse, logEntries);
+                if (hitIdx >= 0) {
+                    selectedLogIdx = hitIdx;
+                    traceModalOpen = true;
+                }
             } else if (inCanvas) {
             int pNode = -1, pPort = -1;
             if (HitTestPort(nodes, worldMouse, -1, pNode, pPort)) {
@@ -384,7 +406,7 @@ int main() {
         }
 
         // ── Panel click-to-focus ───────────────────────────────────────
-        if (gameMode != GAME_WIN && !inCanvas && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        if (gameMode != GAME_WIN && !traceModalOpen && !inCanvas && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             if (selectedId != -1) {
                 // Tab clicks
                 if (CheckCollisionPointRec(screenMouse, PnlConfigTabRect())) {
@@ -637,6 +659,9 @@ int main() {
             DrawPanel(selectedId, nodes, ps);
             DrawContextMenu(contextMenu, screenMouse);
             DrawLogConsole(logEntries);
+            if (traceModalOpen && selectedLogIdx >= 0 &&
+                selectedLogIdx < (int)logEntries.size())
+                DrawTraceModal(logEntries[selectedLogIdx].traceResult);
 
             // Level HUD badge (top-left) and win overlay
             if (gameMode == GAME_PLAYING || gameMode == GAME_WIN) {
