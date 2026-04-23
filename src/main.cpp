@@ -124,10 +124,52 @@ int main() {
                     } else {
                         ForwardResult fr = SimulateForward(simState.srcId, destIp,
                                                            nodes, cables);
+
+                        // Apply ARP cache updates to nodes
+                        for (const auto& ev : fr.arpEvents) {
+                            if (!ev.cacheHit && !ev.mac.empty()) {
+                                for (auto& n : nodes)
+                                    if (n.id == ev.nodeId) { n.arpTable[ev.ip] = ev.mac; break; }
+                            }
+                        }
+
+                        // Push ARP log entries before the routing summary
+                        auto pushLog = [&](LogEntry entry) {
+                            if (logEntries.size() >= 50) logEntries.erase(logEntries.begin());
+                            logEntries.push_back(entry);
+                        };
+                        for (const auto& ev : fr.arpEvents) {
+                            if (ev.cacheHit) {
+                                LogEntry e;
+                                e.type = LOG_ARP_HIT; e.success = true;
+                                e.pathStr   = "ARP cache hit: " + ev.ip + " \xe2\x86\x92 " + ev.mac;
+                                e.timestamp = GetTime();
+                                pushLog(e);
+                            } else if (!ev.mac.empty()) {
+                                LogEntry req;
+                                req.type = LOG_ARP_REQ; req.success = true;
+                                req.pathStr   = "ARP who has " + ev.ip + "?";
+                                req.timestamp = GetTime();
+                                pushLog(req);
+                                LogEntry rep;
+                                rep.type = LOG_ARP_REPLY; rep.success = true;
+                                rep.pathStr   = ev.ip + " is at " + ev.mac;
+                                rep.timestamp = GetTime();
+                                pushLog(rep);
+                            } else {
+                                LogEntry e;
+                                e.type = LOG_ARP_REQ; e.success = false;
+                                e.pathStr   = "ARP who has " + ev.ip + "? \xe2\x80\x94 no reply";
+                                e.timestamp = GetTime();
+                                pushLog(e);
+                            }
+                        }
+
                         simState.anim = PacketAnim{fr, 0, 0.f, false, 0.f};
                         le.success    = fr.success;
                         le.pathStr    = BuildPathStr(fr.path, nodes);
                         le.reason     = fr.reason;
+                        le.type       = LOG_FORWARD;
                         le.timestamp  = GetTime();
                         simState.mode = SIM_ANIMATING;
                     }
@@ -263,6 +305,11 @@ int main() {
                 }
                 if (CheckCollisionPointRec(screenMouse, PnlRoutesTabRect())) {
                     ps.activeTab        = TAB_ROUTES;
+                    ps.activeField      = -1;
+                    ps.activeRouteField = -1;
+                }
+                if (CheckCollisionPointRec(screenMouse, PnlArpTabRect())) {
+                    ps.activeTab        = TAB_ARP;
                     ps.activeField      = -1;
                     ps.activeRouteField = -1;
                 }
