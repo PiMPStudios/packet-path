@@ -321,12 +321,22 @@ int main() {
                 }
                 // Config tab field focus
                 if (ps.activeTab == TAB_CONFIG) {
-                    ps.activeField = -1;
+                    ps.activeField         = -1;
+                    ps.activePortAreaField = -1;
                     if (CheckCollisionPointRec(screenMouse, PnlFieldRect(CFG_HOSTNAME_Y))) ps.activeField = 0;
                     if (CheckCollisionPointRec(screenMouse, PnlFieldRect(CFG_MGMTIP_Y)))  ps.activeField = 1;
-                    for (int i = 0; i < PORTS_PER_NODE; ++i)
+                    DeviceNode* selNode = nullptr;
+                    for (auto& nd : nodes)
+                        if (nd.id == selectedId) { selNode = &nd; break; }
+                    for (int i = 0; i < PORTS_PER_NODE; ++i) {
                         if (CheckCollisionPointRec(screenMouse, PnlPortFieldRect(i)))
                             ps.activeField = 2 + i;
+                        if (CheckCollisionPointRec(screenMouse, PnlPortAreaFieldRect(i))) {
+                            ps.activePortAreaField = i;
+                            if (selNode)
+                                ps.portAreaBuf = std::to_string(selNode->ospfPortArea[i]);
+                        }
+                    }
                 }
                 // Routes tab: field focus, [×] delete, [Add] button
                 if (ps.activeTab == TAB_ROUTES) {
@@ -404,6 +414,29 @@ int main() {
                 for (int i = 0; i < PORTS_PER_NODE; ++i)
                     if (ps.activeField == 2 + i) UpdateTextField(selNode->portIp[i], 18);
             }
+        } else if (ps.activeTab == TAB_CONFIG && ps.activePortAreaField != -1 && selectedId != -1) {
+            DeviceNode* selNode = nullptr;
+            for (auto& nd : nodes)
+                if (nd.id == selectedId) { selNode = &nd; break; }
+            if (selNode) {
+                UpdateTextField(ps.portAreaBuf, 5);  // area IDs 0-65535 (5 digits max)
+                if (IsKeyPressed(KEY_ENTER)) {
+                    if (!ps.portAreaBuf.empty()) {
+                        uint32_t newArea = (uint32_t)std::stoul(ps.portAreaBuf);
+                        selNode->ospfPortArea[ps.activePortAreaField] = newArea;
+                        if (selNode->ospfEnabled) {
+                            selNode->ospfNeighbors.clear();
+                            selNode->areaLsdbs.clear();
+                            selNode->ospfRoutes.clear();
+                        }
+                    }
+                    ps.activePortAreaField = -1;
+                    ps.portAreaBuf.clear();
+                } else if (IsKeyPressed(KEY_ESCAPE)) {
+                    ps.activePortAreaField = -1;
+                    ps.portAreaBuf.clear();
+                }
+            }
         } else if (ps.activeTab == TAB_ROUTES && ps.activeRouteField != -1 && selectedId != -1) {
             DeviceNode* selNode = nullptr;
             for (auto& nd : nodes)
@@ -415,12 +448,14 @@ int main() {
 
         // Reset active field when selection changes
         if (selectedId != prevSelectedId) {
-            ps.activeField      = -1;
-            ps.activeTab        = TAB_CONFIG;
-            ps.activeRouteField = -1;
+            ps.activeField         = -1;
+            ps.activeTab           = TAB_CONFIG;
+            ps.activeRouteField    = -1;
+            ps.activePortAreaField = -1;
+            ps.portAreaBuf.clear();
             ps.newRouteDest.clear();
             ps.newRouteNext.clear();
-            prevSelectedId      = selectedId;
+            prevSelectedId         = selectedId;
         }
 
         // ── OSPF engine tick ─────────────────────────────────────────────

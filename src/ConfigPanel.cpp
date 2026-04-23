@@ -7,7 +7,12 @@ Rectangle PnlFieldRect(int yOffset) {
 
 Rectangle PnlPortFieldRect(int port) {
     return {(float)(CANVAS_W + 80), (float)(CFG_PORT_Y0 + port * CFG_PORT_STRIDE),
-            (float)(PANEL_W - 92), 24.0f};
+            128.0f, 24.0f};
+}
+
+Rectangle PnlPortAreaFieldRect(int port) {
+    return {(float)(CANVAS_W + 224), (float)(CFG_PORT_Y0 + port * CFG_PORT_STRIDE),
+            44.0f, 24.0f};
 }
 
 float PnlTabW() { return (PANEL_W - 24 - 12) / 4.0f; }

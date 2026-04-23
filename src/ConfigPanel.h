@@ -12,11 +12,14 @@ struct PanelState {
     std::string newRouteDest;
     std::string newRouteNext;
     int         activeRouteField = -1;
+    int         activePortAreaField = -1;  // 0..3 = which port's area field is active
+    std::string portAreaBuf;               // edit buffer for area number
 };
 
 // Layout rect helpers
 Rectangle PnlFieldRect(int yOffset);
 Rectangle PnlPortFieldRect(int port);
+Rectangle PnlPortAreaFieldRect(int port);
 float     PnlTabW();
 Rectangle PnlConfigTabRect();
 Rectangle PnlRoutesTabRect();

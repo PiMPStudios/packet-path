@@ -290,6 +290,13 @@ void DrawConfigTab(const DeviceNode* n, const PanelState& ps) {
                       n->portIp[i], ps.activeField == 2 + i, ValidateIP(n->portIp[i]));
         DrawText(pname.c_str(), CANVAS_W + 16, CFG_PORT_Y0 + i * CFG_PORT_STRIDE + 7,
                  11, Color{148, 163, 184, 255});
+        DrawText("A:", CANVAS_W + 210, CFG_PORT_Y0 + i * CFG_PORT_STRIDE + 7,
+                 10, Color{148, 163, 184, 255});
+        std::string areaStr = (ps.activePortAreaField == i)
+            ? ps.portAreaBuf
+            : std::to_string(n->ospfPortArea[i]);
+        DrawTextField(PnlPortAreaFieldRect(i), "", "0", areaStr,
+                      ps.activePortAreaField == i, true);
     }
 }
 
@@ -312,14 +319,20 @@ void DrawRoutesTab(const DeviceNode* n, const PanelState& ps) {
         for (int i = 0; i < displayed; ++i) {
             const RouteEntry& r = table[i];
             int ry = RTE_ROW_Y0 + i * RTE_ROW_H;
-            Color rowColor = (r.src == ROUTE_CONNECTED) ? Color{34, 197, 94, 255}
-                           : (r.src == ROUTE_OSPF)      ? Color{234, 179, 8, 255}
-                                                        : Color{59, 130, 246, 255};
+            Color rowColor;
+            if      (r.src == ROUTE_CONNECTED) rowColor = Color{34,  197,  94, 255};
+            else if (r.src == ROUTE_OSPF)      rowColor = Color{234, 179,   8, 255};
+            else if (r.src == ROUTE_OSPF_IA)   rowColor = Color{249, 115,  22, 255};
+            else                               rowColor = Color{ 59, 130, 246, 255};
 
-            // Type letter
-            const char* typeLetter = (r.src == ROUTE_CONNECTED) ? "C"
-                                   : (r.src == ROUTE_OSPF)      ? "O" : "S";
-            DrawText(typeLetter, CANVAS_W + 12, ry + 3, 11, rowColor);
+            if (r.src == ROUTE_OSPF_IA) {
+                DrawText("O",  CANVAS_W + 12, ry + 3, 11, rowColor);
+                DrawText("IA", CANVAS_W + 21, ry + 5,  9, rowColor);
+            } else {
+                const char* typeLetter = (r.src == ROUTE_CONNECTED) ? "C"
+                                       : (r.src == ROUTE_OSPF)      ? "O" : "S";
+                DrawText(typeLetter, CANVAS_W + 12, ry + 3, 11, rowColor);
+            }
 
             // Destination
             DrawText(r.dest.c_str(), CANVAS_W + 30, ry + 3, 10, rowColor);
@@ -423,14 +436,25 @@ void DrawOspfTab(const DeviceNode* n) {
 
     if (!n->ospfEnabled) return;
 
-    // Router ID and Area
+    // Router ID
     int y = 160;
     DrawText("Router ID", CANVAS_W + 12, y, 11, Color{100,116,139,255});
     DrawText(n->routerId.empty() ? "(none)" : n->routerId.c_str(),
              CANVAS_W + 90, y, 11, WHITE);
     y += 20;
-    DrawText("Area", CANVAS_W + 12, y, 11, Color{100,116,139,255});
-    DrawText("0", CANVAS_W + 90, y, 11, WHITE);
+
+    // ABR badge or single-area display
+    if (IsAbr(*n)) {
+        DrawRectangleRounded({(float)(CANVAS_W + 90), (float)y, 34.0f, 16.0f},
+                             0.5f, 4, Color{139, 92, 246, 255});
+        DrawText("ABR", CANVAS_W + 95, y + 3, 10, WHITE);
+    } else {
+        uint32_t displayArea = 0;
+        for (int i = 0; i < PORTS_PER_NODE; ++i)
+            if (ValidateIP(n->portIp[i])) { displayArea = n->ospfPortArea[i]; break; }
+        DrawText("Area", CANVAS_W + 12, y, 11, Color{100,116,139,255});
+        DrawText(std::to_string(displayArea).c_str(), CANVAS_W + 90, y, 11, WHITE);
+    }
     y += 24;
 
     // Separator
@@ -445,10 +469,11 @@ void DrawOspfTab(const DeviceNode* n) {
         return;
     }
 
-    // Header row
+    // Header row — Area column added between State and Dead
     DrawText("Router-ID",   CANVAS_W + 12,  y, 10, Color{71,85,105,255});
     DrawText("State",       CANVAS_W + 110, y, 10, Color{71,85,105,255});
-    DrawText("Dead",        CANVAS_W + 190, y, 10, Color{71,85,105,255});
+    DrawText("Area",        CANVAS_W + 175, y, 10, Color{71,85,105,255});
+    DrawText("Dead",        CANVAS_W + 218, y, 10, Color{71,85,105,255});
     y += 14;
 
     static const char* stateNames[] = { "DOWN", "INIT", "2WAY", "FULL" };
@@ -465,9 +490,12 @@ void DrawOspfTab(const DeviceNode* n) {
         int si = std::clamp((int)nbr.state, 0, 3);
         DrawText(stateNames[si], CANVAS_W + 110, y, 10, stateColors[si]);
 
+        DrawText(std::to_string(nbr.area).c_str(), CANVAS_W + 175, y, 10,
+                 Color{148, 163, 184, 255});
+
         char deadBuf[8];
         std::snprintf(deadBuf, sizeof(deadBuf), "%.1fs", nbr.deadTimer);
-        DrawText(deadBuf, CANVAS_W + 190, y, 10, Color{148,163,184,255});
+        DrawText(deadBuf, CANVAS_W + 218, y, 10, Color{148,163,184,255});
         y += 16;
     }
 }
