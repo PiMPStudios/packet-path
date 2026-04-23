@@ -492,7 +492,7 @@ void DrawLogConsole(const std::vector<LogEntry>& entries) {
         int lineY = CANVAS_H + 8 + (shown - 1 - i) * 24;  // newest at top
 
         int   secs = (int)e.timestamp;
-        int   mins = secs / 60; secs %= 60;
+        int   mins = (secs / 60) % 60; secs %= 60;
         char  tsbuf[16];
         std::snprintf(tsbuf, sizeof(tsbuf), "[%02d:%02d]", mins, secs);
         DrawText(tsbuf, 36, lineY, 10, Color{71, 85, 105, 255});
