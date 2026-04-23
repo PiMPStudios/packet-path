@@ -94,18 +94,18 @@ struct Cable {
     int toId,   toPort;
 };
 
-DeviceNode* FindNode(std::vector<DeviceNode>& nodes, int id) {
-    for (auto& n : nodes)
+const DeviceNode* FindNode(const std::vector<DeviceNode>& nodes, int id) {
+    for (const auto& n : nodes)
         if (n.id == id) return &n;
     return nullptr;
 }
 
 void DrawAllCables(const std::vector<Cable>& cables,
-                   std::vector<DeviceNode>& nodes)
+                   const std::vector<DeviceNode>& nodes)
 {
     for (const auto& c : cables) {
-        DeviceNode* from = FindNode(nodes, c.fromId);
-        DeviceNode* to   = FindNode(nodes, c.toId);
+        const DeviceNode* from = FindNode(nodes, c.fromId);
+        const DeviceNode* to   = FindNode(nodes, c.toId);
         if (!from || !to) continue;
 
         Vector2 p0 = GetPortPosition(*from, c.fromPort);
@@ -199,6 +199,9 @@ int main() {
             nodes.erase(std::remove_if(nodes.begin(), nodes.end(),
                 [&](const DeviceNode& n){ return n.id == selectedId; }),
                 nodes.end());
+            cables.erase(std::remove_if(cables.begin(), cables.end(),
+                [&](const Cable& c){ return c.fromId == selectedId || c.toId == selectedId; }),
+                cables.end());
             selectedId = -1;
             dragging   = false;
         }
@@ -272,21 +275,22 @@ int main() {
         // ── LMB released ──────────────────────────────────────────────
         if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
             if (connecting && hoverNodeId != -1) {
-                bool exists = false;
+                bool portOccupied = false;
                 for (const auto& c : cables) {
-                    if ((c.fromId == connectFromId && c.fromPort == connectFromPort &&
-                         c.toId   == hoverNodeId   && c.toPort   == hoverPort) ||
-                        (c.fromId == hoverNodeId   && c.fromPort == hoverPort &&
-                         c.toId   == connectFromId && c.toPort   == connectFromPort))
-                    { exists = true; break; }
+                    if ((c.fromId == connectFromId && c.fromPort == connectFromPort) ||
+                        (c.toId   == connectFromId && c.toPort   == connectFromPort) ||
+                        (c.fromId == hoverNodeId   && c.fromPort == hoverPort) ||
+                        (c.toId   == hoverNodeId   && c.toPort   == hoverPort))
+                    { portOccupied = true; break; }
                 }
-                if (!exists)
+                if (!portOccupied)
                     cables.push_back({connectFromId, connectFromPort,
                                       hoverNodeId,   hoverPort});
             }
             connecting  = false;
             dragging    = false;
             hoverNodeId = -1;
+            hoverPort   = -1;
         }
 
         // ── Draw ───────────────────────────────────────────────────────
@@ -298,7 +302,7 @@ int main() {
                 DrawAllCables(cables, nodes);
 
                 if (connecting) {
-                    DeviceNode* fromNode = FindNode(nodes, connectFromId);
+                    const DeviceNode* fromNode = FindNode(nodes, connectFromId);
                     if (fromNode) {
                         Vector2 p0 = GetPortPosition(*fromNode, connectFromPort);
                         DrawLineEx(p0, worldMouse, 2.0f, Color{148, 163, 184, 180});
@@ -307,7 +311,7 @@ int main() {
                 }
 
                 if (hoverNodeId != -1) {
-                    DeviceNode* hNode = FindNode(nodes, hoverNodeId);
+                    const DeviceNode* hNode = FindNode(nodes, hoverNodeId);
                     if (hNode) {
                         Vector2 pp = GetPortPosition(*hNode, hoverPort);
                         DrawCircleV(pp, PORT_RADIUS + 3.0f, Color{34, 197, 94, 200});
