@@ -150,14 +150,12 @@ bool HitTestPort(const std::vector<DeviceNode>& nodes, Vector2 worldMouse,
 // ── Spawn helper ──────────────────────────────────────────────────────────
 static int nextId = 1;
 
-// Requires InitWindow() — uses raylib RNG (GetRandomValue).
-DeviceNode SpawnNode(DeviceType type) {
+DeviceNode SpawnNode(DeviceType type, Vector2 worldPos) {
     const char* names[] = {"PC", "RTR", "SW"};
     DeviceNode n;
     n.id       = nextId++;
     n.type     = type;
-    n.position = {(float)GetRandomValue(-200, 200),
-                  (float)GetRandomValue(-200, 200)};
+    n.position = worldPos;
     n.label    = std::string(names[(int)type]) + "-" + std::to_string(n.id);
     return n;
 }
@@ -168,7 +166,7 @@ int main() {
     SetTargetFPS(60);
 
     std::vector<DeviceNode> nodes;
-    nodes.push_back(SpawnNode(PC));
+    nodes.push_back(SpawnNode(PC, {0.0f, 0.0f}));
 
     Camera2D camera = {};
     camera.offset   = {SCREEN_W / 2.0f, SCREEN_H / 2.0f};
@@ -190,10 +188,16 @@ int main() {
         Vector2 screenMouse = GetMousePosition();
         Vector2 worldMouse  = GetScreenToWorld2D(screenMouse, camera);
 
-        // ── Spawn / delete ─────────────────────────────────────────────
-        if (IsKeyPressed(KEY_P)) nodes.push_back(SpawnNode(PC));
-        if (IsKeyPressed(KEY_R)) nodes.push_back(SpawnNode(ROUTER));
-        if (IsKeyPressed(KEY_S)) nodes.push_back(SpawnNode(SWITCH));
+        // ── Spawn / delete / cancel ────────────────────────────────────
+        if (IsKeyPressed(KEY_P)) nodes.push_back(SpawnNode(PC,     worldMouse));
+        if (IsKeyPressed(KEY_R)) nodes.push_back(SpawnNode(ROUTER, worldMouse));
+        if (IsKeyPressed(KEY_S)) nodes.push_back(SpawnNode(SWITCH, worldMouse));
+
+        if (IsKeyPressed(KEY_ESCAPE) && connecting) {
+            connecting  = false;
+            hoverNodeId = -1;
+            hoverPort   = -1;
+        }
 
         if (IsKeyPressed(KEY_DELETE) && selectedId != -1) {
             nodes.erase(std::remove_if(nodes.begin(), nodes.end(),
@@ -323,7 +327,7 @@ int main() {
 
             // HUD — screen space, outside camera
             DrawFPS(SCREEN_W - 80, 10);
-            DrawText("P=PC  R=Router  S=Switch  Del=Delete  MMB=Pan  Scroll=Zoom  Drag-port=Cable",
+            DrawText("P=PC  R=Router  S=Switch  Del=Delete  MMB=Pan  Scroll=Zoom  Drag-port=Cable  Esc=Cancel",
                      10, SCREEN_H - 24, 12, Color{100, 116, 139, 255});
         EndDrawing();
     }
