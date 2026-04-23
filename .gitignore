@@ -1,0 +1,20 @@
+# Build output
+build/
+bin/
+*.o
+*.a
+*.out
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.xcodeproj/
+
+# Large binary reference docs (too large for git)
+docs/RFCs/*.pdf
+
+# raylib compiled libs (install locally)
+lib/
