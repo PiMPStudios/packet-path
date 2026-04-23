@@ -189,10 +189,9 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes) {
 
     // Device type badge + label
     const char* typeNames[] = {"PC", "Router", "Switch"};
-    Color typeColors[]      = {{59, 130, 246, 255}, {249, 115, 22, 255}, {34, 197, 94, 255}};
     int bw = MeasureText(typeNames[(int)n->type], 11) + 16;
     DrawRectangleRounded({(float)(CANVAS_W + 12), 50.0f, (float)bw, 22.0f},
-                         0.5f, 4, typeColors[(int)n->type]);
+                         0.5f, 4, GetDeviceColor(n->type));
     DrawText(typeNames[(int)n->type], CANVAS_W + 20, 56, 11, WHITE);
     DrawText(n->label.c_str(), CANVAS_W + 16 + bw, 56, 13, WHITE);
 
@@ -321,7 +320,7 @@ int main() {
         }
 
         // ── LMB released ──────────────────────────────────────────────
-        if (inCanvas && IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+        if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
             if (connecting && hoverNodeId != -1) {
                 bool portOccupied = false;
                 for (const auto& c : cables) {
@@ -372,7 +371,7 @@ int main() {
             DrawPanel(selectedId, nodes);
 
             // HUD — screen space, outside camera
-            DrawFPS(SCREEN_W - 80, 10);
+            DrawFPS(CANVAS_W - 80, 10);
             DrawText("P=PC  R=Router  S=Switch  Del=Delete  MMB=Pan  Scroll=Zoom  Drag-port=Cable  Esc=Cancel",
                      10, SCREEN_H - 24, 12, Color{100, 116, 139, 255});
         EndDrawing();
