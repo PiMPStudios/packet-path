@@ -1,5 +1,6 @@
 #include "raylib.h"
 #include "Device.h"
+#include "Cable.h"
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -87,29 +88,6 @@ void DrawDotGrid(const Camera2D& cam) {
     for (float x = startX; x <= botRight.x; x += spacing)
         for (float y = startY; y <= botRight.y; y += spacing)
             DrawCircleV({x, y}, 1.5f / cam.zoom, dot);
-}
-
-// ── Cable struct and helpers ──────────────────────────────────────────────
-struct Cable {
-    int fromId, fromPort;
-    int toId,   toPort;
-};
-
-const DeviceNode* FindNode(const std::vector<DeviceNode>& nodes, int id) {
-    for (const auto& n : nodes)
-        if (n.id == id) return &n;
-    return nullptr;
-}
-
-static Vector2 BezierCtrl(Vector2 p, int port) {
-    const float offset = 60.0f;
-    switch (port) {
-        case 0: return {p.x,           p.y - offset};
-        case 1: return {p.x + offset,  p.y         };
-        case 2: return {p.x,           p.y + offset};
-        case 3: return {p.x - offset,  p.y         };
-        default: return p;
-    }
 }
 
 void DrawAllCables(const std::vector<Cable>& cables,
