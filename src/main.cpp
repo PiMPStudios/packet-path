@@ -541,7 +541,11 @@ void UpdatePacketAnim(PacketAnim& anim, float dt,
     }
 
     const auto& path = anim.result.path;
-    if ((int)path.size() <= 1) { anim.done = true; return; }
+    if ((int)path.size() <= 1) {
+        anim.done = true;
+        if (!anim.result.success) anim.failPulse = 0.5f;  // pulse even on first-hop failure
+        return;
+    }
 
     anim.t += dt / HOP_DURATION;
     if (anim.t >= 1.f) {
