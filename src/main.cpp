@@ -29,7 +29,8 @@ struct DeviceNode {
     Vector2     position = {0.0f, 0.0f};
     std::string label;
     bool        selected = false;
-    std::string mgmtIp;     // "x.x.x.x/xx", empty = unconfigured
+    std::string mgmtIp;        // "x.x.x.x/xx", empty = unconfigured
+    std::string portIp[4];     // per-port IPs, same format
 };
 
 // ── Helper functions ───────────────────────────────────────────────────────
@@ -157,11 +158,15 @@ bool HitTestPort(const std::vector<DeviceNode>& nodes, Vector2 worldMouse,
 // ── Panel UI state ────────────────────────────────────────────────────────
 struct PanelState {
     int activeField = -1;
-    // -1=none  0=label(hostname)  1=mgmtIp
+    // -1=none  0=label(hostname)  1=mgmtIp  2-5=portIp[0-3]
 };
 
 Rectangle PnlFieldRect(int yOffset) {
     return {(float)(CANVAS_W + 12), (float)yOffset, (float)(PANEL_W - 24), 26.0f};
+}
+
+Rectangle PnlPortFieldRect(int port) {
+    return {(float)(CANVAS_W + 80), 240.0f + port * 44, (float)(PANEL_W - 92), 24.0f};
 }
 
 bool ValidateIP(const std::string& ip) {
@@ -172,6 +177,14 @@ bool ValidateIP(const std::string& ip) {
             a >= 0 && a <= 255 && b >= 0 && b <= 255 &&
             c >= 0 && c <= 255 && d >= 0 && d <= 255 &&
             prefix >= 0 && prefix <= 32);
+}
+
+std::string GetPortName(DeviceType type, int port) {
+    if (type == PC) {
+        const char* names[] = {"eth0", "eth1", "eth2", "eth3"};
+        return names[port];
+    }
+    return "Gi0/" + std::to_string(port);
 }
 
 void UpdateTextField(std::string& text, int maxLen) {
@@ -268,6 +281,19 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
                   n->label, ps.activeField == 0, !n->label.empty());
     DrawTextField(PnlFieldRect(178), "Mgmt IP", "x.x.x.x/xx",
                   n->mgmtIp, ps.activeField == 1, ValidateIP(n->mgmtIp));
+
+    DrawLineEx({(float)CANVAS_W, 214.0f}, {(float)(CANVAS_W + PANEL_W), 214.0f},
+               1.0f, PANEL_BORDER);
+    DrawText("INTERFACES", CANVAS_W + 12, 224, 10, Color{100, 116, 139, 255});
+
+    for (int i = 0; i < PORTS_PER_NODE; ++i) {
+        std::string pname = GetPortName(n->type, i);
+        int ry = 240 + i * 44;
+        DrawText(pname.c_str(), CANVAS_W + 16, ry + 5, 11, Color{148, 163, 184, 255});
+        DrawTextField(PnlPortFieldRect(i), "", "x.x.x.x/xx",
+                      n->portIp[i], ps.activeField == 2 + i,
+                      ValidateIP(n->portIp[i]));
+    }
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────
@@ -421,6 +447,9 @@ int main() {
             if (selectedId != -1) {
                 if (CheckCollisionPointRec(screenMouse, PnlFieldRect(126))) ps.activeField = 0;
                 if (CheckCollisionPointRec(screenMouse, PnlFieldRect(178))) ps.activeField = 1;
+                for (int i = 0; i < PORTS_PER_NODE; ++i)
+                    if (CheckCollisionPointRec(screenMouse, PnlPortFieldRect(i)))
+                        ps.activeField = 2 + i;
             }
         }
 
@@ -432,6 +461,8 @@ int main() {
             if (selNode) {
                 if (ps.activeField == 0) UpdateTextField(selNode->label,   32);
                 if (ps.activeField == 1) UpdateTextField(selNode->mgmtIp, 18);
+                for (int i = 0; i < PORTS_PER_NODE; ++i)
+                    if (ps.activeField == 2 + i) UpdateTextField(selNode->portIp[i], 18);
             }
         } else {
             while (GetCharPressed() > 0) {}  // flush char queue when no field active
