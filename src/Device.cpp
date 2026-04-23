@@ -108,10 +108,11 @@ std::string GetDeviceMac(int id) {
 }
 
 bool IsAbr(const DeviceNode& node) {
-    uint32_t firstArea = UINT32_MAX;
+    bool     foundFirst = false;
+    uint32_t firstArea  = 0;
     for (const auto& nbr : node.ospfNeighbors) {
         if (nbr.state != OSPF_FULL) continue;
-        if (firstArea == UINT32_MAX) { firstArea = nbr.area; continue; }
+        if (!foundFirst) { foundFirst = true; firstArea = nbr.area; continue; }
         if (nbr.area != firstArea) return true;
     }
     return false;

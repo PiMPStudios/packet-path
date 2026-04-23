@@ -92,7 +92,7 @@ struct DeviceNode {
     bool        ospfEnabled  = false;
     std::string routerId;
     float       helloTimer   = 0.f;
-    uint32_t    ospfPortArea[PORTS_PER_NODE] = {};  // area per port, default 0
+    uint32_t    ospfPortArea[PORTS_PER_NODE] = {};  // area config per port (source of truth); OspfEngine copies to OspfNeighbor::area at adjacency formation
     std::vector<OspfNeighbor>                                      ospfNeighbors;
     std::unordered_map<uint32_t,
         std::unordered_map<std::string, RouterLsa>>                areaLsdbs;
