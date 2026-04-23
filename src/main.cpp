@@ -409,7 +409,7 @@ void UpdateRoutesTab(DeviceNode* n, PanelState& ps) {
             n->staticRoutes.push_back({ps.newRouteDest, ps.newRouteNext, -1, ROUTE_STATIC});
             ps.newRouteDest.clear();
             ps.newRouteNext.clear();
-            ps.activeRouteField = 0;
+            ps.activeRouteField = -1;
         }
     }
 }
