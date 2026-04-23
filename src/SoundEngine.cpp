@@ -15,6 +15,7 @@ static Sound MakeSweep(float freqStart, float freqEnd,
 {
     const int SR = 44100;
     int n        = (int)(SR * duration);
+    if (n <= 0) return {};
     short* data  = new short[n];
 
     float phase = 0.f;
@@ -43,6 +44,7 @@ static Sound MakeSweep(float freqStart, float freqEnd,
 static Sound MakeChord(float freq1, float freq2, float duration, float volume) {
     const int SR = 44100;
     int n        = (int)(SR * duration);
+    if (n <= 0) return {};
     short* data  = new short[n];
 
     float ph1 = 0.f, ph2 = 0.f;
