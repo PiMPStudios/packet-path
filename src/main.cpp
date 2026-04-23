@@ -52,6 +52,9 @@ int main() {
                 ps.activeField = -1;
             } else if (ps.activeRouteField != -1) {
                 ps.activeRouteField = -1;
+            } else if (ps.activePortAreaField != -1) {
+                ps.activePortAreaField = -1;
+                ps.portAreaBuf.clear();
             } else if (connecting) {
                 connecting  = false;
                 hoverNodeId = -1;
@@ -300,24 +303,32 @@ int main() {
             if (selectedId != -1) {
                 // Tab clicks
                 if (CheckCollisionPointRec(screenMouse, PnlConfigTabRect())) {
-                    ps.activeTab        = TAB_CONFIG;
-                    ps.activeField      = -1;
-                    ps.activeRouteField = -1;
+                    ps.activeTab           = TAB_CONFIG;
+                    ps.activeField         = -1;
+                    ps.activeRouteField    = -1;
+                    ps.activePortAreaField = -1;
+                    ps.portAreaBuf.clear();
                 }
                 if (CheckCollisionPointRec(screenMouse, PnlRoutesTabRect())) {
-                    ps.activeTab        = TAB_ROUTES;
-                    ps.activeField      = -1;
-                    ps.activeRouteField = -1;
+                    ps.activeTab           = TAB_ROUTES;
+                    ps.activeField         = -1;
+                    ps.activeRouteField    = -1;
+                    ps.activePortAreaField = -1;
+                    ps.portAreaBuf.clear();
                 }
                 if (CheckCollisionPointRec(screenMouse, PnlArpTabRect())) {
-                    ps.activeTab        = TAB_ARP;
-                    ps.activeField      = -1;
-                    ps.activeRouteField = -1;
+                    ps.activeTab           = TAB_ARP;
+                    ps.activeField         = -1;
+                    ps.activeRouteField    = -1;
+                    ps.activePortAreaField = -1;
+                    ps.portAreaBuf.clear();
                 }
                 if (CheckCollisionPointRec(screenMouse, PnlOspfTabRect())) {
-                    ps.activeTab        = TAB_OSPF;
-                    ps.activeField      = -1;
-                    ps.activeRouteField = -1;
+                    ps.activeTab           = TAB_OSPF;
+                    ps.activeField         = -1;
+                    ps.activeRouteField    = -1;
+                    ps.activePortAreaField = -1;
+                    ps.portAreaBuf.clear();
                 }
                 // Config tab field focus
                 if (ps.activeTab == TAB_CONFIG) {
@@ -421,7 +432,9 @@ int main() {
             if (selNode) {
                 UpdateTextField(ps.portAreaBuf, 5);  // area IDs 0-65535 (5 digits max)
                 if (IsKeyPressed(KEY_ENTER)) {
-                    if (!ps.portAreaBuf.empty()) {
+                    bool allDigits = !ps.portAreaBuf.empty() &&
+                        std::all_of(ps.portAreaBuf.begin(), ps.portAreaBuf.end(), ::isdigit);
+                    if (allDigits) {
                         uint32_t newArea = (uint32_t)std::stoul(ps.portAreaBuf);
                         selNode->ospfPortArea[ps.activePortAreaField] = newArea;
                         if (selNode->ospfEnabled) {
