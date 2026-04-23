@@ -392,6 +392,28 @@ DeviceNode SpawnNode(DeviceType type, Vector2 worldPos) {
     return n;
 }
 
+void UpdateRoutesTab(DeviceNode* n, PanelState& ps) {
+    if (ps.activeRouteField == -1) return;
+    if (ps.activeRouteField == 0) UpdateTextField(ps.newRouteDest, 18);
+    if (ps.activeRouteField == 1) UpdateTextField(ps.newRouteNext, 15);
+
+    // KEY_TAB cycles focus between the two fields
+    if (IsKeyPressed(KEY_TAB)) {
+        ps.activeRouteField = (ps.activeRouteField == 0) ? 1 : 0;
+        while (GetCharPressed() > 0) {}  // flush the tab character itself
+    }
+
+    // KEY_ENTER commits if valid
+    if (IsKeyPressed(KEY_ENTER)) {
+        if (ValidateIP(ps.newRouteDest) && ValidateIPOnly(ps.newRouteNext)) {
+            n->staticRoutes.push_back({ps.newRouteDest, ps.newRouteNext, -1, ROUTE_STATIC});
+            ps.newRouteDest.clear();
+            ps.newRouteNext.clear();
+            ps.activeRouteField = 0;
+        }
+    }
+}
+
 void DrawConfigTab(const DeviceNode* n, const PanelState& ps) {
     DrawText("GENERAL", CANVAS_W + 12, 124, 10, Color{100, 116, 139, 255});
     DrawTextField(PnlFieldRect(CFG_HOSTNAME_Y), "Hostname", nullptr,
@@ -469,13 +491,13 @@ void DrawRoutesTab(const DeviceNode* n, const PanelState& ps) {
     DrawText("ADD STATIC ROUTE", CANVAS_W + 12, RTE_ADD_SEP_Y + 8, 10,
              Color{100, 116, 139, 255});
 
-    // Destination field (active=false until Task 4 wires it up)
+    // Destination field
     DrawTextField(PnlRouteDestRect(), "Destination", "x.x.x.x/xx",
-                  ps.newRouteDest, false, ValidateIP(ps.newRouteDest));
+                  ps.newRouteDest, ps.activeRouteField == 0, ValidateIP(ps.newRouteDest));
 
-    // Next-hop field (active=false until Task 4)
+    // Next-hop field
     DrawTextField(PnlRouteNextRect(), "Next-Hop", "x.x.x.x",
-                  ps.newRouteNext, false, ValidateIPOnly(ps.newRouteNext));
+                  ps.newRouteNext, ps.activeRouteField == 1, ValidateIPOnly(ps.newRouteNext));
 
     // [Add Route] button (dim until Task 4 wires it up)
     bool canAdd = ValidateIP(ps.newRouteDest) && ValidateIPOnly(ps.newRouteNext);
@@ -711,7 +733,8 @@ int main() {
             }
         }
 
-        if (ps.activeField == -1 && IsKeyPressed(KEY_DELETE) && selectedId != -1) {
+        if (ps.activeField == -1 && ps.activeRouteField == -1 &&
+            IsKeyPressed(KEY_DELETE) && selectedId != -1) {
             nodes.erase(std::remove_if(nodes.begin(), nodes.end(),
                 [&](const DeviceNode& n){ return n.id == selectedId; }),
                 nodes.end());
@@ -874,12 +897,61 @@ int main() {
                         if (CheckCollisionPointRec(screenMouse, PnlPortFieldRect(i)))
                             ps.activeField = 2 + i;
                 }
-                // Routes tab interactions handled in Task 4
+                // Routes tab: field focus, [×] delete, [Add] button
+                if (ps.activeTab == TAB_ROUTES) {
+                    ps.activeRouteField = -1;
+
+                    // Add-form field focus
+                    if (CheckCollisionPointRec(screenMouse, PnlRouteDestRect()))
+                        ps.activeRouteField = 0;
+                    if (CheckCollisionPointRec(screenMouse, PnlRouteNextRect()))
+                        ps.activeRouteField = 1;
+
+                    // [Add] button
+                    if (CheckCollisionPointRec(screenMouse, PnlRouteAddBtnRect())) {
+                        DeviceNode* selNode = nullptr;
+                        for (auto& nd : nodes)
+                            if (nd.id == selectedId) { selNode = &nd; break; }
+                        if (selNode && ValidateIP(ps.newRouteDest)
+                                    && ValidateIPOnly(ps.newRouteNext)) {
+                            selNode->staticRoutes.push_back(
+                                {ps.newRouteDest, ps.newRouteNext, -1, ROUTE_STATIC});
+                            ps.newRouteDest.clear();
+                            ps.newRouteNext.clear();
+                            ps.activeRouteField = 0;
+                        }
+                    }
+
+                    // [×] delete buttons — check each displayed route row
+                    DeviceNode* selNode = nullptr;
+                    for (auto& nd : nodes)
+                        if (nd.id == selectedId) { selNode = &nd; break; }
+                    if (selNode) {
+                        auto table = GetRoutingTable(*selNode);
+                        int numConnected = 0;
+                        for (const auto& r : table)
+                            if (r.src == ROUTE_CONNECTED) ++numConnected;
+                        int displayed = std::min((int)table.size(), 8);
+                        for (int i = 0; i < displayed; ++i) {
+                            if (table[i].src == ROUTE_STATIC) {
+                                if (CheckCollisionPointRec(screenMouse, PnlRouteDeleteRect(i))) {
+                                    int staticIdx = i - numConnected;
+                                    if (staticIdx >= 0 &&
+                                        staticIdx < (int)selNode->staticRoutes.size()) {
+                                        selNode->staticRoutes.erase(
+                                            selNode->staticRoutes.begin() + staticIdx);
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
         // ── Text field update ──────────────────────────────────────────
-        if (ps.activeField != -1 && selectedId != -1) {
+        if (ps.activeTab == TAB_CONFIG && ps.activeField != -1 && selectedId != -1) {
             DeviceNode* selNode = nullptr;
             for (auto& nd : nodes)
                 if (nd.id == selectedId) { selNode = &nd; break; }
@@ -889,6 +961,11 @@ int main() {
                 for (int i = 0; i < PORTS_PER_NODE; ++i)
                     if (ps.activeField == 2 + i) UpdateTextField(selNode->portIp[i], 18);
             }
+        } else if (ps.activeTab == TAB_ROUTES && ps.activeRouteField != -1 && selectedId != -1) {
+            DeviceNode* selNode = nullptr;
+            for (auto& nd : nodes)
+                if (nd.id == selectedId) { selNode = &nd; break; }
+            if (selNode) UpdateRoutesTab(selNode, ps);
         } else {
             while (GetCharPressed() > 0) {}  // flush char queue when no field active
         }
