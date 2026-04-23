@@ -23,6 +23,8 @@ static const Color PANEL_BG       = {22, 33, 62, 255};
 static const Color PANEL_BORDER   = {51, 65, 85, 255};
 static const int   MENU_ITEM_H    = 28;
 static const int   CONTEXT_MENU_W = 160;
+static const int   LOG_H          = 90;
+static const int   CANVAS_H       = SCREEN_H - LOG_H;  // 630
 
 // ── Config tab layout ─────────────────────────────────────────────────────
 static const int CFG_HOSTNAME_Y   = 158;  // hostname field Y
@@ -53,6 +55,13 @@ struct ForwardResult {
     bool             success = false;
     std::vector<int> path;    // node IDs from src to dst (inclusive)
     std::string      reason;  // "delivered" | "no route to X" | "next-hop unreachable: X" | "loop detected" | "ttl exceeded"
+};
+
+struct LogEntry {
+    bool        success;
+    std::string pathStr;   // e.g. "PC1 → R1 → PC2"
+    std::string reason;    // "delivered" | "no route to X" | etc.
+    float       timestamp; // GetTime() at moment of trigger
 };
 
 // ── Device types & node struct ─────────────────────────────────────────────
@@ -122,7 +131,7 @@ void DrawDotGrid(const Camera2D& cam) {
     Color dot     = {30, 41, 59, 255};
 
     Vector2 topLeft  = GetScreenToWorld2D({0.0f, 0.0f}, cam);
-    Vector2 botRight = GetScreenToWorld2D({(float)CANVAS_W, (float)SCREEN_H}, cam);
+    Vector2 botRight = GetScreenToWorld2D({(float)CANVAS_W, (float)CANVAS_H}, cam);
 
     float startX = floorf(topLeft.x / spacing) * spacing;
     float startY = floorf(topLeft.y / spacing) * spacing;
@@ -462,6 +471,42 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
     return {false, path, "ttl exceeded"};
 }
 
+// ── Log console (drawn outside BeginMode2D, full-width bottom strip) ─────
+void DrawLogConsole(const std::vector<LogEntry>& entries) {
+    DrawRectangle(0, CANVAS_H, SCREEN_W, LOG_H, Color{10, 15, 28, 255});
+    DrawLineEx({0.f, (float)CANVAS_H}, {(float)SCREEN_W, (float)CANVAS_H},
+               1.f, Color{51, 65, 85, 255});
+    DrawText("LOG", 12, CANVAS_H + 8, 9, Color{71, 85, 105, 255});
+
+    if (entries.empty()) {
+        DrawText("No simulations run yet", 36, CANVAS_H + 36, 10,
+                 Color{51, 65, 85, 255});
+        return;
+    }
+
+    int maxLines = 3;
+    int startIdx = std::max(0, (int)entries.size() - maxLines);
+    int shown    = std::min(maxLines, (int)entries.size());
+    for (int i = 0; i < shown; ++i) {
+        const auto& e = entries[startIdx + i];
+        int lineY = CANVAS_H + 8 + (shown - 1 - i) * 24;  // newest at top
+
+        int   secs = (int)e.timestamp;
+        int   mins = secs / 60; secs %= 60;
+        char  tsbuf[16];
+        std::snprintf(tsbuf, sizeof(tsbuf), "[%02d:%02d]", mins, secs);
+        DrawText(tsbuf, 36, lineY, 10, Color{71, 85, 105, 255});
+
+        const char* icon    = e.success ? "\xe2\x9c\x93" : "\xe2\x9c\x97";
+        Color       icColor = e.success ? Color{34, 197, 94, 255}
+                                        : Color{239, 68, 68, 255};
+        DrawText(icon, 90, lineY, 10, icColor);
+
+        std::string msg = e.pathStr + "  \xe2\x80\x94  " + e.reason;
+        DrawText(msg.c_str(), 108, lineY, 10, icColor);
+    }
+}
+
 // ── Spawn helper ──────────────────────────────────────────────────────────
 static int nextId = 1;
 
@@ -688,7 +733,7 @@ void UpdateContextMenuHover(ContextMenu& menu, Vector2 screenMouse) {
 
     float h = (float)(count * MENU_ITEM_H + 8);
     float x = std::min(menu.screenPos.x, (float)(CANVAS_W - CONTEXT_MENU_W - 4));
-    float y = std::min(menu.screenPos.y, (float)(SCREEN_H - (int)h - 4));
+    float y = std::min(menu.screenPos.y, (float)(CANVAS_H - (int)h - 4));
 
     menu.hoverItem = -1;
     for (int i = 0; i < count; ++i) {
@@ -718,7 +763,7 @@ void DrawContextMenu(const ContextMenu& menu, Vector2 screenMouse) {
 
     float h = (float)(count * MENU_ITEM_H + 8);
     float x = std::min(menu.screenPos.x, (float)(CANVAS_W - CONTEXT_MENU_W - 4));
-    float y = std::min(menu.screenPos.y, (float)(SCREEN_H - (int)h - 4));
+    float y = std::min(menu.screenPos.y, (float)(CANVAS_H - (int)h - 4));
 
     DrawRectangleRounded({x, y, (float)CONTEXT_MENU_W, h}, 0.08f, 4, Color{30, 41, 59, 255});
     DrawRectangleRoundedLinesEx({x, y, (float)CONTEXT_MENU_W, h}, 0.08f, 4, 1.0f, PANEL_BORDER);
@@ -773,7 +818,7 @@ int main() {
     nodes.push_back(SpawnNode(PC, {0.0f, 0.0f}));
 
     Camera2D camera = {};
-    camera.offset   = {CANVAS_W / 2.0f, SCREEN_H / 2.0f};
+    camera.offset   = {CANVAS_W / 2.0f, CANVAS_H / 2.0f};
     camera.target   = {0.0f, 0.0f};
     camera.zoom     = 1.0f;
 
@@ -791,11 +836,13 @@ int main() {
     PanelState  ps;
     int         prevSelectedId = -2;  // -2 forces reset on first frame
     ContextMenu contextMenu;
+    std::vector<LogEntry> logEntries;
 
     while (!WindowShouldClose()) {
         Vector2 screenMouse = GetMousePosition();
         Vector2 worldMouse  = GetScreenToWorld2D(screenMouse, camera);
-        bool inCanvas = (screenMouse.x < (float)CANVAS_W);
+        bool inCanvas = (screenMouse.x < (float)CANVAS_W &&
+                         screenMouse.y < (float)CANVAS_H);
 
         // ── Spawn / delete / cancel ────────────────────────────────────
         if (inCanvas && ps.activeField == -1 && ps.activeRouteField == -1) {
@@ -1088,11 +1135,12 @@ int main() {
 
             DrawPanel(selectedId, nodes, ps);
             DrawContextMenu(contextMenu, screenMouse);
+            DrawLogConsole(logEntries);
 
             // HUD — screen space, outside camera
             DrawFPS(CANVAS_W - 80, 10);
             DrawText("P=PC  R=Router  S=Switch  Del=Delete  MMB=Pan  Scroll=Zoom  Drag-port=Cable  Esc=Cancel",
-                     10, SCREEN_H - 24, 12, Color{100, 116, 139, 255});
+                     10, CANVAS_H - 24, 12, Color{100, 116, 139, 255});
         EndDrawing();
     }
 
