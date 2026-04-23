@@ -47,6 +47,9 @@ static RouterLsa GenerateLsa(const DeviceNode& node, uint32_t area) {
 // Rebuilds areaLsdbs for every OSPF-enabled router.
 // For each router, finds all areas it participates in (ports with valid IPs
 // + areas of FULL neighbors), then BFS-floods each area's LSDB.
+// BFS area isolation relies on OspfNeighbor::area being correctly set at adjacency
+// formation (Phase 2 of UpdateOspf). Any code that constructs OspfNeighbor entries
+// outside UpdateOspf must set the area field or BFS will silently cross area boundaries.
 static void RebuildAllLsdbs(std::vector<DeviceNode>& nodes) {
     for (auto& node : nodes) {
         if (!node.ospfEnabled || node.routerId.empty()) continue;
@@ -190,7 +193,8 @@ static void PropagateSummaryRoutes(std::vector<DeviceNode>& nodes) {
                 if (abrRoute.src != ROUTE_OSPF)  continue;  // only intra-area routes
                 if (abrRoute.area == linkArea)   continue;  // same area as our link — not inter-area
 
-                // Skip if we already know any route to this destination
+                // First-write-wins across multiple ABRs. All links have cost=1 in this
+                // simulator so any ABR produces equal-cost routes — order doesn't matter.
                 bool known = false;
                 for (const auto& r : node.ospfRoutes)
                     if (r.dest == abrRoute.dest) { known = true; break; }
@@ -342,7 +346,7 @@ std::vector<std::string> UpdateOspf(float dt,
                               nbr.neighborRouterId.c_str());
                 events.push_back(buf);
                 nbr.state = OSPF_DOWN;
-                anyChange = true;
+                anyChange = true;  // must precede erase — erase itself does not set anyChange
             }
         }
         node.ospfNeighbors.erase(
