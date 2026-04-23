@@ -52,7 +52,7 @@ struct RouteEntry {
 struct ForwardResult {
     bool             success = false;
     std::vector<int> path;    // node IDs from src to dst (inclusive)
-    std::string      reason;  // "delivered" | "no route to X" | "next-hop unreachable: X" | "loop detected"
+    std::string      reason;  // "delivered" | "no route to X" | "next-hop unreachable: X" | "loop detected" | "ttl exceeded"
 };
 
 // ── Device types & node struct ─────────────────────────────────────────────
@@ -459,7 +459,7 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
             return {false, path, "no route to " + destIp};
     }
 
-    return {false, path, "loop detected"};
+    return {false, path, "ttl exceeded"};
 }
 
 // ── Spawn helper ──────────────────────────────────────────────────────────
@@ -741,6 +741,7 @@ void ExecuteMenuAction(ContextMenu& menu, std::vector<DeviceNode>& nodes,
         if (item == 0) {  // Rename — select node and focus hostname field
             selectedId = menu.targetId;
             for (auto& n : nodes) n.selected = (n.id == selectedId);
+            ps.activeTab   = TAB_CONFIG;
             ps.activeField = 0;
         } else if (item == 1) {  // Delete
             cables.erase(std::remove_if(cables.begin(), cables.end(),
@@ -797,7 +798,7 @@ int main() {
         bool inCanvas = (screenMouse.x < (float)CANVAS_W);
 
         // ── Spawn / delete / cancel ────────────────────────────────────
-        if (inCanvas && ps.activeField == -1) {
+        if (inCanvas && ps.activeField == -1 && ps.activeRouteField == -1) {
             if (IsKeyPressed(KEY_P)) nodes.push_back(SpawnNode(PC,     worldMouse));
             if (IsKeyPressed(KEY_R)) nodes.push_back(SpawnNode(ROUTER, worldMouse));
             if (IsKeyPressed(KEY_S)) nodes.push_back(SpawnNode(SWITCH, worldMouse));
@@ -930,6 +931,7 @@ int main() {
             contextMenu.worldPos  = worldMouse;
             contextMenu.hoverItem = -1;
             ps.activeField        = -1;
+            ps.activeRouteField   = -1;
 
             // Priority: node body > cable > canvas
             int hitIdx = -1;
