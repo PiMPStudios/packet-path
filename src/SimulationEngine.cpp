@@ -1,4 +1,5 @@
 #include "SimulationEngine.h"
+#include <algorithm>
 #include <unordered_set>
 
 // ── Forwarding engine ─────────────────────────────────────────────────────
