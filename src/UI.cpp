@@ -1,14 +1,5 @@
 #include "UI.h"
-
-// Temporary layout constants — replaced by #include "NetworkCanvas.h" in Task 8
-static const int PANEL_W        = 280;
-static const int SCREEN_W       = 1280;
-static const int CANVAS_W       = SCREEN_W - PANEL_W;
-static const int LOG_H          = 90;
-static const int SCREEN_H       = 720;
-static const int CANVAS_H       = SCREEN_H - LOG_H;
-static const int MENU_ITEM_H    = 28;
-static const int CONTEXT_MENU_W = 160;
+#include "NetworkCanvas.h"
 
 static int nextId = 1;
 

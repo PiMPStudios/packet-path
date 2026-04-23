@@ -1,16 +1,5 @@
 #include "ConfigPanel.h"
-
-// Temporary layout constants — replaced by #include "NetworkCanvas.h" in Task 8
-static const int PANEL_W         = 280;
-static const int SCREEN_W        = 1280;
-static const int CANVAS_W        = SCREEN_W - PANEL_W;
-static const int CFG_PORT_Y0     = 272;
-static const int CFG_PORT_STRIDE = 44;
-static const int RTE_ROW_Y0      = 142;
-static const int RTE_ROW_H       = 22;
-static const int RTE_DEST_Y      = 464;
-static const int RTE_NEXT_Y      = 516;
-static const int RTE_BTN_Y       = 554;
+#include "NetworkCanvas.h"
 
 Rectangle PnlFieldRect(int yOffset) {
     return {(float)(CANVAS_W + 12), (float)yOffset, (float)(PANEL_W - 24), 26.0f};
