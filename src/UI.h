@@ -19,6 +19,7 @@ struct ContextMenu {
 };
 
 DeviceNode SpawnNode(DeviceType type, Vector2 worldPos);
+void SetNextId(int n);
 
 void UpdateContextMenuHover(ContextMenu& menu, Vector2 screenMouse);
 

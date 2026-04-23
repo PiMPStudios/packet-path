@@ -1,5 +1,5 @@
 CC       = g++
-CFLAGS   = -std=c++17 -Wall -Wextra -O2
+CFLAGS   = -std=c++17 -Wall -Wextra -O2 -isystem ./include
 INCLUDES = $(shell pkg-config --cflags raylib 2>/dev/null || echo "-I/usr/local/include")
 LIBS     = $(shell pkg-config --libs   raylib 2>/dev/null || echo "-L/usr/local/lib -lraylib \
              -framework OpenGL -framework Cocoa -framework IOKit \

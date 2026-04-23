@@ -3,6 +3,8 @@
 
 static int nextId = 1;
 
+void SetNextId(int n) { nextId = n; }
+
 DeviceNode SpawnNode(DeviceType type, Vector2 worldPos) {
     const char* names[] = {"PC", "RTR", "SW"};
     DeviceNode n;
