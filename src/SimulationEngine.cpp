@@ -70,6 +70,10 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
             // Emit ARP event
             if (arpHit) {
                 result.arpEvents.push_back({currentId, route.nextHop, cachedMac, true});
+                if (neighborId == -1) {
+                    result.reason = "ARP: stale cache entry for " + route.nextHop;
+                    return result;
+                }
             } else if (neighborId != -1) {
                 result.arpEvents.push_back({currentId, route.nextHop, resolvedMac, false});
             } else {
