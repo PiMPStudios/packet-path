@@ -15,13 +15,14 @@ static const int   NODE_FONT_SZ   =  14;
 static const float PORT_RADIUS    =   6.0f;
 
 // ── Routing types ─────────────────────────────────────────────────────────
-enum RouteSource { ROUTE_CONNECTED, ROUTE_STATIC, ROUTE_OSPF };
+enum RouteSource { ROUTE_CONNECTED, ROUTE_STATIC, ROUTE_OSPF, ROUTE_OSPF_IA };
 
 struct RouteEntry {
     std::string dest;
     std::string nextHop;
     int         outPort;
     RouteSource src;
+    uint32_t    area = 0;   // OSPF area (set by SPF; 0 for non-OSPF routes)
 };
 
 // ── OSPF types ────────────────────────────────────────────────────────────
@@ -34,17 +35,19 @@ struct OspfAdjacency {
 
 struct RouterLsa {
     std::string                routerId;
+    uint32_t                   area = 0;
     std::vector<OspfAdjacency> adjacencies;
-    std::vector<std::string>   networks;   // CIDR subnets owned by this router
+    std::vector<std::string>   networks;   // CIDR subnets in this area
 };
 
 struct OspfNeighbor {
     std::string neighborRouterId;
-    std::string neighborIp;      // neighbor's port IP on the link facing us (used as next-hop)
+    std::string neighborIp;      // neighbor's port IP on the link facing us
     int         neighborNodeId = -1;
     int         localPort      = -1;
     OspfState   state          = OSPF_DOWN;
     float       deadTimer      = 0.f;
+    uint32_t    area           = 0;   // area this adjacency was formed in
 };
 
 // ── ARP & log types ───────────────────────────────────────────────────────
@@ -89,9 +92,11 @@ struct DeviceNode {
     bool        ospfEnabled  = false;
     std::string routerId;
     float       helloTimer   = 0.f;
-    std::vector<OspfNeighbor>                  ospfNeighbors;
-    std::unordered_map<std::string, RouterLsa> lsdb;
-    std::vector<RouteEntry>                    ospfRoutes;
+    uint32_t    ospfPortArea[PORTS_PER_NODE] = {};  // area per port, default 0
+    std::vector<OspfNeighbor>                                      ospfNeighbors;
+    std::unordered_map<uint32_t,
+        std::unordered_map<std::string, RouterLsa>>                areaLsdbs;
+    std::vector<RouteEntry>                                        ospfRoutes;
 };
 
 // ── Device geometry helpers (no draw calls) ───────────────────────────────
@@ -100,6 +105,7 @@ Rectangle   GetNodeRect(const DeviceNode& n);
 Vector2     GetPortPosition(const DeviceNode& n, int port);
 std::string GetPortName(DeviceType type, int port);
 std::vector<RouteEntry> GetRoutingTable(const DeviceNode& n);
+bool        IsAbr(const DeviceNode& node);
 
 // ── IP / MAC utilities (no raylib) ────────────────────────────────────────
 std::string NetworkAddress(const std::string& cidr);
