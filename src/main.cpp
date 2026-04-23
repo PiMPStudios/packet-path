@@ -165,8 +165,10 @@ Rectangle PnlFieldRect(int yOffset) {
 }
 
 bool ValidateIP(const std::string& ip) {
-    int a, b, c, d, prefix;
-    return (std::sscanf(ip.c_str(), "%d.%d.%d.%d/%d", &a, &b, &c, &d, &prefix) == 5 &&
+    if (ip.empty()) return false;
+    int a, b, c, d, prefix, consumed = 0;
+    std::sscanf(ip.c_str(), "%d.%d.%d.%d/%d%n", &a, &b, &c, &d, &prefix, &consumed);
+    return (consumed == (int)ip.size() &&
             a >= 0 && a <= 255 && b >= 0 && b <= 255 &&
             c >= 0 && c <= 255 && d >= 0 && d <= 255 &&
             prefix >= 0 && prefix <= 32);
@@ -202,7 +204,7 @@ void DrawTextField(Rectangle r, const char* topLabel, const char* placeholder,
     if (value.empty()) {
         if (placeholder && *placeholder && !active)
             DrawText(placeholder, tx, ty, 12, Color{51, 65, 85, 255});
-        if (active && (int)(GetTime() * 2) % 2 == 0)
+        if (active && std::fmod(GetTime(), 1.0) < 0.5)
             DrawRectangle(tx, (int)r.y + 4, 2, (int)r.height - 8, WHITE);
     } else {
         int start = 0;
@@ -210,7 +212,7 @@ void DrawTextField(Rectangle r, const char* topLabel, const char* placeholder,
                MeasureText(value.c_str() + start, 12) > maxW)
             ++start;
         DrawText(value.c_str() + start, tx, ty, 12, WHITE);
-        if (active && (int)(GetTime() * 2) % 2 == 0) {
+        if (active && std::fmod(GetTime(), 1.0) < 0.5) {
             int curX = tx + MeasureText(value.c_str() + start, 12);
             DrawRectangle(curX, (int)r.y + 4, 2, (int)r.height - 8, WHITE);
         }
@@ -263,7 +265,7 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
     DrawText("GENERAL", CANVAS_W + 12, 94, 10, Color{100, 116, 139, 255});
 
     DrawTextField(PnlFieldRect(126), "Hostname", nullptr,
-                  n->label, ps.activeField == 0, true);
+                  n->label, ps.activeField == 0, !n->label.empty());
     DrawTextField(PnlFieldRect(178), "Mgmt IP", "x.x.x.x/xx",
                   n->mgmtIp, ps.activeField == 1, ValidateIP(n->mgmtIp));
 }
