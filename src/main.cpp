@@ -39,6 +39,8 @@ int main() {
     int         lastConditionsPassed = 0;
     bool          traceModalOpen = false;
     ForwardResult activeTrace;
+    float         failAnnotationTimer = 0.f;
+    ForwardResult lastFailedTrace;
 
     while (!WindowShouldClose()) {
         float dt = GetFrameTime();
@@ -76,13 +78,15 @@ int main() {
                             hoverPort            = -1;
                             contextMenu.visible  = false;
                             traceModalOpen       = false;
+                            failAnnotationTimer  = 0.f;
                         }
                     }
                 }
                 if (IsKeyPressed(KEY_ZERO)) {
-                    gameMode       = GAME_SANDBOX;
-                    currentLevel   = 0;
-                    traceModalOpen = false;
+                    gameMode            = GAME_SANDBOX;
+                    currentLevel        = 0;
+                    traceModalOpen      = false;
+                    failAnnotationTimer = 0.f;
                 }
             }
         }
@@ -161,6 +165,7 @@ int main() {
                     hoverPort            = -1;
                     contextMenu.visible  = false;
                     traceModalOpen       = false;
+                    failAnnotationTimer  = 0.f;
                 } else if (CheckCollisionPointRec(screenMouse, WinNextBtnRect()) &&
                            currentLevel < 4) {
                     int nextLevel = currentLevel + 1;
@@ -182,6 +187,7 @@ int main() {
                         hoverPort            = -1;
                         contextMenu.visible  = false;
                         traceModalOpen       = false;
+                        failAnnotationTimer  = 0.f;
                     }
                 }
                 // any other click on the WIN screen is silently consumed
@@ -270,6 +276,12 @@ int main() {
                         le.traceResult = fr;
                         le.timestamp   = GetTime();
                         simState.mode  = SIM_ANIMATING;
+                        if (fr.success) {
+                            failAnnotationTimer = 0.f;
+                        } else {
+                            failAnnotationTimer = 5.0f;
+                            lastFailedTrace     = fr;
+                        }
                     }
                     pushLog(le);
                     // Check all win conditions after every simulation attempt
@@ -582,6 +594,9 @@ int main() {
             prevSelectedId         = selectedId;
         }
 
+        if (failAnnotationTimer > 0.f)
+            failAnnotationTimer -= dt;
+
         // ── OSPF engine tick ─────────────────────────────────────────────
         {
             auto ospfEvents = UpdateOspf(dt, nodes, cables);
@@ -616,6 +631,8 @@ int main() {
             BeginMode2D(camera);
                 DrawDotGrid(camera);
                 DrawAllCables(cables, nodes);
+                if (failAnnotationTimer > 0.f)
+                    DrawBrokenPath(nodes, cables, lastFailedTrace);
                 DrawPacketAnim(simState.anim, nodes, cables);
 
                 if (connecting) {

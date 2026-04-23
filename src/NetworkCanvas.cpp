@@ -274,6 +274,42 @@ void DrawLogConsole(const std::vector<LogEntry>& entries) {
     }
 }
 
+void DrawBrokenPath(const std::vector<DeviceNode>& nodes,
+                    const std::vector<Cable>& cables,
+                    const ForwardResult& result)
+{
+    const auto& path = result.path;
+    if (path.size() < 2) return;
+
+    // Red glow on every cable segment the packet walked
+    for (int i = 0; i < (int)path.size() - 1; ++i) {
+        const DeviceNode* from  = FindNode(nodes, path[i]);
+        const DeviceNode* to    = FindNode(nodes, path[i + 1]);
+        const Cable*      cable = FindCable(cables, path[i], path[i + 1]);
+        if (!from || !to || !cable) continue;
+
+        int fromPort = (cable->fromId == path[i])     ? cable->fromPort : cable->toPort;
+        int toPort   = (cable->fromId == path[i + 1]) ? cable->fromPort : cable->toPort;
+
+        Vector2 p0 = GetPortPosition(*from, fromPort);
+        Vector2 p3 = GetPortPosition(*to,   toPort);
+        DrawSplineSegmentBezierCubic(p0, BezierCtrl(p0, fromPort),
+                                     BezierCtrl(p3, toPort), p3,
+                                     5.0f, Color{239, 68, 68, 140});
+    }
+
+    // Red badge above the last node in path (break point)
+    const DeviceNode* breakNode = FindNode(nodes, path.back());
+    if (!breakNode) return;
+
+    float bx = breakNode->position.x;
+    float by  = breakNode->position.y - NODE_H / 2.f - 18.f;
+    DrawCircle((int)bx, (int)by, 12.f, Color{239, 68, 68, 255});
+    const char* xmark = "\xe2\x9c\x97";
+    int xw = MeasureText(xmark, 11);
+    DrawText(xmark, (int)bx - xw / 2, (int)(by - 6.f), 11, WHITE);
+}
+
 void DrawConfigTab(const DeviceNode* n, const PanelState& ps) {
     DrawText("GENERAL", CANVAS_W + 12, 124, 10, Color{100, 116, 139, 255});
     DrawTextField(PnlFieldRect(CFG_HOSTNAME_Y), "Hostname", nullptr,
