@@ -3,6 +3,7 @@
 #include <vector>
 #include <algorithm>
 #include <cmath>
+#include <cstdio>    // sscanf
 
 // ── Constants ─────────────────────────────────────────────────────────────
 static const int   SCREEN_W     = 1280;
@@ -28,6 +29,7 @@ struct DeviceNode {
     Vector2     position = {0.0f, 0.0f};
     std::string label;
     bool        selected = false;
+    std::string mgmtIp;     // "x.x.x.x/xx", empty = unconfigured
 };
 
 // ── Helper functions ───────────────────────────────────────────────────────
@@ -152,6 +154,69 @@ bool HitTestPort(const std::vector<DeviceNode>& nodes, Vector2 worldMouse,
     return false;
 }
 
+// ── Panel UI state ────────────────────────────────────────────────────────
+struct PanelState {
+    int activeField = -1;
+    // -1=none  0=label(hostname)  1=mgmtIp
+};
+
+Rectangle PnlFieldRect(int yOffset) {
+    return {(float)(CANVAS_W + 12), (float)yOffset, (float)(PANEL_W - 24), 26.0f};
+}
+
+bool ValidateIP(const std::string& ip) {
+    int a, b, c, d, prefix;
+    return (std::sscanf(ip.c_str(), "%d.%d.%d.%d/%d", &a, &b, &c, &d, &prefix) == 5 &&
+            a >= 0 && a <= 255 && b >= 0 && b <= 255 &&
+            c >= 0 && c <= 255 && d >= 0 && d <= 255 &&
+            prefix >= 0 && prefix <= 32);
+}
+
+void UpdateTextField(std::string& text, int maxLen) {
+    int ch;
+    while ((ch = GetCharPressed()) > 0)
+        if ((int)text.size() < maxLen && ch >= 32 && ch < 127)
+            text += (char)ch;
+    if (IsKeyPressed(KEY_BACKSPACE) && !text.empty())
+        text.pop_back();
+}
+
+void DrawTextField(Rectangle r, const char* topLabel, const char* placeholder,
+                   const std::string& value, bool active, bool valid)
+{
+    if (topLabel && *topLabel)
+        DrawText(topLabel, (int)r.x, (int)r.y - 16, 11, Color{100, 116, 139, 255});
+    DrawRectangleRec(r, Color{15, 23, 42, 255});
+
+    Color border;
+    if (active)             border = WHITE;
+    else if (value.empty()) border = Color{51, 65, 85, 255};
+    else if (valid)         border = Color{34, 197, 94, 255};
+    else                    border = Color{239, 68, 68, 255};
+    DrawRectangleLinesEx(r, 1.5f, border);
+
+    const int tx   = (int)r.x + 6;
+    const int ty   = (int)r.y + (int)(r.height / 2) - 6;
+    const int maxW = (int)r.width - 12;
+
+    if (value.empty()) {
+        if (placeholder && *placeholder && !active)
+            DrawText(placeholder, tx, ty, 12, Color{51, 65, 85, 255});
+        if (active && (int)(GetTime() * 2) % 2 == 0)
+            DrawRectangle(tx, (int)r.y + 4, 2, (int)r.height - 8, WHITE);
+    } else {
+        int start = 0;
+        while (start < (int)value.size() &&
+               MeasureText(value.c_str() + start, 12) > maxW)
+            ++start;
+        DrawText(value.c_str() + start, tx, ty, 12, WHITE);
+        if (active && (int)(GetTime() * 2) % 2 == 0) {
+            int curX = tx + MeasureText(value.c_str() + start, 12);
+            DrawRectangle(curX, (int)r.y + 4, 2, (int)r.height - 8, WHITE);
+        }
+    }
+}
+
 // ── Spawn helper ──────────────────────────────────────────────────────────
 static int nextId = 1;
 
@@ -165,13 +230,12 @@ DeviceNode SpawnNode(DeviceType type, Vector2 worldPos) {
     return n;
 }
 
-void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes) {
-    // Background + left border
+void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
+               const PanelState& ps)
+{
     DrawRectangle(CANVAS_W, 0, PANEL_W, SCREEN_H, PANEL_BG);
     DrawLineEx({(float)CANVAS_W, 0.0f}, {(float)CANVAS_W, (float)SCREEN_H},
                1.0f, PANEL_BORDER);
-
-    // Panel header
     DrawText("CONFIGURATION", CANVAS_W + 12, 14, 10, Color{100, 116, 139, 255});
     DrawLineEx({(float)CANVAS_W, 38.0f}, {(float)(CANVAS_W + PANEL_W), 38.0f},
                1.0f, PANEL_BORDER);
@@ -187,7 +251,6 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes) {
     const DeviceNode* n = FindNode(nodes, selectedId);
     if (!n) return;
 
-    // Device type badge + label
     const char* typeNames[] = {"PC", "Router", "Switch"};
     int bw = MeasureText(typeNames[(int)n->type], 11) + 16;
     DrawRectangleRounded({(float)(CANVAS_W + 12), 50.0f, (float)bw, 22.0f},
@@ -198,6 +261,11 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes) {
     DrawLineEx({(float)CANVAS_W, 84.0f}, {(float)(CANVAS_W + PANEL_W), 84.0f},
                1.0f, PANEL_BORDER);
     DrawText("GENERAL", CANVAS_W + 12, 94, 10, Color{100, 116, 139, 255});
+
+    DrawTextField(PnlFieldRect(126), "Hostname", nullptr,
+                  n->label, ps.activeField == 0, true);
+    DrawTextField(PnlFieldRect(178), "Mgmt IP", "x.x.x.x/xx",
+                  n->mgmtIp, ps.activeField == 1, ValidateIP(n->mgmtIp));
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────
@@ -224,25 +292,32 @@ int main() {
     int  hoverNodeId     = -1;
     int  hoverPort       = -1;
 
+    PanelState ps;
+    int        prevSelectedId = -2;  // -2 forces reset on first frame
+
     while (!WindowShouldClose()) {
         Vector2 screenMouse = GetMousePosition();
         Vector2 worldMouse  = GetScreenToWorld2D(screenMouse, camera);
         bool inCanvas = (screenMouse.x < (float)CANVAS_W);
 
         // ── Spawn / delete / cancel ────────────────────────────────────
-        if (inCanvas) {
+        if (inCanvas && ps.activeField == -1) {
             if (IsKeyPressed(KEY_P)) nodes.push_back(SpawnNode(PC,     worldMouse));
             if (IsKeyPressed(KEY_R)) nodes.push_back(SpawnNode(ROUTER, worldMouse));
             if (IsKeyPressed(KEY_S)) nodes.push_back(SpawnNode(SWITCH, worldMouse));
         }
 
-        if (IsKeyPressed(KEY_ESCAPE) && connecting) {
-            connecting  = false;
-            hoverNodeId = -1;
-            hoverPort   = -1;
+        if (IsKeyPressed(KEY_ESCAPE)) {
+            if (ps.activeField != -1) {
+                ps.activeField = -1;
+            } else if (connecting) {
+                connecting  = false;
+                hoverNodeId = -1;
+                hoverPort   = -1;
+            }
         }
 
-        if (IsKeyPressed(KEY_DELETE) && selectedId != -1) {
+        if (ps.activeField == -1 && IsKeyPressed(KEY_DELETE) && selectedId != -1) {
             nodes.erase(std::remove_if(nodes.begin(), nodes.end(),
                 [&](const DeviceNode& n){ return n.id == selectedId; }),
                 nodes.end());
@@ -302,21 +377,19 @@ int main() {
         }
 
         // ── LMB held ──────────────────────────────────────────────────
-        if (inCanvas && IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
-            if (dragging) {
-                for (auto& n : nodes) {
-                    if (n.id == selectedId) {
-                        n.position = {worldMouse.x - dragOffset.x,
-                                      worldMouse.y - dragOffset.y};
-                        break;
-                    }
+        if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && dragging) {
+            for (auto& n : nodes) {
+                if (n.id == selectedId) {
+                    n.position = {worldMouse.x - dragOffset.x,
+                                  worldMouse.y - dragOffset.y};
+                    break;
                 }
             }
-            if (connecting) {
-                hoverNodeId = -1;
-                hoverPort   = -1;
-                HitTestPort(nodes, worldMouse, connectFromId, hoverNodeId, hoverPort);
-            }
+        }
+        if (inCanvas && IsMouseButtonDown(MOUSE_BUTTON_LEFT) && connecting) {
+            hoverNodeId = -1;
+            hoverPort   = -1;
+            HitTestPort(nodes, worldMouse, connectFromId, hoverNodeId, hoverPort);
         }
 
         // ── LMB released ──────────────────────────────────────────────
@@ -338,6 +411,34 @@ int main() {
             dragging    = false;
             hoverNodeId = -1;
             hoverPort   = -1;
+        }
+
+        // ── Panel click-to-focus ───────────────────────────────────────
+        if (!inCanvas && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+            ps.activeField = -1;
+            if (selectedId != -1) {
+                if (CheckCollisionPointRec(screenMouse, PnlFieldRect(126))) ps.activeField = 0;
+                if (CheckCollisionPointRec(screenMouse, PnlFieldRect(178))) ps.activeField = 1;
+            }
+        }
+
+        // ── Text field update ──────────────────────────────────────────
+        if (ps.activeField != -1 && selectedId != -1) {
+            DeviceNode* selNode = nullptr;
+            for (auto& nd : nodes)
+                if (nd.id == selectedId) { selNode = &nd; break; }
+            if (selNode) {
+                if (ps.activeField == 0) UpdateTextField(selNode->label,   32);
+                if (ps.activeField == 1) UpdateTextField(selNode->mgmtIp, 18);
+            }
+        } else {
+            while (GetCharPressed() > 0) {}  // flush char queue when no field active
+        }
+
+        // Reset active field when selection changes
+        if (selectedId != prevSelectedId) {
+            ps.activeField  = -1;
+            prevSelectedId  = selectedId;
         }
 
         // ── Draw ───────────────────────────────────────────────────────
@@ -368,7 +469,7 @@ int main() {
                 for (const auto& n : nodes) DrawDeviceNode(n);
             EndMode2D();
 
-            DrawPanel(selectedId, nodes);
+            DrawPanel(selectedId, nodes, ps);
 
             // HUD — screen space, outside camera
             DrawFPS(CANVAS_W - 80, 10);
