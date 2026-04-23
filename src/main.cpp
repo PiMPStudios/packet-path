@@ -16,9 +16,9 @@ static const Color BG_COLOR     = {15, 23, 42, 255};
 enum DeviceType { PC, ROUTER, SWITCH };
 
 struct DeviceNode {
-    int         id;
-    DeviceType  type;
-    Vector2     position;
+    int         id       = 0;
+    DeviceType  type     = PC;
+    Vector2     position = {0.0f, 0.0f};
     std::string label;
     bool        selected = false;
 };
@@ -55,7 +55,7 @@ void DrawDeviceNode(const DeviceNode& n) {
 }
 
 // ── Dot-grid background (drawn inside BeginMode2D) ────────────────────────
-void DrawDotGrid(Camera2D cam) {
+void DrawDotGrid(const Camera2D& cam) {
     float spacing = 40.0f;
     Color dot     = {30, 41, 59, 255};
 
@@ -127,7 +127,7 @@ int main() {
         }
 
         // ── Camera zoom (scroll wheel, cursor-anchored) ────────────────
-        float wheel = GetMouseWheelMove();
+        float wheel = std::clamp(GetMouseWheelMove(), -3.0f, 3.0f);
         if (wheel != 0.0f) {
             Vector2 beforeZoom = GetScreenToWorld2D(screenMouse, camera);
             camera.zoom *= (1.0f + wheel * 0.1f);
