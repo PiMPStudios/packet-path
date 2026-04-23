@@ -382,7 +382,7 @@ int main() {
                             selNode->ospfEnabled = !selNode->ospfEnabled;
                             if (!selNode->ospfEnabled) {
                                 selNode->ospfNeighbors.clear();
-                                selNode->lsdb.clear();
+                                selNode->areaLsdbs.clear();
                                 selNode->ospfRoutes.clear();
                                 selNode->helloTimer = 0.f;
                                 selNode->routerId.clear();
