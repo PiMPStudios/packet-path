@@ -555,6 +555,53 @@ void UpdatePacketAnim(PacketAnim& anim, float dt,
     }
 }
 
+void DrawPacketAnim(const PacketAnim& anim,
+                    const std::vector<DeviceNode>& nodes,
+                    const std::vector<Cable>& cables)
+{
+    const auto& path = anim.result.path;
+    if (path.empty()) return;
+
+    // Failure pulse — red ring expanding on the last node
+    if (anim.failPulse > 0.f) {
+        const DeviceNode* failNode = FindNode(nodes, path.back());
+        if (failNode) {
+            float frac = anim.failPulse / 0.5f;   // 1..0 as pulse fades
+            float r    = 30.f + 20.f * (1.f - frac);
+            DrawCircleV(failNode->position, r,
+                        Color{239, 68, 68, (unsigned char)(frac * 80.f)});
+            DrawCircleLinesV(failNode->position, r, Color{239, 68, 68, 180});
+        }
+        return;
+    }
+
+    if (anim.done) return;
+    if (anim.hop >= (int)path.size() - 1) return;
+
+    int fromId = path[anim.hop];
+    int toId   = path[anim.hop + 1];
+
+    const DeviceNode* fromNode = FindNode(nodes, fromId);
+    const DeviceNode* toNode   = FindNode(nodes, toId);
+    const Cable*      cable    = FindCable(cables, fromId, toId);
+    if (!fromNode || !toNode || !cable) return;
+
+    // Resolve port indices (cable can be stored in either direction)
+    int fromPort = (cable->fromId == fromId) ? cable->fromPort : cable->toPort;
+    int toPort   = (cable->fromId == toId)   ? cable->fromPort : cable->toPort;
+
+    Vector2 p0 = GetPortPosition(*fromNode, fromPort);
+    Vector2 p3 = GetPortPosition(*toNode,   toPort);
+    Vector2 c1 = BezierCtrl(p0, fromPort);
+    Vector2 c2 = BezierCtrl(p3, toPort);
+
+    Vector2 pos = EvaluateCubicBezier(p0, c1, c2, p3, anim.t);
+
+    // Green glow (outer) + core dot — always green during travel
+    DrawCircleV(pos, 14.f, Color{34, 197, 94, 55});
+    DrawCircleV(pos, 7.f,  Color{34, 197, 94, 255});
+}
+
 // ── Log console (drawn outside BeginMode2D, full-width bottom strip) ─────
 void DrawLogConsole(const std::vector<LogEntry>& entries) {
     DrawRectangle(0, CANVAS_H, SCREEN_W, LOG_H, Color{10, 15, 28, 255});
@@ -1257,6 +1304,7 @@ int main() {
             BeginMode2D(camera);
                 DrawDotGrid(camera);
                 DrawAllCables(cables, nodes);
+                DrawPacketAnim(simState.anim, nodes, cables);
 
                 if (connecting) {
                     const DeviceNode* fromNode = FindNode(nodes, connectFromId);
