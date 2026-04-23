@@ -181,6 +181,7 @@ bool ValidateIP(const std::string& ip) {
 
 std::string GetPortName(DeviceType type, int port) {
     if (type == PC) {
+        static_assert(PORTS_PER_NODE == 4, "Update GetPortName PC branch to match PORTS_PER_NODE");
         const char* names[] = {"eth0", "eth1", "eth2", "eth3"};
         return names[port];
     }
@@ -289,10 +290,10 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
     for (int i = 0; i < PORTS_PER_NODE; ++i) {
         std::string pname = GetPortName(n->type, i);
         int ry = 240 + i * 44;
-        DrawText(pname.c_str(), CANVAS_W + 16, ry + 5, 11, Color{148, 163, 184, 255});
         DrawTextField(PnlPortFieldRect(i), "", "x.x.x.x/xx",
                       n->portIp[i], ps.activeField == 2 + i,
                       ValidateIP(n->portIp[i]));
+        DrawText(pname.c_str(), CANVAS_W + 16, ry + 7, 11, Color{148, 163, 184, 255});
     }
 }
 
