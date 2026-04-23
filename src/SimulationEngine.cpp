@@ -8,20 +8,21 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
                               const std::vector<Cable>& cables)
 {
     if (!FindNode(nodes, srcId))
-        return {false, {}, "source node not found"};
+        return {false, {}, "source node not found", {}};
 
     if (!ValidateIPOnly(destIp))
-        return {false, {srcId}, "invalid destination"};
+        return {false, {srcId}, "invalid destination", {}};
 
     static constexpr int MAX_HOPS = 16;
 
+    ForwardResult result;
+    result.path = {srcId};
     int currentId = srcId;
-    std::vector<int> path = {srcId};
     std::unordered_set<int> visited = {srcId};
 
     for (int i = 0; i < MAX_HOPS; ++i) {
         const DeviceNode* cur = FindNode(nodes, currentId);
-        if (!cur) return {false, path, "node not found"};
+        if (!cur) { result.reason = "node not found"; return result; }
 
         auto table = GetRoutingTable(*cur);
         std::sort(table.begin(), table.end(), [](const RouteEntry& a, const RouteEntry& b) {
@@ -33,15 +34,22 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
             if (!IpInSubnet(destIp, route.dest)) continue;
 
             if (route.src == ROUTE_CONNECTED) {
-                return {true, path, "delivered"};
+                result.success = true;
+                result.reason  = "delivered";
+                return result;
             }
 
-            // Static route — find neighbor reachable via route.nextHop
-            int neighborId = -1;
+            // ARP cache check for this next-hop
+            bool        arpHit    = cur->arpTable.count(route.nextHop) > 0;
+            std::string cachedMac = arpHit ? cur->arpTable.at(route.nextHop) : "";
+
+            // Find the directly-connected neighbor that owns route.nextHop
+            int         neighborId  = -1;
+            std::string resolvedMac;
             for (const auto& cable : cables) {
                 int candidateId = -1;
-                if (cable.fromId == currentId) candidateId = cable.toId;
-                else if (cable.toId == currentId) candidateId = cable.fromId;
+                if      (cable.fromId == currentId) candidateId = cable.toId;
+                else if (cable.toId   == currentId) candidateId = cable.fromId;
                 if (candidateId == -1) continue;
 
                 const DeviceNode* neighbor = FindNode(nodes, candidateId);
@@ -51,29 +59,40 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
                 for (const auto& nbRoute : nbTable) {
                     if (nbRoute.src == ROUTE_CONNECTED &&
                         IpInSubnet(route.nextHop, nbRoute.dest)) {
-                        neighborId = candidateId;
+                        neighborId  = candidateId;
+                        resolvedMac = GetDeviceMac(candidateId);
                         break;
                     }
                 }
                 if (neighborId != -1) break;
             }
 
-            if (neighborId == -1)
-                return {false, path, "next-hop unreachable: " + route.nextHop};
+            // Emit ARP event
+            if (arpHit) {
+                result.arpEvents.push_back({currentId, route.nextHop, cachedMac, true});
+            } else if (neighborId != -1) {
+                result.arpEvents.push_back({currentId, route.nextHop, resolvedMac, false});
+            } else {
+                result.arpEvents.push_back({currentId, route.nextHop, "", false});
+                result.reason = "ARP: who has " + route.nextHop + "? — no reply";
+                return result;
+            }
 
-            if (visited.count(neighborId))
-                return {false, path, "loop detected"};
+            if (visited.count(neighborId)) {
+                result.reason = "loop detected";
+                return result;
+            }
 
             visited.insert(neighborId);
-            path.push_back(neighborId);
+            result.path.push_back(neighborId);
             currentId = neighborId;
-            matched = true;
+            matched   = true;
             break;
         }
 
-        if (!matched)
-            return {false, path, "no route to " + destIp};
+        if (!matched) { result.reason = "no route to " + destIp; return result; }
     }
 
-    return {false, path, "ttl exceeded"};
+    result.reason = "ttl exceeded";
+    return result;
 }
