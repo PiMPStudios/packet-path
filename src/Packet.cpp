@@ -49,14 +49,16 @@ void UpdatePacketAnim(PacketAnim& anim, float dt,
 {
     (void)nodes; (void)cables;
     if (anim.done) {
-        anim.failPulse = std::max(0.f, anim.failPulse - dt);
+        anim.failPulse    = std::max(0.f, anim.failPulse    - dt);
+        anim.successPulse = std::max(0.f, anim.successPulse - dt);
         return;
     }
 
     const auto& path = anim.result.path;
     if ((int)path.size() <= 1) {
         anim.done = true;
-        if (!anim.result.success) anim.failPulse = 0.5f;  // pulse even on first-hop failure
+        if (anim.result.success) anim.successPulse = 0.5f;
+        else                     anim.failPulse    = 0.5f;
         return;
     }
 
@@ -66,8 +68,8 @@ void UpdatePacketAnim(PacketAnim& anim, float dt,
         anim.hop++;
         if (anim.hop >= (int)path.size() - 1) {
             anim.done = true;
-            if (!anim.result.success)
-                anim.failPulse = 0.5f;
+            if (anim.result.success) anim.successPulse = 0.5f;
+            else                     anim.failPulse    = 0.5f;
         }
     }
 }

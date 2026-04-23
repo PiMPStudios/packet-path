@@ -10,10 +10,11 @@ enum SimMode { SIM_IDLE, SIM_SELECTING_DST, SIM_ANIMATING };
 
 struct PacketAnim {
     ForwardResult result;
-    int   hop       = 0;
-    float t         = 0.f;
-    bool  done      = false;
-    float failPulse = 0.f;
+    int   hop          = 0;
+    float t            = 0.f;
+    bool  done         = false;
+    float failPulse    = 0.f;
+    float successPulse = 0.f;
 };
 
 struct SimState {

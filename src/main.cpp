@@ -166,7 +166,7 @@ int main() {
                             }
                         }
 
-                        simState.anim = PacketAnim{fr, 0, 0.f, false, 0.f};
+                        simState.anim = PacketAnim{fr, 0, 0.f, false, 0.f, 0.f};
                         le.success    = fr.success;
                         le.pathStr    = BuildPathStr(fr.path, nodes);
                         le.reason     = fr.reason;
