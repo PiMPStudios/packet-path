@@ -3,11 +3,14 @@
 #include "Level.h"
 #include "GameUI.h"
 #include "TraceModal.h"
+#include "SoundEngine.h"
 
 // ── Main ──────────────────────────────────────────────────────────────────
 int main() {
     InitWindow(SCREEN_W, SCREEN_H, "Packet Path");
     SetTargetFPS(60);
+    InitAudioDevice();
+    InitSounds();
 
     std::vector<DeviceNode> nodes;
     nodes.push_back(SpawnNode(PC, {0.0f, 0.0f}));
@@ -233,6 +236,7 @@ int main() {
                         le.reason    = "destination has no configured IP";
                         le.timestamp = GetTime();
                     } else {
+                        PlayPacketSend();
                         ForwardResult fr = SimulateForward(simState.srcId, destIp,
                                                            nodes, cables);
 
@@ -281,8 +285,10 @@ int main() {
                         le.timestamp   = GetTime();
                         simState.mode  = SIM_ANIMATING;
                         if (fr.success) {
+                            PlayPacketArrive();
                             failAnnotationTimer = 0.f;
                         } else {
+                            PlayPacketFail();
                             failAnnotationTimer = 5.0f;
                             lastFailedTrace     = fr;
                         }
@@ -706,6 +712,8 @@ int main() {
         EndDrawing();
     }
 
+    UnloadSounds();
+    CloseAudioDevice();
     CloseWindow();
     return 0;
 }
