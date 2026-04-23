@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-enum PanelTab { TAB_CONFIG, TAB_ROUTES };
+enum PanelTab { TAB_CONFIG, TAB_ROUTES, TAB_ARP };
 
 struct PanelState {
     int         activeField      = -1;
@@ -20,6 +20,7 @@ Rectangle PnlPortFieldRect(int port);
 float     PnlTabW();
 Rectangle PnlConfigTabRect();
 Rectangle PnlRoutesTabRect();
+Rectangle PnlArpTabRect();
 Rectangle PnlRouteDeleteRect(int rowIdx);
 Rectangle PnlRouteDestRect();
 Rectangle PnlRouteNextRect();

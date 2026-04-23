@@ -212,12 +212,31 @@ void DrawLogConsole(const std::vector<LogEntry>& entries) {
         std::snprintf(tsbuf, sizeof(tsbuf), "[%02d:%02d]", mins, secs);
         DrawText(tsbuf, 36, lineY, 10, Color{71, 85, 105, 255});
 
-        const char* icon    = e.success ? "\xe2\x9c\x93" : "\xe2\x9c\x97";
-        Color       icColor = e.success ? Color{34, 197, 94, 255}
-                                        : Color{239, 68, 68, 255};
+        const char* icon;
+        Color       icColor;
+        switch (e.type) {
+            case LOG_ARP_REQ:
+                icon    = "?";
+                icColor = Color{100, 160, 240, 255};
+                break;
+            case LOG_ARP_REPLY:
+                icon    = "!";
+                icColor = Color{80, 200, 180, 255};
+                break;
+            case LOG_ARP_HIT:
+                icon    = "~";
+                icColor = Color{140, 140, 140, 255};
+                break;
+            default:
+                icon    = e.success ? "\xe2\x9c\x93" : "\xe2\x9c\x97";
+                icColor = e.success ? Color{34, 197, 94, 255}
+                                    : Color{239, 68, 68, 255};
+                break;
+        }
         DrawText(icon, 90, lineY, 10, icColor);
 
-        std::string msg = e.pathStr + "  \xe2\x80\x94  " + e.reason;
+        std::string msg = e.pathStr;
+        if (!e.reason.empty()) msg += "  \xe2\x80\x94  " + e.reason;
         DrawText(msg.c_str(), 108, lineY, 10, icColor);
     }
 }
@@ -323,6 +342,31 @@ void DrawRoutesTab(const DeviceNode* n, const PanelState& ps) {
     }
 }
 
+void DrawArpTab(const DeviceNode* n) {
+    if (!n) return;
+    DrawText("ARP CACHE", CANVAS_W + 12, 124, 10, Color{100, 116, 139, 255});
+
+    if (n->arpTable.empty()) {
+        DrawText("(empty)", CANVAS_W + 12, 148, 11, Color{51, 65, 85, 255});
+        DrawText("Run a simulation to populate the cache.",
+                 CANVAS_W + 12, 164, 10, Color{51, 65, 85, 255});
+        return;
+    }
+
+    DrawText("IP ADDRESS",  CANVAS_W + 12,  142, 9, Color{100, 116, 139, 255});
+    DrawText("MAC ADDRESS", CANVAS_W + 138, 142, 9, Color{100, 116, 139, 255});
+    DrawLineEx({(float)CANVAS_W,           156.0f},
+               {(float)(CANVAS_W+PANEL_W), 156.0f}, 0.5f, PANEL_BORDER);
+
+    int y = 162;
+    for (const auto& [ip, mac] : n->arpTable) {
+        if (y > CANVAS_H - LOG_H - 20) break;
+        DrawText(ip.c_str(),  CANVAS_W + 12,  y, 10, Color{34, 197, 94, 255});
+        DrawText(mac.c_str(), CANVAS_W + 138, y, 9,  Color{148, 163, 184, 255});
+        y += 18;
+    }
+}
+
 void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
                const PanelState& ps)
 {
@@ -384,14 +428,30 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
                  rteActive ? WHITE : Color{100, 116, 139, 255});
     }
 
+    Rectangle arpTab    = PnlArpTabRect();
+    bool      arpActive = (ps.activeTab == TAB_ARP);
+    DrawRectangleRec(arpTab, arpActive ? Color{30,41,59,255} : PANEL_BG);
+    if (arpActive)
+        DrawLineEx({arpTab.x, arpTab.y + arpTab.height},
+                   {arpTab.x + arpTab.width, arpTab.y + arpTab.height}, 2.0f,
+                   Color{59, 130, 246, 255});
+    {
+        int tw4 = MeasureText("ARP", 12);
+        DrawText("ARP", (int)(arpTab.x + (arpTab.width - tw4) / 2),
+                 (int)(arpTab.y + 7), 12,
+                 arpActive ? WHITE : Color{100, 116, 139, 255});
+    }
+
     DrawLineEx({(float)CANVAS_W, 116.0f}, {(float)(CANVAS_W + PANEL_W), 116.0f},
                1.0f, PANEL_BORDER);
 
     // Tab content
     if (ps.activeTab == TAB_CONFIG)
         DrawConfigTab(n, ps);
-    else
+    else if (ps.activeTab == TAB_ROUTES)
         DrawRoutesTab(n, ps);
+    else
+        DrawArpTab(n);
 }
 
 // ── Context menu draw ────────────────────────────────────────────────────

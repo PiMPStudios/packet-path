@@ -114,8 +114,13 @@ int main() {
                     const DeviceNode* dst = FindNode(nodes, dstId);
                     std::string destIp = dst ? GetFirstValidIp(*dst) : "";
                     LogEntry le;
+                    auto pushLog = [&](LogEntry entry) {
+                        if (logEntries.size() >= 50) logEntries.erase(logEntries.begin());
+                        logEntries.push_back(entry);
+                    };
                     if (destIp.empty()) {
                         le.success   = false;
+                        le.type      = LOG_FORWARD;
                         const DeviceNode* src = FindNode(nodes, simState.srcId);
                         le.pathStr   = (src ? src->label : "?") + " \xe2\x86\x92 " +
                                        (dst ? dst->label : "?");
@@ -134,10 +139,6 @@ int main() {
                         }
 
                         // Push ARP log entries before the routing summary
-                        auto pushLog = [&](LogEntry entry) {
-                            if (logEntries.size() >= 50) logEntries.erase(logEntries.begin());
-                            logEntries.push_back(entry);
-                        };
                         for (const auto& ev : fr.arpEvents) {
                             if (ev.cacheHit) {
                                 LogEntry e;
@@ -173,9 +174,7 @@ int main() {
                         le.timestamp  = GetTime();
                         simState.mode = SIM_ANIMATING;
                     }
-                    if (logEntries.size() >= 50)
-                        logEntries.erase(logEntries.begin());
-                    logEntries.push_back(le);
+                    pushLog(le);
                     if (simState.mode != SIM_ANIMATING) {
                         simState.mode  = SIM_IDLE;
                         simState.srcId = -1;
