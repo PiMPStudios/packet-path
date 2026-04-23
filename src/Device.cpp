@@ -97,3 +97,10 @@ std::string GetPortName(DeviceType type, int port) {
     }
     return "Gi0/" + std::to_string(port);
 }
+
+std::string GetDeviceMac(int id) {
+    char buf[18];
+    std::snprintf(buf, sizeof(buf), "de:ad:be:ef:%02x:%02x",
+                  (id >> 8) & 0xFF, id & 0xFF);
+    return buf;
+}
