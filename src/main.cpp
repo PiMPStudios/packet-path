@@ -14,6 +14,11 @@ static const float PORT_RADIUS    =  6.0f;
 static const int   PORTS_PER_NODE =  4;    // top=0, right=1, bottom=2, left=3
 static const Color BG_COLOR     = {15, 23, 42, 255};
 
+static const int   PANEL_W      = 280;
+static const int   CANVAS_W     = SCREEN_W - PANEL_W;   // 1000
+static const Color PANEL_BG     = {22, 33, 62, 255};
+static const Color PANEL_BORDER = {51, 65, 85, 255};
+
 // ── Device types & node struct ─────────────────────────────────────────────
 enum DeviceType { PC, ROUTER, SWITCH };
 
@@ -78,7 +83,7 @@ void DrawDotGrid(const Camera2D& cam) {
     Color dot     = {30, 41, 59, 255};
 
     Vector2 topLeft  = GetScreenToWorld2D({0.0f, 0.0f}, cam);
-    Vector2 botRight = GetScreenToWorld2D({(float)SCREEN_W, (float)SCREEN_H}, cam);
+    Vector2 botRight = GetScreenToWorld2D({(float)CANVAS_W, (float)SCREEN_H}, cam);
 
     float startX = floorf(topLeft.x / spacing) * spacing;
     float startY = floorf(topLeft.y / spacing) * spacing;
@@ -160,6 +165,42 @@ DeviceNode SpawnNode(DeviceType type, Vector2 worldPos) {
     return n;
 }
 
+void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes) {
+    // Background + left border
+    DrawRectangle(CANVAS_W, 0, PANEL_W, SCREEN_H, PANEL_BG);
+    DrawLineEx({(float)CANVAS_W, 0.0f}, {(float)CANVAS_W, (float)SCREEN_H},
+               1.0f, PANEL_BORDER);
+
+    // Panel header
+    DrawText("CONFIGURATION", CANVAS_W + 12, 14, 10, Color{100, 116, 139, 255});
+    DrawLineEx({(float)CANVAS_W, 38.0f}, {(float)(CANVAS_W + PANEL_W), 38.0f},
+               1.0f, PANEL_BORDER);
+
+    if (selectedId == -1) {
+        const char* msg = "<- Select a device";
+        int tw = MeasureText(msg, 13);
+        DrawText(msg, CANVAS_W + (PANEL_W - tw) / 2, SCREEN_H / 2 - 8, 13,
+                 Color{100, 116, 139, 255});
+        return;
+    }
+
+    const DeviceNode* n = FindNode(nodes, selectedId);
+    if (!n) return;
+
+    // Device type badge + label
+    const char* typeNames[] = {"PC", "Router", "Switch"};
+    Color typeColors[]      = {{59, 130, 246, 255}, {249, 115, 22, 255}, {34, 197, 94, 255}};
+    int bw = MeasureText(typeNames[(int)n->type], 11) + 16;
+    DrawRectangleRounded({(float)(CANVAS_W + 12), 50.0f, (float)bw, 22.0f},
+                         0.5f, 4, typeColors[(int)n->type]);
+    DrawText(typeNames[(int)n->type], CANVAS_W + 20, 56, 11, WHITE);
+    DrawText(n->label.c_str(), CANVAS_W + 16 + bw, 56, 13, WHITE);
+
+    DrawLineEx({(float)CANVAS_W, 84.0f}, {(float)(CANVAS_W + PANEL_W), 84.0f},
+               1.0f, PANEL_BORDER);
+    DrawText("GENERAL", CANVAS_W + 12, 94, 10, Color{100, 116, 139, 255});
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────
 int main() {
     InitWindow(SCREEN_W, SCREEN_H, "Packet Path");
@@ -169,7 +210,7 @@ int main() {
     nodes.push_back(SpawnNode(PC, {0.0f, 0.0f}));
 
     Camera2D camera = {};
-    camera.offset   = {SCREEN_W / 2.0f, SCREEN_H / 2.0f};
+    camera.offset   = {CANVAS_W / 2.0f, SCREEN_H / 2.0f};
     camera.target   = {0.0f, 0.0f};
     camera.zoom     = 1.0f;
 
@@ -187,11 +228,14 @@ int main() {
     while (!WindowShouldClose()) {
         Vector2 screenMouse = GetMousePosition();
         Vector2 worldMouse  = GetScreenToWorld2D(screenMouse, camera);
+        bool inCanvas = (screenMouse.x < (float)CANVAS_W);
 
         // ── Spawn / delete / cancel ────────────────────────────────────
-        if (IsKeyPressed(KEY_P)) nodes.push_back(SpawnNode(PC,     worldMouse));
-        if (IsKeyPressed(KEY_R)) nodes.push_back(SpawnNode(ROUTER, worldMouse));
-        if (IsKeyPressed(KEY_S)) nodes.push_back(SpawnNode(SWITCH, worldMouse));
+        if (inCanvas) {
+            if (IsKeyPressed(KEY_P)) nodes.push_back(SpawnNode(PC,     worldMouse));
+            if (IsKeyPressed(KEY_R)) nodes.push_back(SpawnNode(ROUTER, worldMouse));
+            if (IsKeyPressed(KEY_S)) nodes.push_back(SpawnNode(SWITCH, worldMouse));
+        }
 
         if (IsKeyPressed(KEY_ESCAPE) && connecting) {
             connecting  = false;
@@ -211,14 +255,14 @@ int main() {
         }
 
         // ── Camera pan (middle mouse) ──────────────────────────────────
-        if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE)) {
+        if (inCanvas && IsMouseButtonDown(MOUSE_BUTTON_MIDDLE)) {
             Vector2 delta    = GetMouseDelta();
             camera.target.x -= delta.x / camera.zoom;
             camera.target.y -= delta.y / camera.zoom;
         }
 
         // ── Camera zoom (scroll wheel, cursor-anchored) ────────────────
-        float wheel = std::clamp(GetMouseWheelMove(), -3.0f, 3.0f);
+        float wheel = inCanvas ? std::clamp(GetMouseWheelMove(), -3.0f, 3.0f) : 0.0f;
         if (wheel != 0.0f) {
             Vector2 beforeZoom = GetScreenToWorld2D(screenMouse, camera);
             camera.zoom *= (1.0f + wheel * 0.1f);
@@ -229,7 +273,7 @@ int main() {
         }
 
         // ── LMB pressed ───────────────────────────────────────────────
-        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        if (inCanvas && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             int pNode = -1, pPort = -1;
             if (HitTestPort(nodes, worldMouse, -1, pNode, pPort)) {
                 connecting      = true;
@@ -259,7 +303,7 @@ int main() {
         }
 
         // ── LMB held ──────────────────────────────────────────────────
-        if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+        if (inCanvas && IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
             if (dragging) {
                 for (auto& n : nodes) {
                     if (n.id == selectedId) {
@@ -277,7 +321,7 @@ int main() {
         }
 
         // ── LMB released ──────────────────────────────────────────────
-        if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+        if (inCanvas && IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
             if (connecting && hoverNodeId != -1) {
                 bool portOccupied = false;
                 for (const auto& c : cables) {
@@ -324,6 +368,8 @@ int main() {
 
                 for (const auto& n : nodes) DrawDeviceNode(n);
             EndMode2D();
+
+            DrawPanel(selectedId, nodes);
 
             // HUD — screen space, outside camera
             DrawFPS(SCREEN_W - 80, 10);
