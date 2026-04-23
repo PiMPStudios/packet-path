@@ -1,0 +1,41 @@
+{
+  "id": 3,
+  "title": "OSPF — Single Area",
+  "briefing": "OSPF is enabled on both routers (all ports in Area 0). Wait a moment for adjacencies to form, then send a packet from PC-A to PC-B.",
+  "devices": [
+    {
+      "id": 1, "label": "PC-A", "type": "PC",
+      "x": -300.0, "y": 0.0,
+      "portIp1": "10.0.0.2/24",
+      "staticRoutes": [{"dest": "0.0.0.0/0", "nextHop": "10.0.0.1"}]
+    },
+    {
+      "id": 2, "label": "RTR-1", "type": "ROUTER",
+      "x": -100.0, "y": 0.0,
+      "portIp3": "10.0.0.1/24",
+      "portIp1": "10.0.12.1/24",
+      "ospfEnabled": true
+    },
+    {
+      "id": 3, "label": "RTR-2", "type": "ROUTER",
+      "x": 100.0, "y": 0.0,
+      "portIp3": "10.0.12.2/24",
+      "portIp1": "10.0.1.1/24",
+      "ospfEnabled": true
+    },
+    {
+      "id": 4, "label": "PC-B", "type": "PC",
+      "x": 300.0, "y": 0.0,
+      "portIp3": "10.0.1.2/24",
+      "staticRoutes": [{"dest": "0.0.0.0/0", "nextHop": "10.0.1.1"}]
+    }
+  ],
+  "cables": [
+    {"from": 1, "fromPort": 1, "to": 2, "toPort": 3},
+    {"from": 2, "fromPort": 1, "to": 3, "toPort": 3},
+    {"from": 3, "fromPort": 1, "to": 4, "toPort": 3}
+  ],
+  "winConditions": [
+    {"src": "PC-A", "dst": "PC-B", "description": "PC-A can reach PC-B via OSPF"}
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "id": 1,
+  "title": "Basic Ping",
+  "briefing": "All IPs and routes are pre-configured. Right-click PC-A, choose Send Packet To, then click PC-B.",
+  "devices": [
+    {
+      "id": 1, "label": "PC-A", "type": "PC",
+      "x": -200.0, "y": 0.0,
+      "portIp1": "10.0.0.2/24",
+      "staticRoutes": [{"dest": "0.0.0.0/0", "nextHop": "10.0.0.1"}]
+    },
+    {
+      "id": 2, "label": "RTR-1", "type": "ROUTER",
+      "x": 0.0, "y": 0.0,
+      "portIp3": "10.0.0.1/24",
+      "portIp1": "10.0.1.1/24"
+    },
+    {
+      "id": 3, "label": "PC-B", "type": "PC",
+      "x": 200.0, "y": 0.0,
+      "portIp3": "10.0.1.2/24",
+      "staticRoutes": [{"dest": "0.0.0.0/0", "nextHop": "10.0.1.1"}]
+    }
+  ],
+  "cables": [
+    {"from": 1, "fromPort": 1, "to": 2, "toPort": 3},
+    {"from": 2, "fromPort": 1, "to": 3, "toPort": 3}
+  ],
+  "winConditions": [
+    {"src": "PC-A", "dst": "PC-B", "description": "PC-A can reach PC-B"}
+  ]
+}
