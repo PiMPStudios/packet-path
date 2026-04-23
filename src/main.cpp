@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <cmath>
 
 // ── Constants ─────────────────────────────────────────────────────────────
 static const int   SCREEN_W     = 1280;
@@ -53,6 +54,22 @@ void DrawDeviceNode(const DeviceNode& n) {
              NODE_FONT_SZ, WHITE);
 }
 
+// ── Dot-grid background (drawn inside BeginMode2D) ────────────────────────
+void DrawDotGrid(Camera2D cam) {
+    float spacing = 40.0f;
+    Color dot     = {30, 41, 59, 255};
+
+    Vector2 topLeft  = GetScreenToWorld2D({0.0f, 0.0f}, cam);
+    Vector2 botRight = GetScreenToWorld2D({(float)SCREEN_W, (float)SCREEN_H}, cam);
+
+    float startX = floorf(topLeft.x / spacing) * spacing;
+    float startY = floorf(topLeft.y / spacing) * spacing;
+
+    for (float x = startX; x <= botRight.x; x += spacing)
+        for (float y = startY; y <= botRight.y; y += spacing)
+            DrawCircleV({x, y}, 1.5f / cam.zoom, dot);
+}
+
 // ── Spawn helper ──────────────────────────────────────────────────────────
 static int nextId = 1;
 
@@ -62,8 +79,8 @@ DeviceNode SpawnNode(DeviceType type) {
     DeviceNode n;
     n.id       = nextId++;
     n.type     = type;
-    n.position = {SCREEN_W / 2.0f + (float)GetRandomValue(-40, 40),
-                  SCREEN_H / 2.0f + (float)GetRandomValue(-40, 40)};
+    n.position = {(float)GetRandomValue(-200, 200),
+                  (float)GetRandomValue(-200, 200)};
     n.label    = std::string(names[(int)type]) + "-" + std::to_string(n.id);
     return n;
 }
@@ -76,19 +93,24 @@ int main() {
     std::vector<DeviceNode> nodes;
     nodes.push_back(SpawnNode(PC));
 
+    Camera2D camera = {};
+    camera.offset   = {SCREEN_W / 2.0f, SCREEN_H / 2.0f};
+    camera.target   = {0.0f, 0.0f};
+    camera.zoom     = 1.0f;
+
     int     selectedId = -1;
     bool    dragging   = false;
     Vector2 dragOffset = {0.0f, 0.0f};
 
     while (!WindowShouldClose()) {
-        Vector2 mouse = GetMousePosition();
+        Vector2 screenMouse = GetMousePosition();
+        Vector2 worldMouse  = GetScreenToWorld2D(screenMouse, camera);
 
-        // Spawn keys
+        // ── Spawn / delete ─────────────────────────────────────────────
         if (IsKeyPressed(KEY_P)) nodes.push_back(SpawnNode(PC));
         if (IsKeyPressed(KEY_R)) nodes.push_back(SpawnNode(ROUTER));
         if (IsKeyPressed(KEY_S)) nodes.push_back(SpawnNode(SWITCH));
 
-        // Delete selected
         if (IsKeyPressed(KEY_DELETE) && selectedId != -1) {
             nodes.erase(std::remove_if(nodes.begin(), nodes.end(),
                 [&](const DeviceNode& n){ return n.id == selectedId; }),
@@ -97,11 +119,29 @@ int main() {
             dragging   = false;
         }
 
-        // LMB: select + start drag (back-to-front hit detection for correct z-order)
+        // ── Camera pan (middle mouse) ──────────────────────────────────
+        if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE)) {
+            Vector2 delta    = GetMouseDelta();
+            camera.target.x -= delta.x / camera.zoom;
+            camera.target.y -= delta.y / camera.zoom;
+        }
+
+        // ── Camera zoom (scroll wheel, cursor-anchored) ────────────────
+        float wheel = GetMouseWheelMove();
+        if (wheel != 0.0f) {
+            Vector2 beforeZoom = GetScreenToWorld2D(screenMouse, camera);
+            camera.zoom *= (1.0f + wheel * 0.1f);
+            camera.zoom  = std::clamp(camera.zoom, 0.15f, 4.0f);
+            Vector2 afterZoom  = GetScreenToWorld2D(screenMouse, camera);
+            camera.target.x   += beforeZoom.x - afterZoom.x;
+            camera.target.y   += beforeZoom.y - afterZoom.y;
+        }
+
+        // ── Node select + drag (world-space mouse) ─────────────────────
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             int hitIdx = -1;
             for (int i = (int)nodes.size() - 1; i >= 0; --i) {
-                if (CheckCollisionPointRec(mouse, GetNodeRect(nodes[i]))) {
+                if (CheckCollisionPointRec(worldMouse, GetNodeRect(nodes[i]))) {
                     hitIdx = i;
                     break;
                 }
@@ -111,8 +151,8 @@ int main() {
                 nodes[hitIdx].selected = true;
                 selectedId = nodes[hitIdx].id;
                 dragging   = true;
-                dragOffset = {mouse.x - nodes[hitIdx].position.x,
-                              mouse.y - nodes[hitIdx].position.y};
+                dragOffset = {worldMouse.x - nodes[hitIdx].position.x,
+                              worldMouse.y - nodes[hitIdx].position.y};
             } else {
                 selectedId = -1;
                 dragging   = false;
@@ -122,8 +162,8 @@ int main() {
         if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && dragging) {
             for (auto& n : nodes) {
                 if (n.id == selectedId) {
-                    n.position = {mouse.x - dragOffset.x,
-                                  mouse.y - dragOffset.y};
+                    n.position = {worldMouse.x - dragOffset.x,
+                                  worldMouse.y - dragOffset.y};
                     break;
                 }
             }
@@ -132,12 +172,18 @@ int main() {
         if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT))
             dragging = false;
 
-        // Draw
+        // ── Draw ───────────────────────────────────────────────────────
         BeginDrawing();
             ClearBackground(BG_COLOR);
-            for (const auto& n : nodes) DrawDeviceNode(n);
-            DrawFPS(10, 10);
-            DrawText("P=PC  R=Router  S=Switch  Del=Delete selected",
+
+            BeginMode2D(camera);
+                DrawDotGrid(camera);
+                for (const auto& n : nodes) DrawDeviceNode(n);
+            EndMode2D();
+
+            // HUD — screen space, outside camera
+            DrawFPS(SCREEN_W - 80, 10);
+            DrawText("P=PC  R=Router  S=Switch  Del=Delete  MMB=Pan  Scroll=Zoom",
                      10, SCREEN_H - 24, 12, Color{100, 116, 139, 255});
         EndDrawing();
     }
