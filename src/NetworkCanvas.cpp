@@ -312,12 +312,13 @@ void DrawRoutesTab(const DeviceNode* n, const PanelState& ps) {
         for (int i = 0; i < displayed; ++i) {
             const RouteEntry& r = table[i];
             int ry = RTE_ROW_Y0 + i * RTE_ROW_H;
-            Color rowColor = (r.src == ROUTE_CONNECTED)
-                             ? Color{34, 197, 94, 255}
-                             : Color{59, 130, 246, 255};
+            Color rowColor = (r.src == ROUTE_CONNECTED) ? Color{34, 197, 94, 255}
+                           : (r.src == ROUTE_OSPF)      ? Color{234, 179, 8, 255}
+                                                        : Color{59, 130, 246, 255};
 
             // Type letter
-            const char* typeLetter = (r.src == ROUTE_CONNECTED) ? "C" : "S";
+            const char* typeLetter = (r.src == ROUTE_CONNECTED) ? "C"
+                                   : (r.src == ROUTE_OSPF)      ? "O" : "S";
             DrawText(typeLetter, CANVAS_W + 12, ry + 3, 11, rowColor);
 
             // Destination
