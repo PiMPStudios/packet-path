@@ -499,7 +499,7 @@ void DrawRoutesTab(const DeviceNode* n, const PanelState& ps) {
     DrawTextField(PnlRouteNextRect(), "Next-Hop", "x.x.x.x",
                   ps.newRouteNext, ps.activeRouteField == 1, ValidateIPOnly(ps.newRouteNext));
 
-    // [Add Route] button (dim until Task 4 wires it up)
+    // [Add Route] button — active only when both fields are valid
     bool canAdd = ValidateIP(ps.newRouteDest) && ValidateIPOnly(ps.newRouteNext);
     DrawRectangleRec(PnlRouteAddBtnRect(),
                      canAdd ? Color{30, 58, 138, 255} : Color{22, 33, 62, 255});
@@ -907,42 +907,35 @@ int main() {
                     if (CheckCollisionPointRec(screenMouse, PnlRouteNextRect()))
                         ps.activeRouteField = 1;
 
-                    // [Add] button
-                    if (CheckCollisionPointRec(screenMouse, PnlRouteAddBtnRect())) {
-                        DeviceNode* selNode = nullptr;
-                        for (auto& nd : nodes)
-                            if (nd.id == selectedId) { selNode = &nd; break; }
-                        if (selNode && ValidateIP(ps.newRouteDest)
-                                    && ValidateIPOnly(ps.newRouteNext)) {
-                            selNode->staticRoutes.push_back(
-                                {ps.newRouteDest, ps.newRouteNext, -1, ROUTE_STATIC});
-                            ps.newRouteDest.clear();
-                            ps.newRouteNext.clear();
-                            ps.activeRouteField = 0;
-                        }
-                    }
-
-                    // [×] delete buttons — check each displayed route row
                     DeviceNode* selNode = nullptr;
                     for (auto& nd : nodes)
                         if (nd.id == selectedId) { selNode = &nd; break; }
+
                     if (selNode) {
+                        // [Add] button
+                        if (CheckCollisionPointRec(screenMouse, PnlRouteAddBtnRect())) {
+                            if (ValidateIP(ps.newRouteDest) && ValidateIPOnly(ps.newRouteNext)) {
+                                selNode->staticRoutes.push_back(
+                                    {ps.newRouteDest, ps.newRouteNext, -1, ROUTE_STATIC});
+                                ps.newRouteDest.clear();
+                                ps.newRouteNext.clear();
+                                ps.activeRouteField = -1;
+                            }
+                        }
+
+                        // [×] delete buttons — check each displayed route row
                         auto table = GetRoutingTable(*selNode);
-                        int numConnected = 0;
-                        for (const auto& r : table)
-                            if (r.src == ROUTE_CONNECTED) ++numConnected;
                         int displayed = std::min((int)table.size(), 8);
+                        int staticCounter = 0;
                         for (int i = 0; i < displayed; ++i) {
                             if (table[i].src == ROUTE_STATIC) {
                                 if (CheckCollisionPointRec(screenMouse, PnlRouteDeleteRect(i))) {
-                                    int staticIdx = i - numConnected;
-                                    if (staticIdx >= 0 &&
-                                        staticIdx < (int)selNode->staticRoutes.size()) {
+                                    if (staticCounter < (int)selNode->staticRoutes.size())
                                         selNode->staticRoutes.erase(
-                                            selNode->staticRoutes.begin() + staticIdx);
-                                    }
+                                            selNode->staticRoutes.begin() + staticCounter);
                                     break;
                                 }
+                                ++staticCounter;
                             }
                         }
                     }
