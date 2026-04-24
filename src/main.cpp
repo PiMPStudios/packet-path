@@ -205,6 +205,11 @@ int main() {
                     ps.subActiveField = -1;
                     ps.subVlanBuf.clear();
                     ps.subIpBuf.clear();
+                } else if (ps.aclActiveField != -1) {
+                    ps.aclActiveField = -1;
+                } else if (ps.natField != -1) {
+                    ps.natField = -1;
+                    ps.natInsideBuf.clear();
                 } else if (connecting) {
                     connecting  = false;
                     hoverNodeId = -1;
@@ -950,7 +955,10 @@ int main() {
                             r.srcCidr = ps.aclSrcBuf.empty() ? "any" : ps.aclSrcBuf;
                             r.dstCidr = ps.aclDstBuf.empty() ? "any" : ps.aclDstBuf;
                             if (!ps.aclPortBuf.empty()) {
-                                try { r.dstPort = std::stoi(ps.aclPortBuf); } catch (...) {}
+                                try {
+                                    int p = std::stoi(ps.aclPortBuf);
+                                    if (p >= 0 && p <= 65535) r.dstPort = p;
+                                } catch (...) {}
                             }
                             selNode->aclRules.push_back(r);
                             ps.aclSrcBuf.clear();
@@ -1245,6 +1253,7 @@ int main() {
             ps.aclPortBuf.clear();
             ps.natField            = -1;
             ps.natInsideBuf.clear();
+            ps.aclFormAction       = 0;
             prevSelectedId         = selectedId;
         }
 
