@@ -52,6 +52,26 @@ bool LoadLevel(const std::string& path, LevelDef& out) {
         n.vni          = (uint32_t)d.value("vni", 0);
         n.vtepIp       = d.value("vtepIp", "");
 
+        n.aclInPort  = d.value("aclInPort",  -1);
+        n.aclOutPort = d.value("aclOutPort", -1);
+        if (d.contains("aclRules") && d["aclRules"].is_array()) {
+            for (const auto& ar : d["aclRules"]) {
+                AclRule r;
+                r.seq     = ar.value("seq", 10);
+                r.action  = (ar.value("action", std::string("permit")) == "permit")
+                            ? ACL_PERMIT : ACL_DENY;
+                r.srcCidr = ar.value("src", std::string("any"));
+                r.dstCidr = ar.value("dst", std::string("any"));
+                r.dstPort = ar.value("port", 0);
+                n.aclRules.push_back(r);
+            }
+        }
+
+        n.natEnabled      = d.value("natEnabled",      false);
+        n.natInsidePort   = d.value("natInsidePort",   -1);
+        n.natOutsidePort  = d.value("natOutsidePort",  -1);
+        n.natInsidePrefix = d.value("natInsidePrefix", std::string{});
+
         for (int i = 0; i < PORTS_PER_NODE; ++i) {
             std::string key = "ospfArea" + std::to_string(i);
             n.ospfPortArea[i] = (uint32_t)d.value(key, 0);
@@ -104,6 +124,7 @@ bool LoadLevel(const std::string& path, LevelDef& out) {
         w.dstLabel    = wc.value("dst",         "");
         w.description = wc.value("description", "");
         w.requiresFix = wc.value("requiresFix", false);
+        w.requiresNatOnDevice = wc.value("requiresNatOnDevice", std::string{});
         out.winConditions.push_back(w);
     }
 
@@ -137,8 +158,19 @@ int CheckWinConditions(const LevelDef& def,
         if (!src || !dst) continue;
         std::string dstIp = GetFirstValidIp(*dst);
         if (dstIp.empty()) continue;
-        ForwardResult fr = SimulateForward(src->id, dstIp, nodes, cables);
-        if (fr.success) ++passed;
+        std::string wcsrcIp = GetFirstValidIp(*src);
+        ForwardResult fr = SimulateForward(src->id, dstIp, nodes, cables, wcsrcIp);
+        if (fr.success) {
+            if (!wc.requiresNatOnDevice.empty()) {
+                bool natOk = false;
+                for (const auto& nd : nodes)
+                    if (nd.label == wc.requiresNatOnDevice && nd.natEnabled)
+                        { natOk = true; break; }
+                if (natOk) ++passed;
+            } else {
+                ++passed;
+            }
+        }
     }
     return passed;
 }
@@ -198,6 +230,31 @@ bool SaveScene(const std::string& path,
             d["vni"]          = n.vni;
             if (!n.vtepIp.empty()) d["vtepIp"] = n.vtepIp;
             if (n.evpnEnabled) d["evpnEnabled"] = true;
+        }
+
+        if (n.aclInPort >= 0 || n.aclOutPort >= 0 || !n.aclRules.empty()) {
+            if (n.aclInPort >= 0)  d["aclInPort"]  = n.aclInPort;
+            if (n.aclOutPort >= 0) d["aclOutPort"] = n.aclOutPort;
+            if (!n.aclRules.empty()) {
+                json aclArr = json::array();
+                for (const auto& r : n.aclRules) {
+                    json rj;
+                    rj["seq"]    = r.seq;
+                    rj["action"] = (r.action == ACL_PERMIT) ? "permit" : "deny";
+                    rj["src"]    = r.srcCidr;
+                    rj["dst"]    = r.dstCidr;
+                    if (r.dstPort > 0) rj["port"] = r.dstPort;
+                    aclArr.push_back(rj);
+                }
+                d["aclRules"] = aclArr;
+            }
+        }
+
+        if (n.natEnabled) {
+            d["natEnabled"]      = true;
+            d["natInsidePort"]   = n.natInsidePort;
+            d["natOutsidePort"]  = n.natOutsidePort;
+            if (!n.natInsidePrefix.empty()) d["natInsidePrefix"] = n.natInsidePrefix;
         }
 
         for (int i = 0; i < PORTS_PER_NODE; ++i)
