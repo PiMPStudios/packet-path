@@ -52,11 +52,86 @@ int main() {
     float         failAnnotationTimer = 0.f;
     ForwardResult lastFailedTrace;
 
+    // ── Save / Load dialog state ───────────────────────────────
+    FileOpState fileOp      = FILEOP_NONE;
+    std::string fileNameBuf = "scene.json";
+    std::string fileOpMsg;
+    float       fileOpTimer = 0.f;
+
     while (!WindowShouldClose()) {
         float dt = GetFrameTime();
 
         if (IsWindowResized())
             camera.offset = {CANVAS_W() / 2.0f, CANVAS_H() / 2.0f};
+
+        // ── File op timer ──────────────────────────────────────
+        if (fileOpTimer > 0.f) fileOpTimer -= dt;
+
+        // ── Ctrl+S / Ctrl+O ───────────────────────────────────
+        bool ctrlHeld = IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL);
+        if (fileOp == FILEOP_NONE) {
+            if (ctrlHeld && IsKeyPressed(KEY_S)) {
+                fileOp      = FILEOP_SAVING;
+                fileNameBuf = "scene.json";
+                fileOpMsg.clear();
+            } else if (ctrlHeld && IsKeyPressed(KEY_O)) {
+                fileOp      = FILEOP_LOADING;
+                fileNameBuf = "scene.json";
+                fileOpMsg.clear();
+            }
+        }
+
+        // ── File dialog text input ─────────────────────────────
+        if (fileOp != FILEOP_NONE) {
+            int ch = GetCharPressed();
+            while (ch > 0) {
+                if (ch >= 32 && ch < 127) fileNameBuf += (char)ch;
+                ch = GetCharPressed();
+            }
+            if (IsKeyPressed(KEY_BACKSPACE) && !fileNameBuf.empty())
+                fileNameBuf.pop_back();
+            if (IsKeyPressed(KEY_ESCAPE)) {
+                fileOp = FILEOP_NONE;
+                fileOpMsg.clear();
+            }
+            if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER)) {
+                if (fileOp == FILEOP_SAVING) {
+                    if (SaveScene(fileNameBuf, nodes, cables)) {
+                        fileOpMsg   = "Saved: " + fileNameBuf;
+                        fileOp      = FILEOP_NONE;
+                        fileOpTimer = 3.0f;
+                    } else {
+                        fileOpMsg = "Error: could not write " + fileNameBuf;
+                    }
+                } else {
+                    LevelDef loaded;
+                    if (LoadLevel(fileNameBuf, loaded)) {
+                        ApplyLevel(loaded, nodes, cables, selectedId);
+                        ps                   = PanelState{};
+                        simState             = SimState{};
+                        logEntries.clear();
+                        lastConditionsPassed = 0;
+                        failedAttempts       = 0;
+                        starsEarned          = 0;
+                        gameMode             = GAME_SANDBOX;
+                        dragging             = false;
+                        connecting           = false;
+                        hoverNodeId          = -1;
+                        hoverPort            = -1;
+                        contextMenu.visible  = false;
+                        troubleshootMode     = false;
+                        traceModalOpen       = false;
+                        failAnnotationTimer  = 0.f;
+                        lastFailedTrace      = {};
+                        fileOpMsg   = "Loaded: " + fileNameBuf;
+                        fileOp      = FILEOP_NONE;
+                        fileOpTimer = 3.0f;
+                    } else {
+                        fileOpMsg = "Error: could not open " + fileNameBuf;
+                    }
+                }
+            }
+        }
 
         Vector2 screenMouse = GetMousePosition();
         Vector2 worldMouse  = GetScreenToWorld2D(screenMouse, camera);
@@ -64,12 +139,12 @@ int main() {
                          screenMouse.y < (float)CANVAS_H());
 
         // ── Spawn / delete / cancel ────────────────────────────────────
-        if (inCanvas && gameMode != GAME_WIN &&
+        if (fileOp == FILEOP_NONE && inCanvas && gameMode != GAME_WIN &&
             ps.activeField == -1 && ps.activeRouteField == -1 &&
             simState.mode == SIM_IDLE) {
             if (IsKeyPressed(KEY_P)) nodes.push_back(SpawnNode(PC,     worldMouse));
             if (IsKeyPressed(KEY_R)) nodes.push_back(SpawnNode(ROUTER, worldMouse));
-            if (IsKeyPressed(KEY_S)) nodes.push_back(SpawnNode(SWITCH, worldMouse));
+            if (IsKeyPressed(KEY_S) && !ctrlHeld) nodes.push_back(SpawnNode(SWITCH, worldMouse));
             if (IsKeyPressed(KEY_T))
                 troubleshootMode = !troubleshootMode;
             // Level shortcuts: 1–8 load JSON levels, 0 returns to sandbox
@@ -996,6 +1071,7 @@ int main() {
             DrawText("P=PC  R=Router  S=Switch  Del=Delete  MMB=Pan  Scroll=Zoom  "
                      "Drag-port=Cable  Esc=Cancel  1-9,0=Level",
                      10, CANVAS_H() - 24, 10, Color{100, 116, 139, 255});
+            DrawFileDialog(fileOp, fileNameBuf, fileOpMsg, fileOpTimer);
         EndDrawing();
     }
 
