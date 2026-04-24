@@ -2,6 +2,7 @@
 #include "OspfEngine.h"
 #include "LdpEngine.h"
 #include "BgpEngine.h"
+#include "EvpnEngine.h"
 #include "Level.h"
 #include "GameUI.h"
 #include "TraceModal.h"
@@ -276,7 +277,7 @@ int main() {
                     failAnnotationTimer  = 0.f;
                     lastFailedTrace      = {};
                 } else if (CheckCollisionPointRec(screenMouse, WinNextBtnRect()) &&
-                           currentLevel < 13) {
+                           currentLevel < 14) {
                     int nextLevel = currentLevel + 1;
                     char path[64];
                     std::snprintf(path, sizeof(path), "levels/level_%02d.json", nextLevel);
@@ -1066,6 +1067,7 @@ int main() {
             auto ospfEvents = UpdateOspf(dt, nodes, cables);
             UpdateLdp(nodes, cables);   // recompute LFIB after each OSPF tick
             UpdateBgp(nodes, cables);   // recompute BGP RIB every frame
+            BuildEvpnRoutes(nodes);
             auto pushLog = [&](LogEntry entry) {
                 if (logEntries.size() >= 50) logEntries.erase(logEntries.begin());
                 logEntries.push_back(entry);
@@ -1165,7 +1167,7 @@ int main() {
                 }
             }
             if (gameMode == GAME_WIN) {
-                DrawWinOverlay(activeLevelDef, currentLevel < 13, starsEarned);
+                DrawWinOverlay(activeLevelDef, currentLevel < 14, starsEarned);
             }
 
             // HUD — screen space, outside camera
