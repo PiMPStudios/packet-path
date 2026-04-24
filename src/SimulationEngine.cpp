@@ -151,9 +151,23 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
         if (cur->crashed) { result.reason = cur->label + " is crashed \xe2\x80\x94 device offline"; return result; }
 
         auto table = GetRoutingTable(*cur);
-        std::sort(table.begin(), table.end(), [](const RouteEntry& a, const RouteEntry& b) {
-            return PrefixLen(a.dest) > PrefixLen(b.dest);
-        });
+        std::sort(table.begin(), table.end(),
+            [](const RouteEntry& a, const RouteEntry& b) {
+                int pa = PrefixLen(a.dest), pb = PrefixLen(b.dest);
+                if (pa != pb) return pa > pb;
+                auto rank = [](RouteSource s) -> int {
+                    switch (s) {
+                        case ROUTE_CONNECTED: return 0;
+                        case ROUTE_STATIC:   return 1;
+                        case ROUTE_EVPN:     return 2;
+                        case ROUTE_BGP:      return 3;
+                        case ROUTE_OSPF:     return 4;
+                        case ROUTE_OSPF_IA:  return 5;
+                        default:             return 6;
+                    }
+                };
+                return rank(a.src) < rank(b.src);
+            });
 
         bool matched = false;
         for (const auto& route : table) {

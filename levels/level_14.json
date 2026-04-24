@@ -1,7 +1,7 @@
 {
   "id": 14,
   "title": "Level 14 — VXLAN Overlay",
-  "briefing": "PC-A and PC-B live on the same VXLAN segment (VNI 100) but across different racks. OSPF already handles the underlay. Open the VXLAN tab on Leaf-1 and enable EVPN, then do the same on Leaf-2 — BGP EVPN will distribute the overlay routes automatically. Send a ping and watch the orange VNI:100 badge travel through the fabric.",
+  "briefing": "PC-A and PC-B live on the same VXLAN segment (VNI 100) but across different racks. The underlay links are pre-cabled with /30 addresses — connected routes handle transit between the leaves. Open the VXLAN tab on Leaf-1 and enable EVPN, then do the same on Leaf-2 — BGP EVPN will distribute the overlay routes automatically. Send a ping and watch the teal VNI:100 badge travel through the fabric.",
   "devices": [
     {
       "id": 1,
@@ -22,8 +22,9 @@
       "y": 0,
       "portIp0": "10.100.0.1/24",
       "portIp1": "10.0.1.1/30",
-      "ospfEnabled": true,
-      "routerId": "1.1.1.1",
+      "staticRoutes": [
+        { "dest": "10.0.2.0/30", "nextHop": "10.0.1.2" }
+      ],
       "vxlanEnabled": true,
       "vni": 100,
       "vtepIp": "10.0.1.1",
@@ -36,9 +37,7 @@
       "x": 0,
       "y": 0,
       "portIp0": "10.0.1.2/30",
-      "portIp1": "10.0.2.2/30",
-      "ospfEnabled": true,
-      "routerId": "2.2.2.2"
+      "portIp1": "10.0.2.2/30"
     },
     {
       "id": 4,
@@ -48,8 +47,9 @@
       "y": 0,
       "portIp0": "10.0.2.1/30",
       "portIp1": "10.200.0.1/24",
-      "ospfEnabled": true,
-      "routerId": "3.3.3.3",
+      "staticRoutes": [
+        { "dest": "10.0.1.0/30", "nextHop": "10.0.2.2" }
+      ],
       "vxlanEnabled": true,
       "vni": 100,
       "vtepIp": "10.0.2.1",

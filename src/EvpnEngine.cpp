@@ -34,6 +34,7 @@ void BuildEvpnRoutes(std::vector<DeviceNode>& nodes) {
     // Phase 2: for each VTEP, distribute remote overlay subnets
     for (auto& vtep : nodes) {
         if (!vtep.vxlanEnabled || !vtep.evpnEnabled || vtep.vtepIp.empty()) continue;
+        if (vtep.vni == 0) continue;
 
         for (const auto& remote : nodes) {
             if (remote.id == vtep.id) continue;
