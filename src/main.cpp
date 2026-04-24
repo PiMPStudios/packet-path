@@ -61,9 +61,9 @@ int main() {
             if (IsKeyPressed(KEY_P)) nodes.push_back(SpawnNode(PC,     worldMouse));
             if (IsKeyPressed(KEY_R)) nodes.push_back(SpawnNode(ROUTER, worldMouse));
             if (IsKeyPressed(KEY_S)) nodes.push_back(SpawnNode(SWITCH, worldMouse));
-            // Level shortcuts: 1–6 load JSON levels, 0 returns to sandbox
+            // Level shortcuts: 1–7 load JSON levels, 0 returns to sandbox
             if (ps.activePortAreaField == -1) {
-                for (int k = 1; k <= 6; ++k) {
+                for (int k = 1; k <= 7; ++k) {
                     if (IsKeyPressed(KEY_ONE + (k - 1))) {
                         char path[64];
                         std::snprintf(path, sizeof(path), "levels/level_%02d.json", k);
