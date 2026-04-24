@@ -1,0 +1,70 @@
+{
+  "id": 13,
+  "title": "Level 13 — VLAN Gateway Down",
+  "briefing": "PC-Sales and PC-Eng are on separate VLANs — inter-VLAN routing was working, but RTR-1 has crashed. Press T for Troubleshoot Mode, right-click RTR-1 and choose Restore Device. Once both VLANs can reach each other, try saving your fixed topology with Ctrl+S.",
+  "devices": [
+    {
+      "id": 1,
+      "label": "PC-Sales",
+      "type": "PC",
+      "x": -350,
+      "y": -100,
+      "portIp0": "10.10.0.2/24",
+      "staticRoutes": [
+        { "dest": "0.0.0.0/0", "nextHop": "10.10.0.1" }
+      ]
+    },
+    {
+      "id": 2,
+      "label": "PC-Eng",
+      "type": "PC",
+      "x": -350,
+      "y": 100,
+      "portIp0": "10.20.0.2/24",
+      "staticRoutes": [
+        { "dest": "0.0.0.0/0", "nextHop": "10.20.0.1" }
+      ]
+    },
+    {
+      "id": 3,
+      "label": "SW-1",
+      "type": "SWITCH",
+      "x": -100,
+      "y": 0,
+      "vlanPort0": { "mode": "trunk", "vlan": 1 },
+      "vlanPort1": { "mode": "access", "vlan": 10 },
+      "vlanPort2": { "mode": "access", "vlan": 20 }
+    },
+    {
+      "id": 4,
+      "label": "RTR-1",
+      "type": "ROUTER",
+      "x": 150,
+      "y": 0,
+      "crashed": true,
+      "subIfaces": [
+        { "port": 0, "vlan": 10, "ip": "10.10.0.1/24" },
+        { "port": 0, "vlan": 20, "ip": "10.20.0.1/24" }
+      ]
+    }
+  ],
+  "cables": [
+    { "from": 1, "fromPort": 0, "to": 3, "toPort": 1 },
+    { "from": 2, "fromPort": 0, "to": 3, "toPort": 2 },
+    { "from": 3, "fromPort": 0, "to": 4, "toPort": 0 }
+  ],
+  "winConditions": [
+    {
+      "src": "PC-Sales",
+      "dst": "PC-Eng",
+      "description": "PC-Sales can reach PC-Eng (inter-VLAN routing restored)",
+      "requiresFix": true
+    },
+    {
+      "src": "PC-Eng",
+      "dst": "PC-Sales",
+      "description": "PC-Eng can reach PC-Sales (inter-VLAN routing restored)",
+      "requiresFix": true
+    }
+  ]
+}
