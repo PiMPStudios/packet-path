@@ -37,6 +37,11 @@ bool LoadLevel(const std::string& path, LevelDef& out) {
 
         n.ospfEnabled = d.value("ospfEnabled", false);
         n.ldpEnabled  = d.value("ldpEnabled",  false);
+        n.bgpEnabled = d.value("bgpEnabled", false);
+        n.localAsn   = (uint32_t)d.value("localAsn",  0);
+        if (d.contains("bgpNetworks") && d["bgpNetworks"].is_array())
+            for (const auto& net : d["bgpNetworks"])
+                n.bgpNetworks.push_back(net.get<std::string>());
         for (int i = 0; i < PORTS_PER_NODE; ++i) {
             std::string key = "ospfArea" + std::to_string(i);
             n.ospfPortArea[i] = (uint32_t)d.value(key, 0);

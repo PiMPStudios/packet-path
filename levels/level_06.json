@@ -1,0 +1,49 @@
+{
+  "id": 6,
+  "title": "eBGP Peering",
+  "briefing": "Two routers are ready to peer. Select RTR-1 and click its ASN field in the BGP tab — type 100 and press Enter. Select RTR-2 and set its ASN to 200. Watch the eBGP session form (ESTAB), then send a packet from PC-A to PC-B.",
+  "devices": [
+    {
+      "id": 1, "label": "PC-A", "type": "PC",
+      "x": -450, "y": 0,
+      "portIp1": "10.0.0.2/24",
+      "staticRoutes": [{"dest": "0.0.0.0/0", "nextHop": "10.0.0.1"}]
+    },
+    {
+      "id": 2, "label": "RTR-1", "type": "ROUTER",
+      "x": -180, "y": 0,
+      "portIp3": "10.0.0.1/24",
+      "portIp1": "10.1.0.1/30",
+      "bgpEnabled": true,
+      "localAsn": 0,
+      "bgpNetworks": ["10.0.0.0/24"]
+    },
+    {
+      "id": 3, "label": "RTR-2", "type": "ROUTER",
+      "x": 180, "y": 0,
+      "portIp3": "10.1.0.2/30",
+      "portIp1": "10.0.1.1/24",
+      "bgpEnabled": true,
+      "localAsn": 0,
+      "bgpNetworks": ["10.0.1.0/24"]
+    },
+    {
+      "id": 4, "label": "PC-B", "type": "PC",
+      "x": 450, "y": 0,
+      "portIp3": "10.0.1.2/24",
+      "staticRoutes": [{"dest": "0.0.0.0/0", "nextHop": "10.0.1.1"}]
+    }
+  ],
+  "cables": [
+    {"from": 1, "fromPort": 1, "to": 2, "toPort": 3},
+    {"from": 2, "fromPort": 1, "to": 3, "toPort": 3},
+    {"from": 3, "fromPort": 1, "to": 4, "toPort": 3}
+  ],
+  "winConditions": [
+    {
+      "src": "PC-A",
+      "dst": "PC-B",
+      "description": "PC-A reaches PC-B via eBGP"
+    }
+  ]
+}
