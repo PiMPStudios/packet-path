@@ -86,6 +86,8 @@ int main() {
         logEntries.clear();
         dragging             = false;
         connecting           = false;
+        connectFromId        = -1;
+        connectFromPort      = -1;
         hoverNodeId          = -1;
         hoverPort            = -1;
         contextMenu.visible  = false;
@@ -93,6 +95,7 @@ int main() {
         traceModalOpen       = false;
         failAnnotationTimer  = 0.f;
         lastFailedTrace      = {};
+        activeTrace          = {};
     };
 
     while (!WindowShouldClose()) {
@@ -382,6 +385,7 @@ int main() {
                             traceModalOpen       = false;
                             failAnnotationTimer  = 0.f;
                             lastFailedTrace      = {};
+                            break;
                         }
                     }
                 }
@@ -591,7 +595,8 @@ int main() {
         }
 
         // ── RMB pressed — open context menu ───────────────────────────
-        if (inCanvas && !traceModalOpen && IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
+        if (inCanvas && !traceModalOpen && gameMode != GAME_LEVEL_SELECT &&
+            IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
             if (simState.mode == SIM_SELECTING_DST || simState.mode == SIM_ANIMATING) {
                 if (simState.mode == SIM_SELECTING_DST) {
                     simState.mode  = SIM_IDLE;
@@ -1480,9 +1485,10 @@ int main() {
 
             // HUD — screen space, outside camera
             DrawFPS(CANVAS_W() - 80, 10);
-            DrawText("P=PC  R=Router  S=Switch  Del=Delete  MMB=Pan  Scroll=Zoom  "
-                     "Drag-port=Cable  Esc=Cancel  1-9=Level  0=Sandbox  M=Menu",
-                     10, CANVAS_H() - 24, 10, Color{100, 116, 139, 255});
+            if (gameMode != GAME_LEVEL_SELECT)
+                DrawText("P=PC  R=Router  S=Switch  Del=Delete  MMB=Pan  Scroll=Zoom  "
+                         "Drag-port=Cable  Esc=Cancel  1-9=Level  0=Sandbox  M=Menu",
+                         10, CANVAS_H() - 24, 10, Color{100, 116, 139, 255});
             DrawFileDialog(fileOp, fileNameBuf, fileOpMsg, fileOpTimer);
         EndDrawing();
     }
