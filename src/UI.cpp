@@ -37,8 +37,8 @@ void UpdateContextMenuHover(ContextMenu& menu, Vector2 screenMouse) {
     while (items[count]) ++count;
 
     float h = (float)(count * MENU_ITEM_H + 8);
-    float x = std::min(menu.screenPos.x, (float)(CANVAS_W - CONTEXT_MENU_W - 4));
-    float y = std::min(menu.screenPos.y, (float)(CANVAS_H - (int)h - 4));
+    float x = std::min(menu.screenPos.x, (float)(CANVAS_W() - CONTEXT_MENU_W - 4));
+    float y = std::min(menu.screenPos.y, (float)(CANVAS_H() - (int)h - 4));
 
     menu.hoverItem = -1;
     for (int i = 0; i < count; ++i) {

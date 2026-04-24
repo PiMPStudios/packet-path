@@ -9,7 +9,9 @@
 
 // ── Main ──────────────────────────────────────────────────────────────────
 int main() {
-    InitWindow(SCREEN_W, SCREEN_H, "Packet Path");
+    InitWindow(1280, 720, "Packet Path");
+    SetWindowState(FLAG_WINDOW_RESIZABLE);
+    SetWindowMinSize(MIN_W, MIN_H);
     SetTargetFPS(60);
     InitAudioDevice();
     InitSounds();
@@ -18,7 +20,7 @@ int main() {
     nodes.push_back(SpawnNode(PC, {0.0f, 0.0f}));
 
     Camera2D camera = {};
-    camera.offset   = {CANVAS_W / 2.0f, CANVAS_H / 2.0f};
+    camera.offset   = {CANVAS_W() / 2.0f, CANVAS_H() / 2.0f};
     camera.target   = {0.0f, 0.0f};
     camera.zoom     = 1.0f;
 
@@ -52,10 +54,14 @@ int main() {
 
     while (!WindowShouldClose()) {
         float dt = GetFrameTime();
+
+        if (IsWindowResized())
+            camera.offset = {CANVAS_W() / 2.0f, CANVAS_H() / 2.0f};
+
         Vector2 screenMouse = GetMousePosition();
         Vector2 worldMouse  = GetScreenToWorld2D(screenMouse, camera);
-        bool inCanvas = (screenMouse.x < (float)CANVAS_W &&
-                         screenMouse.y < (float)CANVAS_H);
+        bool inCanvas = (screenMouse.x < (float)CANVAS_W() &&
+                         screenMouse.y < (float)CANVAS_H());
 
         // ── Spawn / delete / cancel ────────────────────────────────────
         if (inCanvas && gameMode != GAME_WIN &&
@@ -224,7 +230,7 @@ int main() {
                 // any other click on the WIN screen is silently consumed
             } else if (traceModalOpen) {
                 const float MW = 480.f, MH = 360.f;
-                Rectangle modal = {(SCREEN_W - MW) / 2.f, (SCREEN_H - MH) / 2.f, MW, MH};
+                Rectangle modal = {(SCREEN_W() - MW) / 2.f, (SCREEN_H() - MH) / 2.f, MW, MH};
                 if (!CheckCollisionPointRec(screenMouse, modal))
                     traceModalOpen = false;
                 // all clicks consumed while modal is open
@@ -342,9 +348,9 @@ int main() {
                     }
                 }
                 // else: no-op, stay in SIM_SELECTING_DST
-            } else if (screenMouse.y >= (float)CANVAS_H &&
-                       screenMouse.y <  (float)SCREEN_H  &&
-                       screenMouse.x <  (float)CANVAS_W) {
+            } else if (screenMouse.y >= (float)CANVAS_H() &&
+                       screenMouse.y <  (float)SCREEN_H()  &&
+                       screenMouse.x <  (float)CANVAS_W()) {
                 // Log console click — open trace modal for LOG_FORWARD entries
                 int hitIdx = LogConsoleHitTest(screenMouse, logEntries);
                 if (hitIdx >= 0) {
@@ -959,7 +965,7 @@ int main() {
             if (simState.mode == SIM_SELECTING_DST) {
                 const char* hint = "Click destination node  \xe2\x80\x94  ESC to cancel";
                 int tw = MeasureText(hint, 12);
-                DrawText(hint, (CANVAS_W - tw) / 2, 12, 12,
+                DrawText(hint, (CANVAS_W() - tw) / 2, 12, 12,
                          Color{148, 163, 184, 255});
             }
 
@@ -986,10 +992,10 @@ int main() {
             }
 
             // HUD — screen space, outside camera
-            DrawFPS(CANVAS_W - 80, 10);
+            DrawFPS(CANVAS_W() - 80, 10);
             DrawText("P=PC  R=Router  S=Switch  Del=Delete  MMB=Pan  Scroll=Zoom  "
                      "Drag-port=Cable  Esc=Cancel  1-9,0=Level",
-                     10, CANVAS_H - 24, 10, Color{100, 116, 139, 255});
+                     10, CANVAS_H() - 24, 10, Color{100, 116, 139, 255});
         EndDrawing();
     }
 
