@@ -60,7 +60,7 @@ void DrawDotGrid(const Camera2D& cam) {
     Color dot     = {30, 41, 59, 255};
 
     Vector2 topLeft  = GetScreenToWorld2D({0.0f, 0.0f}, cam);
-    Vector2 botRight = GetScreenToWorld2D({(float)CANVAS_W, (float)CANVAS_H}, cam);
+    Vector2 botRight = GetScreenToWorld2D({(float)CANVAS_W(), (float)CANVAS_H()}, cam);
 
     float startX = floorf(topLeft.x / spacing) * spacing;
     float startY = floorf(topLeft.y / spacing) * spacing;
@@ -295,13 +295,13 @@ void DrawPacketAnim(const PacketAnim& anim,
 
 // ── Log console (drawn outside BeginMode2D, full-width bottom strip) ─────
 void DrawLogConsole(const std::vector<LogEntry>& entries) {
-    DrawRectangle(0, CANVAS_H, SCREEN_W, LOG_H, Color{10, 15, 28, 255});
-    DrawLineEx({0.f, (float)CANVAS_H}, {(float)SCREEN_W, (float)CANVAS_H},
+    DrawRectangle(0, CANVAS_H(), SCREEN_W(), LOG_H, Color{10, 15, 28, 255});
+    DrawLineEx({0.f, (float)CANVAS_H()}, {(float)SCREEN_W(), (float)CANVAS_H()},
                1.f, Color{51, 65, 85, 255});
-    DrawText("LOG", 12, CANVAS_H + 8, 9, Color{71, 85, 105, 255});
+    DrawText("LOG", 12, CANVAS_H() + 8, 9, Color{71, 85, 105, 255});
 
     if (entries.empty()) {
-        DrawText("No simulations run yet", 36, CANVAS_H + 36, 10,
+        DrawText("No simulations run yet", 36, CANVAS_H() + 36, 10,
                  Color{51, 65, 85, 255});
         return;
     }
@@ -311,7 +311,7 @@ void DrawLogConsole(const std::vector<LogEntry>& entries) {
     int shown    = std::min(maxLines, (int)entries.size());
     for (int i = 0; i < shown; ++i) {
         const auto& e = entries[startIdx + i];
-        int lineY = CANVAS_H + 8 + (shown - 1 - i) * 24;  // newest at top
+        int lineY = CANVAS_H() + 8 + (shown - 1 - i) * 24;  // newest at top
 
         int   secs = (int)e.timestamp;
         int   mins = (secs / 60) % 60; secs %= 60;
@@ -430,22 +430,22 @@ void DrawTroubleshootOverlay(const std::vector<DeviceNode>& nodes,
 }
 
 void DrawConfigTab(const DeviceNode* n, const PanelState& ps) {
-    DrawText("GENERAL", CANVAS_W + 12, 124, 10, Color{100, 116, 139, 255});
+    DrawText("GENERAL", CANVAS_W() + 12, 124, 10, Color{100, 116, 139, 255});
     DrawTextField(PnlFieldRect(CFG_HOSTNAME_Y), "Hostname", nullptr,
                   n->label, ps.activeField == 0, !n->label.empty());
     DrawTextField(PnlFieldRect(CFG_MGMTIP_Y), "Mgmt IP", "x.x.x.x/xx",
                   n->mgmtIp, ps.activeField == 1, ValidateIP(n->mgmtIp));
-    DrawLineEx({(float)CANVAS_W,           (float)CFG_IFACE_SEP_Y},
-               {(float)(CANVAS_W+PANEL_W), (float)CFG_IFACE_SEP_Y},
+    DrawLineEx({(float)CANVAS_W(),           (float)CFG_IFACE_SEP_Y},
+               {(float)(CANVAS_W()+PANEL_W), (float)CFG_IFACE_SEP_Y},
                1.0f, PANEL_BORDER);
-    DrawText("INTERFACES", CANVAS_W + 12, CFG_IFACE_SEP_Y + 10, 10, Color{100, 116, 139, 255});
+    DrawText("INTERFACES", CANVAS_W() + 12, CFG_IFACE_SEP_Y + 10, 10, Color{100, 116, 139, 255});
     for (int i = 0; i < PORTS_PER_NODE; ++i) {
         std::string pname = GetPortName(n->type, i);
         DrawTextField(PnlPortFieldRect(i), "", "x.x.x.x/xx",
                       n->portIp[i], ps.activeField == 2 + i, ValidateIP(n->portIp[i]));
-        DrawText(pname.c_str(), CANVAS_W + 16, CFG_PORT_Y0 + i * CFG_PORT_STRIDE + 7,
+        DrawText(pname.c_str(), CANVAS_W() + 16, CFG_PORT_Y0 + i * CFG_PORT_STRIDE + 7,
                  11, Color{148, 163, 184, 255});
-        DrawText("A:", CANVAS_W + 210, CFG_PORT_Y0 + i * CFG_PORT_STRIDE + 7,
+        DrawText("A:", CANVAS_W() + 210, CFG_PORT_Y0 + i * CFG_PORT_STRIDE + 7,
                  10, Color{148, 163, 184, 255});
         std::string areaStr = (ps.activePortAreaField == i)
             ? ps.portAreaBuf
@@ -457,17 +457,17 @@ void DrawConfigTab(const DeviceNode* n, const PanelState& ps) {
 
 void DrawRoutesTab(const DeviceNode* n, const PanelState& ps) {
     // Column headers
-    DrawText("T", CANVAS_W + 12, 124, 10, Color{100, 116, 139, 255});
-    DrawText("DESTINATION",  CANVAS_W + 30, 124, 10, Color{100, 116, 139, 255});
-    DrawText("NEXT-HOP",     CANVAS_W + 130, 124, 10, Color{100, 116, 139, 255});
-    DrawText("VIA",          CANVAS_W + 210, 124, 10, Color{100, 116, 139, 255});
-    DrawLineEx({(float)CANVAS_W, (float)RTE_HEADER_SEP_Y}, {(float)(CANVAS_W+PANEL_W), (float)RTE_HEADER_SEP_Y},
+    DrawText("T", CANVAS_W() + 12, 124, 10, Color{100, 116, 139, 255});
+    DrawText("DESTINATION",  CANVAS_W() + 30, 124, 10, Color{100, 116, 139, 255});
+    DrawText("NEXT-HOP",     CANVAS_W() + 130, 124, 10, Color{100, 116, 139, 255});
+    DrawText("VIA",          CANVAS_W() + 210, 124, 10, Color{100, 116, 139, 255});
+    DrawLineEx({(float)CANVAS_W(), (float)RTE_HEADER_SEP_Y}, {(float)(CANVAS_W()+PANEL_W), (float)RTE_HEADER_SEP_Y},
                1.0f, PANEL_BORDER);
 
     auto table = GetRoutingTable(*n);
 
     if (table.empty()) {
-        DrawText("No routes configured", CANVAS_W + 20, RTE_ROW_Y0, 11,
+        DrawText("No routes configured", CANVAS_W() + 20, RTE_ROW_Y0, 11,
                  Color{51, 65, 85, 255});
     } else {
         int displayed = std::min((int)table.size(), 8);
@@ -482,27 +482,27 @@ void DrawRoutesTab(const DeviceNode* n, const PanelState& ps) {
             else                               rowColor = Color{ 59, 130, 246, 255};
 
             if (r.src == ROUTE_OSPF_IA) {
-                DrawText("O",  CANVAS_W + 12, ry + 3, 11, rowColor);
-                DrawText("IA", CANVAS_W + 21, ry + 5,  9, rowColor);
+                DrawText("O",  CANVAS_W() + 12, ry + 3, 11, rowColor);
+                DrawText("IA", CANVAS_W() + 21, ry + 5,  9, rowColor);
             } else {
                 const char* typeLetter = (r.src == ROUTE_CONNECTED) ? "C"
                                        : (r.src == ROUTE_OSPF)      ? "O"
                                        : (r.src == ROUTE_BGP)       ? "B" : "S";
-                DrawText(typeLetter, CANVAS_W + 12, ry + 3, 11, rowColor);
+                DrawText(typeLetter, CANVAS_W() + 12, ry + 3, 11, rowColor);
             }
 
             // Destination
-            DrawText(r.dest.c_str(), CANVAS_W + 30, ry + 3, 10, rowColor);
+            DrawText(r.dest.c_str(), CANVAS_W() + 30, ry + 3, 10, rowColor);
 
             // Next-hop
-            DrawText(r.nextHop.c_str(), CANVAS_W + 130, ry + 3, 10, rowColor);
+            DrawText(r.nextHop.c_str(), CANVAS_W() + 130, ry + 3, 10, rowColor);
 
             // Via (port name or em-dash for mgmt/static)
             if (r.outPort >= 0) {
                 std::string via = GetPortName(n->type, r.outPort);
-                DrawText(via.c_str(), CANVAS_W + 210, ry + 3, 10, rowColor);
+                DrawText(via.c_str(), CANVAS_W() + 210, ry + 3, 10, rowColor);
             } else {
-                DrawText("\xe2\x80\x94", CANVAS_W + 210, ry + 3, 10, rowColor);
+                DrawText("\xe2\x80\x94", CANVAS_W() + 210, ry + 3, 10, rowColor);
             }
 
             // [×] delete button for static routes only
@@ -516,10 +516,10 @@ void DrawRoutesTab(const DeviceNode* n, const PanelState& ps) {
     }
 
     // Add-form separator and labels
-    DrawLineEx({(float)CANVAS_W,           (float)RTE_ADD_SEP_Y},
-               {(float)(CANVAS_W+PANEL_W), (float)RTE_ADD_SEP_Y},
+    DrawLineEx({(float)CANVAS_W(),           (float)RTE_ADD_SEP_Y},
+               {(float)(CANVAS_W()+PANEL_W), (float)RTE_ADD_SEP_Y},
                1.0f, PANEL_BORDER);
-    DrawText("ADD STATIC ROUTE", CANVAS_W + 12, RTE_ADD_SEP_Y + 8, 10,
+    DrawText("ADD STATIC ROUTE", CANVAS_W() + 12, RTE_ADD_SEP_Y + 8, 10,
              Color{100, 116, 139, 255});
 
     // Destination field
@@ -548,36 +548,36 @@ void DrawRoutesTab(const DeviceNode* n, const PanelState& ps) {
 
 void DrawArpTab(const DeviceNode* n) {
     if (!n) return;
-    DrawText("ARP CACHE", CANVAS_W + 12, 124, 10, Color{100, 116, 139, 255});
+    DrawText("ARP CACHE", CANVAS_W() + 12, 124, 10, Color{100, 116, 139, 255});
 
     if (n->arpTable.empty()) {
-        DrawText("(empty)", CANVAS_W + 12, 148, 11, Color{51, 65, 85, 255});
+        DrawText("(empty)", CANVAS_W() + 12, 148, 11, Color{51, 65, 85, 255});
         DrawText("Run a simulation to populate the cache.",
-                 CANVAS_W + 12, 164, 10, Color{51, 65, 85, 255});
+                 CANVAS_W() + 12, 164, 10, Color{51, 65, 85, 255});
         return;
     }
 
-    DrawText("IP ADDRESS",  CANVAS_W + 12,  142, 9, Color{100, 116, 139, 255});
-    DrawText("MAC ADDRESS", CANVAS_W + 138, 142, 9, Color{100, 116, 139, 255});
-    DrawLineEx({(float)CANVAS_W,           156.0f},
-               {(float)(CANVAS_W+PANEL_W), 156.0f}, 0.5f, PANEL_BORDER);
+    DrawText("IP ADDRESS",  CANVAS_W() + 12,  142, 9, Color{100, 116, 139, 255});
+    DrawText("MAC ADDRESS", CANVAS_W() + 138, 142, 9, Color{100, 116, 139, 255});
+    DrawLineEx({(float)CANVAS_W(),           156.0f},
+               {(float)(CANVAS_W()+PANEL_W), 156.0f}, 0.5f, PANEL_BORDER);
 
     int y = 162;
     for (const auto& [ip, mac] : n->arpTable) {
-        if (y > CANVAS_H - LOG_H - 20) break;
-        DrawText(ip.c_str(),  CANVAS_W + 12,  y, 10, Color{34, 197, 94, 255});
-        DrawText(mac.c_str(), CANVAS_W + 138, y, 9,  Color{148, 163, 184, 255});
+        if (y > CANVAS_H() - LOG_H - 20) break;
+        DrawText(ip.c_str(),  CANVAS_W() + 12,  y, 10, Color{34, 197, 94, 255});
+        DrawText(mac.c_str(), CANVAS_W() + 138, y, 9,  Color{148, 163, 184, 255});
         y += 18;
     }
 }
 
 void DrawOspfTab(const DeviceNode* n) {
     if (!n) {
-        DrawText("No device selected", CANVAS_W + 20, 130, 12, Color{100,116,139,255});
+        DrawText("No device selected", CANVAS_W() + 20, 130, 12, Color{100,116,139,255});
         return;
     }
     if (n->type != ROUTER) {
-        DrawText("OSPF: routers only", CANVAS_W + 20, 130, 12, Color{100,116,139,255});
+        DrawText("OSPF: routers only", CANVAS_W() + 20, 130, 12, Color{100,116,139,255});
         return;
     }
 
@@ -595,42 +595,42 @@ void DrawOspfTab(const DeviceNode* n) {
 
     // Router ID
     int y = 160;
-    DrawText("Router ID", CANVAS_W + 12, y, 11, Color{100,116,139,255});
+    DrawText("Router ID", CANVAS_W() + 12, y, 11, Color{100,116,139,255});
     DrawText(n->routerId.empty() ? "(none)" : n->routerId.c_str(),
-             CANVAS_W + 90, y, 11, WHITE);
+             CANVAS_W() + 90, y, 11, WHITE);
     y += 20;
 
     // ABR badge or single-area display
     if (IsAbr(*n)) {
-        DrawRectangleRounded({(float)(CANVAS_W + 90), (float)y, 34.0f, 16.0f},
+        DrawRectangleRounded({(float)(CANVAS_W() + 90), (float)y, 34.0f, 16.0f},
                              0.5f, 4, Color{139, 92, 246, 255});
-        DrawText("ABR", CANVAS_W + 95, y + 3, 10, WHITE);
+        DrawText("ABR", CANVAS_W() + 95, y + 3, 10, WHITE);
     } else {
         uint32_t displayArea = 0;
         for (int i = 0; i < PORTS_PER_NODE; ++i)
             if (ValidateIP(n->portIp[i])) { displayArea = n->ospfPortArea[i]; break; }
-        DrawText("Area", CANVAS_W + 12, y, 11, Color{100,116,139,255});
-        DrawText(std::to_string(displayArea).c_str(), CANVAS_W + 90, y, 11, WHITE);
+        DrawText("Area", CANVAS_W() + 12, y, 11, Color{100,116,139,255});
+        DrawText(std::to_string(displayArea).c_str(), CANVAS_W() + 90, y, 11, WHITE);
     }
     y += 24;
 
     // Separator
-    DrawLineEx({(float)CANVAS_W, (float)y}, {(float)(CANVAS_W + PANEL_W), (float)y},
+    DrawLineEx({(float)CANVAS_W(), (float)y}, {(float)(CANVAS_W() + PANEL_W), (float)y},
                1.0f, PANEL_BORDER);
     y += 6;
-    DrawText("Neighbors", CANVAS_W + 12, y, 11, Color{100,116,139,255});
+    DrawText("Neighbors", CANVAS_W() + 12, y, 11, Color{100,116,139,255});
     y += 18;
 
     if (n->ospfNeighbors.empty()) {
-        DrawText("(none)", CANVAS_W + 20, y, 11, Color{71,85,105,255});
+        DrawText("(none)", CANVAS_W() + 20, y, 11, Color{71,85,105,255});
         return;
     }
 
     // Header row — Area column added between State and Dead
-    DrawText("Router-ID",   CANVAS_W + 12,  y, 10, Color{71,85,105,255});
-    DrawText("State",       CANVAS_W + 110, y, 10, Color{71,85,105,255});
-    DrawText("Area",        CANVAS_W + 175, y, 10, Color{71,85,105,255});
-    DrawText("Dead",        CANVAS_W + 218, y, 10, Color{71,85,105,255});
+    DrawText("Router-ID",   CANVAS_W() + 12,  y, 10, Color{71,85,105,255});
+    DrawText("State",       CANVAS_W() + 110, y, 10, Color{71,85,105,255});
+    DrawText("Area",        CANVAS_W() + 175, y, 10, Color{71,85,105,255});
+    DrawText("Dead",        CANVAS_W() + 218, y, 10, Color{71,85,105,255});
     y += 14;
 
     static const char* stateNames[] = { "DOWN", "INIT", "2WAY", "FULL" };
@@ -639,35 +639,35 @@ void DrawOspfTab(const DeviceNode* n) {
     };
 
     for (const auto& nbr : n->ospfNeighbors) {
-        if (y > CANVAS_H - 20) break;
+        if (y > CANVAS_H() - 20) break;
         std::string rid = nbr.neighborRouterId;
         if ((int)rid.size() > 11) rid = rid.substr(rid.size() - 11);
-        DrawText(rid.c_str(), CANVAS_W + 12, y, 10, WHITE);
+        DrawText(rid.c_str(), CANVAS_W() + 12, y, 10, WHITE);
 
         int si = std::clamp((int)nbr.state, 0, 3);
-        DrawText(stateNames[si], CANVAS_W + 110, y, 10, stateColors[si]);
+        DrawText(stateNames[si], CANVAS_W() + 110, y, 10, stateColors[si]);
 
-        DrawText(std::to_string(nbr.area).c_str(), CANVAS_W + 175, y, 10,
+        DrawText(std::to_string(nbr.area).c_str(), CANVAS_W() + 175, y, 10,
                  Color{148, 163, 184, 255});
 
         char deadBuf[8];
         std::snprintf(deadBuf, sizeof(deadBuf), "%.1fs", nbr.deadTimer);
-        DrawText(deadBuf, CANVAS_W + 218, y, 10, Color{148,163,184,255});
+        DrawText(deadBuf, CANVAS_W() + 218, y, 10, Color{148,163,184,255});
         y += 16;
     }
 }
 
 void DrawMplsTab(const DeviceNode* n) {
     if (!n) {
-        DrawText("No device selected", CANVAS_W + 20, 130, 12, Color{100,116,139,255});
+        DrawText("No device selected", CANVAS_W() + 20, 130, 12, Color{100,116,139,255});
         return;
     }
     if (n->type != ROUTER) {
-        DrawText("MPLS: routers only", CANVAS_W + 20, 130, 12, Color{100,116,139,255});
+        DrawText("MPLS: routers only", CANVAS_W() + 20, 130, 12, Color{100,116,139,255});
         return;
     }
     if (!n->ospfEnabled) {
-        DrawText("Requires OSPF enabled", CANVAS_W + 20, 130, 11, Color{100,116,139,255});
+        DrawText("Requires OSPF enabled", CANVAS_W() + 20, 130, 11, Color{100,116,139,255});
         return;
     }
 
@@ -685,40 +685,40 @@ void DrawMplsTab(const DeviceNode* n) {
 
     // LFIB table
     int y = 158;
-    DrawText("LFIB", CANVAS_W + 12, y, 11, Color{100,116,139,255});
+    DrawText("LFIB", CANVAS_W() + 12, y, 11, Color{100,116,139,255});
     y += 18;
 
     if (n->lfib.empty()) {
-        DrawText("(no bindings - wait for OSPF)", CANVAS_W + 16, y, 10,
+        DrawText("(no bindings - wait for OSPF)", CANVAS_W() + 16, y, 10,
                  Color{71,85,105,255});
         return;
     }
 
     // Column headers
-    DrawText("PREFIX",  CANVAS_W + 12,  y, 10, Color{71,85,105,255});
-    DrawText("LOCAL",   CANVAS_W + 107, y, 10, Color{71,85,105,255});
-    DrawText("OUT",     CANVAS_W + 170, y, 10, Color{71,85,105,255});
-    DrawLineEx({(float)CANVAS_W, (float)(y + 13)},
-               {(float)(CANVAS_W + PANEL_W), (float)(y + 13)},
+    DrawText("PREFIX",  CANVAS_W() + 12,  y, 10, Color{71,85,105,255});
+    DrawText("LOCAL",   CANVAS_W() + 107, y, 10, Color{71,85,105,255});
+    DrawText("OUT",     CANVAS_W() + 170, y, 10, Color{71,85,105,255});
+    DrawLineEx({(float)CANVAS_W(), (float)(y + 13)},
+               {(float)(CANVAS_W() + PANEL_W), (float)(y + 13)},
                0.5f, PANEL_BORDER);
     y += 16;
 
     for (const auto& [prefix, binding] : n->lfib) {
-        if (y > CANVAS_H - 20) break;
-        DrawText(prefix.c_str(), CANVAS_W + 12, y, 10, WHITE);
+        if (y > CANVAS_H() - 20) break;
+        DrawText(prefix.c_str(), CANVAS_W() + 12, y, 10, WHITE);
 
         char locBuf[16];
         std::snprintf(locBuf, sizeof(locBuf), "%u", binding.localLabel);
-        DrawText(locBuf, CANVAS_W + 107, y, 10, Color{253,186,116,255});
+        DrawText(locBuf, CANVAS_W() + 107, y, 10, Color{253,186,116,255});
 
         if (binding.outLabel == MPLS_IMPLICIT_NULL) {
-            DrawRectangleRounded({(float)(CANVAS_W + 170), (float)y, 28.f, 13.f},
+            DrawRectangleRounded({(float)(CANVAS_W() + 170), (float)y, 28.f, 13.f},
                                  0.4f, 4, Color{168,85,247,255});
-            DrawText("PHP", CANVAS_W + 174, y + 2, 9, WHITE);
+            DrawText("PHP", CANVAS_W() + 174, y + 2, 9, WHITE);
         } else {
             char outBuf[16];
             std::snprintf(outBuf, sizeof(outBuf), "%u", binding.outLabel);
-            DrawText(outBuf, CANVAS_W + 170, y, 10, Color{253,186,116,255});
+            DrawText(outBuf, CANVAS_W() + 170, y, 10, Color{253,186,116,255});
         }
 
         y += 16;
@@ -727,11 +727,11 @@ void DrawMplsTab(const DeviceNode* n) {
 
 void DrawBgpTab(const DeviceNode* n, const PanelState& ps) {
     if (!n) {
-        DrawText("No device selected", CANVAS_W + 20, 130, 12, Color{100,116,139,255});
+        DrawText("No device selected", CANVAS_W() + 20, 130, 12, Color{100,116,139,255});
         return;
     }
     if (n->type != ROUTER) {
-        DrawText("BGP: routers only", CANVAS_W + 20, 130, 12, Color{100,116,139,255});
+        DrawText("BGP: routers only", CANVAS_W() + 20, 130, 12, Color{100,116,139,255});
         return;
     }
 
@@ -749,7 +749,7 @@ void DrawBgpTab(const DeviceNode* n, const PanelState& ps) {
 
     // ── ASN input ─────────────────────────────────────────────────────
     int y = 152;
-    DrawText("ASN:", CANVAS_W + 12, y + 4, 11, Color{100,116,139,255});
+    DrawText("ASN:", CANVAS_W() + 12, y + 4, 11, Color{100,116,139,255});
     Rectangle asnRect  = PnlBgpAsnRect();
     bool      asnActive = (ps.bgpAsnField == n->id);
     DrawRectangleRec(asnRect, asnActive ? Color{30,41,59,255} : Color{15,23,42,255});
@@ -760,7 +760,7 @@ void DrawBgpTab(const DeviceNode* n, const PanelState& ps) {
     DrawText(asnStr.c_str(), (int)(asnRect.x + 4), (int)(asnRect.y + 5), 11, WHITE);
 
     if (n->localAsn == 0) {
-        DrawText("Set ASN to form sessions", CANVAS_W + 12, y + 30, 10,
+        DrawText("Set ASN to form sessions", CANVAS_W() + 12, y + 30, 10,
                  Color{234,179,8,255});
     } else {
         // Route Reflector toggle (only when ASN is set)
@@ -780,58 +780,58 @@ void DrawBgpTab(const DeviceNode* n, const PanelState& ps) {
 
     // ── Neighbors ─────────────────────────────────────────────────────
     const char* neighborHeader = (n->isRouteReflector && n->localAsn > 0) ? "CLIENTS" : "NEIGHBORS";
-    DrawText(neighborHeader, CANVAS_W + 12, y, 10, Color{71,85,105,255});
+    DrawText(neighborHeader, CANVAS_W() + 12, y, 10, Color{71,85,105,255});
     y += 14;
     if (n->bgpNeighbors.empty()) {
-        DrawText("(none)", CANVAS_W + 16, y, 10, Color{71,85,105,255});
+        DrawText("(none)", CANVAS_W() + 16, y, 10, Color{71,85,105,255});
         y += 14;
     } else {
         for (const auto& nb : n->bgpNeighbors) {
-            if (y > CANVAS_H - 80) break;
+            if (y > CANVAS_H() - 80) break;
             std::string ip = nb.neighborIp.size() > 12
                              ? nb.neighborIp.substr(0, 11) + "\xe2\x80\xa6"
                              : nb.neighborIp;
-            DrawText(ip.c_str(), CANVAS_W + 12, y, 10, WHITE);
+            DrawText(ip.c_str(), CANVAS_W() + 12, y, 10, WHITE);
             const char* typeLabel = nb.ibgp ? "iBGP" : "eBGP";
             Color typeCol = nb.ibgp ? Color{167,139,250,255}   // purple
                                     : Color{253,186,116,255};  // orange
-            DrawText(typeLabel, CANVAS_W + 102, y, 10, typeCol);
+            DrawText(typeLabel, CANVAS_W() + 102, y, 10, typeCol);
             const char* state = nb.established ? "ESTAB" : "DOWN";
             Color stCol = nb.established ? Color{34,197,94,255} : Color{239,68,68,255};
-            DrawText(state, CANVAS_W + 142, y, 10, stCol);
+            DrawText(state, CANVAS_W() + 142, y, 10, stCol);
             y += 14;
         }
     }
 
     // ── BGP RIB ───────────────────────────────────────────────────────
     y += 4;
-    DrawText("BGP RIB", CANVAS_W + 12, y, 10, Color{71,85,105,255});
+    DrawText("BGP RIB", CANVAS_W() + 12, y, 10, Color{71,85,105,255});
     y += 14;
     if (n->bgpRoutes.empty()) {
-        DrawText("(no routes)", CANVAS_W + 16, y, 10, Color{71,85,105,255});
+        DrawText("(no routes)", CANVAS_W() + 16, y, 10, Color{71,85,105,255});
     } else {
-        DrawText("PREFIX",   CANVAS_W + 12,  y, 9, Color{71,85,105,255});
-        DrawText("NEXT-HOP", CANVAS_W + 90,  y, 9, Color{71,85,105,255});
-        DrawText("AS-PATH",  CANVAS_W + 158, y, 9, Color{71,85,105,255});
+        DrawText("PREFIX",   CANVAS_W() + 12,  y, 9, Color{71,85,105,255});
+        DrawText("NEXT-HOP", CANVAS_W() + 90,  y, 9, Color{71,85,105,255});
+        DrawText("AS-PATH",  CANVAS_W() + 158, y, 9, Color{71,85,105,255});
         y += 12;
         for (const auto& r : n->bgpRoutes) {
-            if (y > CANVAS_H - 20) break;
+            if (y > CANVAS_H() - 20) break;
             {
                 std::string pfx = r.prefix.size() > 15
                                   ? r.prefix.substr(0, 14) + "\xe2\x80\xa6" : r.prefix;
-                DrawText(pfx.c_str(), CANVAS_W + 12, y, 10, WHITE);
+                DrawText(pfx.c_str(), CANVAS_W() + 12, y, 10, WHITE);
             }
             {
                 std::string nh = r.nextHop.size() > 12
                                  ? r.nextHop.substr(0, 11) + "\xe2\x80\xa6" : r.nextHop;
-                DrawText(nh.c_str(), CANVAS_W + 90, y, 10, Color{94,234,212,255});
+                DrawText(nh.c_str(), CANVAS_W() + 90, y, 10, Color{94,234,212,255});
             }
             std::string path;
             for (size_t i = 0; i < r.asPath.size(); ++i) {
                 if (i) path += ' ';
                 path += std::to_string(r.asPath[i]);
             }
-            DrawText(path.c_str(), CANVAS_W + 158, y, 10, Color{253,186,116,255});
+            DrawText(path.c_str(), CANVAS_W() + 158, y, 10, Color{253,186,116,255});
             y += 14;
         }
     }
@@ -839,15 +839,15 @@ void DrawBgpTab(const DeviceNode* n, const PanelState& ps) {
 
 void DrawVlanTab(const DeviceNode* n, const PanelState& ps) {
     if (!n) {
-        DrawText("No device selected", CANVAS_W + 20, 130, 12, Color{100,116,139,255});
+        DrawText("No device selected", CANVAS_W() + 20, 130, 12, Color{100,116,139,255});
         return;
     }
     if (n->type != SWITCH) {
-        DrawText("VLAN: switches only", CANVAS_W + 20, 130, 12, Color{100,116,139,255});
+        DrawText("VLAN: switches only", CANVAS_W() + 20, 130, 12, Color{100,116,139,255});
         return;
     }
 
-    DrawText("PORT VLAN CONFIG", CANVAS_W + 12, 124, 10, Color{71,85,105,255});
+    DrawText("PORT VLAN CONFIG", CANVAS_W() + 12, 124, 10, Color{71,85,105,255});
 
     for (int p = 0; p < PORTS_PER_NODE; ++p) {
         const VlanPortConfig& vc = n->vlanPorts[p];
@@ -855,7 +855,7 @@ void DrawVlanTab(const DeviceNode* n, const PanelState& ps) {
 
         char plabel[12];
         std::snprintf(plabel, sizeof(plabel), "Port %d", p);
-        DrawText(plabel, CANVAS_W + 12, rowY + 5, 10, Color{100,116,139,255});
+        DrawText(plabel, CANVAS_W() + 12, rowY + 5, 10, Color{100,116,139,255});
 
         // Mode toggle button
         Rectangle modeRect = PnlVlanPortModeRect(p);
@@ -871,7 +871,7 @@ void DrawVlanTab(const DeviceNode* n, const PanelState& ps) {
                  (int)(modeRect.y + 6), 10, modeFg);
 
         if (isTrunk) {
-            DrawText("-- all --", CANVAS_W + 93, rowY + 5, 10, Color{100,116,139,255});
+            DrawText("-- all --", CANVAS_W() + 93, rowY + 5, 10, Color{100,116,139,255});
         } else {
             // VLAN ID input field
             Rectangle idRect = PnlVlanPortIdRect(p);
@@ -889,16 +889,16 @@ void DrawSubIfaceTab(const DeviceNode* n, const PanelState& ps) {
     if (!n || n->type != ROUTER) {
         int tw = MeasureText("Select a router to configure subinterfaces.", 10);
         DrawText("Select a router to configure subinterfaces.",
-                 CANVAS_W + (PANEL_W - tw) / 2, 200, 10, Color{100, 116, 139, 255});
+                 CANVAS_W() + (PANEL_W - tw) / 2, 200, 10, Color{100, 116, 139, 255});
         return;
     }
 
     // ── Existing subinterface list ─────────────────────────────────────────
-    DrawLine(CANVAS_W + 12, 128, CANVAS_W + PANEL_W - 12, 128, Color{51, 65, 85, 255});
-    DrawText("Subinterfaces", CANVAS_W + 12, 132, 10, Color{148, 163, 184, 255});
+    DrawLine(CANVAS_W() + 12, 128, CANVAS_W() + PANEL_W - 12, 128, Color{51, 65, 85, 255});
+    DrawText("Subinterfaces", CANVAS_W() + 12, 132, 10, Color{148, 163, 184, 255});
 
     if (n->subIfaces.empty()) {
-        DrawText("(none configured)", CANVAS_W + 20, SUB_ROW_Y0, 10, Color{100, 116, 139, 255});
+        DrawText("(none configured)", CANVAS_W() + 20, SUB_ROW_Y0, 10, Color{100, 116, 139, 255});
     } else {
         int maxRows = (SUB_FORM_Y0 - 12 - SUB_ROW_Y0) / SUB_ROW_H;
         int shown   = std::min((int)n->subIfaces.size(), maxRows);
@@ -908,7 +908,7 @@ void DrawSubIfaceTab(const DeviceNode* n, const PanelState& ps) {
             char buf[64];
             std::snprintf(buf, sizeof(buf), "Gi0/%d.%d  V%d  %s",
                           si.parentPort, si.vlanId, si.vlanId, si.ip.c_str());
-            DrawText(buf, CANVAS_W + 12, y + 4, 10, Color{203, 213, 225, 255});
+            DrawText(buf, CANVAS_W() + 12, y + 4, 10, Color{203, 213, 225, 255});
 
             Rectangle delR = PnlSubRowDeleteRect(i);
             DrawRectangleRec(delR, Color{127, 29, 29, 255});
@@ -918,17 +918,17 @@ void DrawSubIfaceTab(const DeviceNode* n, const PanelState& ps) {
             char more[32];
             std::snprintf(more, sizeof(more), "+%d more",
                           (int)n->subIfaces.size() - shown);
-            DrawText(more, CANVAS_W + 12,
+            DrawText(more, CANVAS_W() + 12,
                      SUB_ROW_Y0 + shown * SUB_ROW_H + 4, 9, Color{100, 116, 139, 255});
         }
     }
 
     // ── Add subinterface form ──────────────────────────────────────────────
-    DrawLine(CANVAS_W + 12, SUB_FORM_Y0 - 12,
-             CANVAS_W + PANEL_W - 12, SUB_FORM_Y0 - 12, Color{51, 65, 85, 255});
-    DrawText("Add Subinterface", CANVAS_W + 12, SUB_FORM_Y0 - 8, 10, Color{148, 163, 184, 255});
+    DrawLine(CANVAS_W() + 12, SUB_FORM_Y0 - 12,
+             CANVAS_W() + PANEL_W - 12, SUB_FORM_Y0 - 12, Color{51, 65, 85, 255});
+    DrawText("Add Subinterface", CANVAS_W() + 12, SUB_FORM_Y0 - 8, 10, Color{148, 163, 184, 255});
 
-    DrawText("Port:", CANVAS_W + 12, SUB_FORM_Y0 + 4, 10, Color{148, 163, 184, 255});
+    DrawText("Port:", CANVAS_W() + 12, SUB_FORM_Y0 + 4, 10, Color{148, 163, 184, 255});
     for (int p = 0; p < PORTS_PER_NODE; ++p) {
         Rectangle btn = PnlSubPortBtnRect(p);
         bool sel = (ps.subFormPort == p);
@@ -940,12 +940,12 @@ void DrawSubIfaceTab(const DeviceNode* n, const PanelState& ps) {
         DrawText(lbl, (int)(btn.x + (btn.width - lw) * 0.5f), (int)(btn.y + 5), 10, WHITE);
     }
 
-    DrawText("VLAN:", CANVAS_W + 12, SUB_FORM_Y0 + 34, 10, Color{148, 163, 184, 255});
+    DrawText("VLAN:", CANVAS_W() + 12, SUB_FORM_Y0 + 34, 10, Color{148, 163, 184, 255});
     DrawTextField(PnlSubVlanFieldRect(), nullptr, "10",
                   ps.subVlanBuf, ps.subActiveField == 0,
                   !ps.subVlanBuf.empty());
 
-    DrawText("IP:", CANVAS_W + 12, SUB_FORM_Y0 + 64, 10, Color{148, 163, 184, 255});
+    DrawText("IP:", CANVAS_W() + 12, SUB_FORM_Y0 + 64, 10, Color{148, 163, 184, 255});
     DrawTextField(PnlSubIpFieldRect(), nullptr, "10.10.0.1/24",
                   ps.subIpBuf, ps.subActiveField == 1,
                   ValidateIP(ps.subIpBuf));
@@ -963,17 +963,17 @@ void DrawSubIfaceTab(const DeviceNode* n, const PanelState& ps) {
 void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
                const PanelState& ps)
 {
-    DrawRectangle(CANVAS_W, 0, PANEL_W, SCREEN_H, PANEL_BG);
-    DrawLineEx({(float)CANVAS_W, 0.0f}, {(float)CANVAS_W, (float)SCREEN_H},
+    DrawRectangle(CANVAS_W(), 0, PANEL_W, SCREEN_H(), PANEL_BG);
+    DrawLineEx({(float)CANVAS_W(), 0.0f}, {(float)CANVAS_W(), (float)SCREEN_H()},
                1.0f, PANEL_BORDER);
-    DrawText("CONFIGURATION", CANVAS_W + 12, 14, 10, Color{100, 116, 139, 255});
-    DrawLineEx({(float)CANVAS_W, 38.0f}, {(float)(CANVAS_W + PANEL_W), 38.0f},
+    DrawText("CONFIGURATION", CANVAS_W() + 12, 14, 10, Color{100, 116, 139, 255});
+    DrawLineEx({(float)CANVAS_W(), 38.0f}, {(float)(CANVAS_W() + PANEL_W), 38.0f},
                1.0f, PANEL_BORDER);
 
     if (selectedId == -1) {
         const char* msg = "<- Select a device";
         int tw = MeasureText(msg, 13);
-        DrawText(msg, CANVAS_W + (PANEL_W - tw) / 2, SCREEN_H / 2 - 8, 13,
+        DrawText(msg, CANVAS_W() + (PANEL_W - tw) / 2, SCREEN_H() / 2 - 8, 13,
                  Color{100, 116, 139, 255});
         return;
     }
@@ -984,11 +984,11 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
     // Device type badge
     const char* typeNames[] = {"PC", "Router", "Switch"};
     int bw = MeasureText(typeNames[(int)n->type], 11) + 16;
-    DrawRectangleRounded({(float)(CANVAS_W + 12), 50.0f, (float)bw, 22.0f},
+    DrawRectangleRounded({(float)(CANVAS_W() + 12), 50.0f, (float)bw, 22.0f},
                          0.5f, 4, GetDeviceColor(n->type));
-    DrawText(typeNames[(int)n->type], CANVAS_W + 20, 56, 11, WHITE);
-    DrawText(n->label.c_str(), CANVAS_W + 16 + bw, 56, 13, WHITE);
-    DrawLineEx({(float)CANVAS_W, 84.0f}, {(float)(CANVAS_W + PANEL_W), 84.0f},
+    DrawText(typeNames[(int)n->type], CANVAS_W() + 20, 56, 11, WHITE);
+    DrawText(n->label.c_str(), CANVAS_W() + 16 + bw, 56, 13, WHITE);
+    DrawLineEx({(float)CANVAS_W(), 84.0f}, {(float)(CANVAS_W() + PANEL_W), 84.0f},
                1.0f, PANEL_BORDER);
 
     // Tab header
@@ -1105,7 +1105,7 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
                  subActive ? Color{234, 88, 12, 255} : Color{100, 116, 139, 255});
     }
 
-    DrawLineEx({(float)CANVAS_W, 116.0f}, {(float)(CANVAS_W + PANEL_W), 116.0f},
+    DrawLineEx({(float)CANVAS_W(), 116.0f}, {(float)(CANVAS_W() + PANEL_W), 116.0f},
                1.0f, PANEL_BORDER);
 
     // Tab content
@@ -1150,8 +1150,8 @@ void DrawContextMenu(const ContextMenu& menu, Vector2 screenMouse) {
     while (items[count]) ++count;
 
     float h = (float)(count * MENU_ITEM_H + 8);
-    float x = std::min(menu.screenPos.x, (float)(CANVAS_W - CONTEXT_MENU_W - 4));
-    float y = std::min(menu.screenPos.y, (float)(CANVAS_H - (int)h - 4));
+    float x = std::min(menu.screenPos.x, (float)(CANVAS_W() - CONTEXT_MENU_W - 4));
+    float y = std::min(menu.screenPos.y, (float)(CANVAS_H() - (int)h - 4));
 
     DrawRectangleRounded({x, y, (float)CONTEXT_MENU_W, h}, 0.08f, 4, Color{30, 41, 59, 255});
     DrawRectangleRoundedLinesEx({x, y, (float)CONTEXT_MENU_W, h}, 0.08f, 4, 1.0f, PANEL_BORDER);
