@@ -1,0 +1,86 @@
+{
+  "id": 12,
+  "title": "Level 12 — Dual Failure",
+  "briefing": "OSPF was protecting this network — but RTR-2 has crashed AND the backup link is broken. Press T for Troubleshoot Mode. Fix either the crashed router (right-click → Restore Device) or the broken backup link (right-click → Restore Link). OSPF will reconverge automatically.",
+  "devices": [
+    {
+      "id": 1,
+      "label": "PC-A",
+      "type": "PC",
+      "x": -540,
+      "y": 0,
+      "portIp0": "10.12.0.2/24",
+      "staticRoutes": [
+        { "dest": "0.0.0.0/0", "nextHop": "10.12.0.1" }
+      ]
+    },
+    {
+      "id": 2,
+      "label": "RTR-1",
+      "type": "ROUTER",
+      "x": -270,
+      "y": 0,
+      "portIp0": "10.12.0.1/24",
+      "portIp1": "10.13.0.1/24",
+      "portIp2": "10.14.0.1/24",
+      "ospfEnabled": true,
+      "routerId": "1.1.1.1"
+    },
+    {
+      "id": 3,
+      "label": "RTR-2",
+      "type": "ROUTER",
+      "x": 0,
+      "y": 120,
+      "portIp0": "10.13.0.2/24",
+      "portIp1": "10.15.0.1/24",
+      "ospfEnabled": true,
+      "routerId": "2.2.2.2",
+      "crashed": true
+    },
+    {
+      "id": 4,
+      "label": "RTR-3",
+      "type": "ROUTER",
+      "x": 270,
+      "y": 0,
+      "portIp0": "10.14.0.2/24",
+      "portIp1": "10.15.0.2/24",
+      "portIp2": "10.16.0.1/24",
+      "ospfEnabled": true,
+      "routerId": "3.3.3.3"
+    },
+    {
+      "id": 5,
+      "label": "PC-B",
+      "type": "PC",
+      "x": 540,
+      "y": 0,
+      "portIp0": "10.16.0.2/24",
+      "staticRoutes": [
+        { "dest": "0.0.0.0/0", "nextHop": "10.16.0.1" }
+      ]
+    }
+  ],
+  "cables": [
+    { "from": 1, "fromPort": 0, "to": 2, "toPort": 0 },
+    { "from": 2, "fromPort": 1, "to": 3, "toPort": 0 },
+    { "from": 3, "fromPort": 1, "to": 4, "toPort": 1 },
+    { "from": 2, "fromPort": 2, "to": 4, "toPort": 0, "broken": true },
+    { "from": 4, "fromPort": 2, "to": 5, "toPort": 0 }
+  ],
+  "winConditions": [
+    {
+      "src": "PC-A",
+      "dst": "PC-B",
+      "description": "PC-A can reach PC-B after restoring a failed component",
+      "requiresFix": true
+    },
+    {
+      "src": "PC-B",
+      "dst": "PC-A",
+      "description": "PC-B can reach PC-A after restoring a failed component",
+      "requiresFix": true
+    }
+  ]
+}
