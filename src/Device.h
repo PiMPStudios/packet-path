@@ -7,6 +7,16 @@
 #include <cmath>
 #include <unordered_map>
 
+// ── MPLS types ────────────────────────────────────────────────────────────
+static const uint32_t MPLS_IMPLICIT_NULL = 3;  // RFC 3032 §2.1
+
+enum LabelOp { LABEL_NONE, LABEL_PUSH, LABEL_SWAP, LABEL_POP };
+
+struct LdpBinding {
+    uint32_t localLabel = 0;  // label this router advertises for this prefix
+    uint32_t outLabel   = 0;  // label expected by next-hop router (or IMPLICIT_NULL)
+};
+
 // ── Device geometry constants ─────────────────────────────────────────────
 static const int   PORTS_PER_NODE = 4;
 static const float NODE_W         = 120.0f;
@@ -67,6 +77,10 @@ struct HopDecision {
     std::string destPrefix;  // matched route prefix, e.g. "10.0.1.0/24"
     std::string nextHopIp;   // next-hop IP, or "delivered" for connected routes
     int         outPort   = -1;
+    // MPLS label operation (LABEL_NONE when MPLS not active on this hop)
+    LabelOp  labelOp  = LABEL_NONE;
+    uint32_t inLabel  = 0;   // label arriving at this router (0 = unlabeled)
+    uint32_t outLabel = 0;   // label leaving this router (0 = unlabeled after POP)
 };
 
 struct ForwardResult {
@@ -108,6 +122,9 @@ struct DeviceNode {
     std::unordered_map<uint32_t,
         std::unordered_map<std::string, RouterLsa>>                areaLsdbs;
     std::vector<RouteEntry>                                        ospfRoutes;
+    // LDP / MPLS state (routers only)
+    bool ldpEnabled = false;
+    std::unordered_map<std::string, LdpBinding> lfib;  // key = network address e.g. "10.0.1.0"
 };
 
 // ── Device geometry helpers (no draw calls) ───────────────────────────────

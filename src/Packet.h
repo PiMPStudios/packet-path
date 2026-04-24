@@ -14,7 +14,8 @@ struct PacketAnim {
     float t            = 0.f;
     bool  done         = false;
     float failPulse    = 0.f;
-    float successPulse = 0.f;
+    float    successPulse = 0.f;
+    uint32_t currentLabel = 0;  // top-of-stack label displayed on the packet dot (0 = unlabeled)
 };
 
 struct SimState {

@@ -536,6 +536,18 @@ void DrawOspfTab(const DeviceNode* n) {
     }
 }
 
+void DrawMplsTab(const DeviceNode* n) {
+    if (!n) {
+        DrawText("No device selected", CANVAS_W + 20, 130, 12, Color{100,116,139,255});
+        return;
+    }
+    if (n->type != ROUTER) {
+        DrawText("MPLS: routers only", CANVAS_W + 20, 130, 12, Color{100,116,139,255});
+        return;
+    }
+    DrawText("(MPLS — enable in Task 5)", CANVAS_W + 20, 130, 10, Color{71,85,105,255});
+}
+
 void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
                const PanelState& ps)
 {
@@ -625,6 +637,20 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
                  ospfActive ? WHITE : Color{100, 116, 139, 255});
     }
 
+    Rectangle mplsTab    = PnlMplsTabRect();
+    bool      mplsActive = (ps.activeTab == TAB_MPLS);
+    DrawRectangleRec(mplsTab, mplsActive ? Color{30,41,59,255} : PANEL_BG);
+    if (mplsActive)
+        DrawLineEx({mplsTab.x, mplsTab.y + mplsTab.height},
+                   {mplsTab.x + mplsTab.width, mplsTab.y + mplsTab.height}, 2.0f,
+                   Color{59, 130, 246, 255});
+    {
+        int twM = MeasureText("MPLS", 12);
+        DrawText("MPLS", (int)(mplsTab.x + (mplsTab.width - twM) / 2),
+                 (int)(mplsTab.y + 7), 12,
+                 mplsActive ? WHITE : Color{100, 116, 139, 255});
+    }
+
     DrawLineEx({(float)CANVAS_W, 116.0f}, {(float)(CANVAS_W + PANEL_W), 116.0f},
                1.0f, PANEL_BORDER);
 
@@ -637,6 +663,8 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
         DrawArpTab(n);
     else if (ps.activeTab == TAB_OSPF)
         DrawOspfTab(n);
+    else if (ps.activeTab == TAB_MPLS)
+        DrawMplsTab(n);
 }
 
 // ── Context menu draw ────────────────────────────────────────────────────

@@ -63,6 +63,7 @@ void DrawConfigTab(const DeviceNode* n, const PanelState& ps);
 void DrawRoutesTab(const DeviceNode* n, const PanelState& ps);
 void DrawArpTab(const DeviceNode* n);
 void DrawOspfTab(const DeviceNode* n);
+void DrawMplsTab(const DeviceNode* n);
 void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
                const PanelState& ps);
 void DrawContextMenu(const ContextMenu& menu, Vector2 screenMouse);
