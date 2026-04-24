@@ -90,6 +90,7 @@ int main() {
                             hoverNodeId          = -1;
                             hoverPort            = -1;
                             contextMenu.visible  = false;
+                            troubleshootMode     = false;
                             traceModalOpen       = false;
                             failAnnotationTimer  = 0.f;
                             lastFailedTrace      = {};
@@ -188,6 +189,7 @@ int main() {
                     hoverNodeId          = -1;
                     hoverPort            = -1;
                     contextMenu.visible  = false;
+                    troubleshootMode     = false;
                     traceModalOpen       = false;
                     failAnnotationTimer  = 0.f;
                     lastFailedTrace      = {};
@@ -213,6 +215,7 @@ int main() {
                         hoverNodeId          = -1;
                         hoverPort            = -1;
                         contextMenu.visible  = false;
+                        troubleshootMode     = false;
                         traceModalOpen       = false;
                         failAnnotationTimer  = 0.f;
                         lastFailedTrace      = {};

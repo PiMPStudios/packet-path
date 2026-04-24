@@ -232,6 +232,17 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
                     visited.insert(nextStId);
                 }
 
+                if (destNode->crashed) {
+                    HopDecision hd;
+                    hd.nodeId     = l2.back();
+                    hd.nodeLabel  = destNode->label;
+                    hd.routeType  = "C"; hd.destPrefix = route.dest;
+                    hd.nextHopIp  = "crashed"; hd.outPort = -1; hd.vlanTag = 0;
+                    result.hops.push_back(hd);
+                    result.reason = destNode->label + " is crashed \xe2\x80\x94 device offline";
+                    return result;
+                }
+
                 // Final delivery hop at destination
                 {
                     const DeviceNode* d = FindNode(nodes, l2.back());
