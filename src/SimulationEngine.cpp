@@ -1,6 +1,99 @@
 #include "SimulationEngine.h"
 #include <algorithm>
 #include <unordered_set>
+#include <queue>
+
+// Finds the node whose portIp[i] matches `ip` (plain, no mask).
+static const DeviceNode* FindNodeByIp(const std::vector<DeviceNode>& nodes,
+                                       const std::string& ip)
+{
+    for (const auto& n : nodes)
+        for (int p = 0; p < PORTS_PER_NODE; ++p) {
+            auto s = n.portIp[p].find('/');
+            std::string plain = (s != std::string::npos)
+                                ? n.portIp[p].substr(0, s) : n.portIp[p];
+            if (plain == ip) return &n;
+        }
+    return nullptr;
+}
+
+static const Cable* FindCableL2(const std::vector<Cable>& cables, int a, int b)
+{
+    for (const auto& c : cables)
+        if ((c.fromId == a && c.toId == b) || (c.fromId == b && c.toId == a))
+            return &c;
+    return nullptr;
+}
+
+// VLAN-aware BFS through the L2 fabric (switches).
+// Returns [srcId, …, dstId] or {} if blocked.
+// frameVlan starts at 0 (untagged at L3 boundary); access ports assign it,
+// trunk ports preserve it.
+static std::vector<int> FindL2Path(int srcId, int dstId,
+                                    const std::vector<DeviceNode>& nodes,
+                                    const std::vector<Cable>& cables)
+{
+    if (srcId == dstId) return {srcId};
+
+    struct State {
+        int              nodeId;
+        int              vlan;    // frame's VLAN tag inside the L2 domain (0 = untagged)
+        std::vector<int> path;
+    };
+
+    std::unordered_set<int> visited;
+    std::queue<State>       q;
+    q.push({srcId, 0, {srcId}});
+    visited.insert(srcId);
+
+    while (!q.empty()) {
+        auto [curId, curVlan, curPath] = q.front();
+        q.pop();
+
+        const DeviceNode* cur = FindNode(nodes, curId);
+        if (!cur) continue;
+
+        for (const auto& cable : cables) {
+            int myPort = -1, nextId = -1, nextPort = -1;
+            if      (cable.fromId == curId) { myPort = cable.fromPort; nextId = cable.toId;   nextPort = cable.toPort; }
+            else if (cable.toId   == curId) { myPort = cable.toPort;   nextId = cable.fromId; nextPort = cable.fromPort; }
+            if (nextId == -1 || visited.count(nextId)) continue;
+
+            const DeviceNode* next = FindNode(nodes, nextId);
+            if (!next) continue;
+
+            // ── Egress VLAN check on current switch ──────────────────
+            int frameVlan = curVlan;
+            if (cur->type == SWITCH && frameVlan != 0) {
+                const VlanPortConfig& ep = cur->vlanPorts[myPort];
+                if (ep.mode == VLAN_ACCESS) {
+                    if (ep.accessVlan != frameVlan) continue;  // VLAN mismatch: blocked
+                }
+                // trunk: all VLANs pass
+            }
+
+            // ── Ingress VLAN assignment entering next switch ──────────
+            if (next->type == SWITCH) {
+                const VlanPortConfig& ip = next->vlanPorts[nextPort];
+                if (ip.mode == VLAN_ACCESS)
+                    frameVlan = ip.accessVlan;          // access: assign VLAN
+                else
+                    frameVlan = (curVlan != 0) ? curVlan : 1;  // trunk: keep tag
+            }
+
+            std::vector<int> newPath = curPath;
+            newPath.push_back(nextId);
+
+            if (nextId == dstId) return newPath;
+
+            if (next->type == SWITCH) {
+                visited.insert(nextId);
+                q.push({nextId, frameVlan, newPath});
+            }
+        }
+    }
+    return {};  // unreachable or blocked
+}
 
 // ── Forwarding engine ─────────────────────────────────────────────────────
 ForwardResult SimulateForward(int srcId, const std::string& destIp,
@@ -36,16 +129,86 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
             if (!IpInSubnet(destIp, route.dest)) continue;
 
             if (route.src == ROUTE_CONNECTED) {
-                HopDecision hd;
-                hd.nodeId     = currentId;
-                hd.nodeLabel  = cur->label;
-                hd.routeType  = "C";
-                hd.destPrefix = route.dest;
-                hd.nextHopIp  = "delivered";
-                hd.outPort    = -1;
-                result.hops.push_back(hd);
-                result.success = true;
-                result.reason  = "delivered";
+                const DeviceNode* destNode = FindNodeByIp(nodes, destIp);
+
+                if (!destNode || destNode->id == currentId) {
+                    // No switch hop needed — direct delivery
+                    HopDecision hd;
+                    hd.nodeId     = currentId; hd.nodeLabel  = cur->label;
+                    hd.routeType  = "C";       hd.destPrefix = route.dest;
+                    hd.nextHopIp  = "delivered"; hd.outPort  = -1;
+                    result.hops.push_back(hd);
+                    result.success = true; result.reason = "delivered";
+                    return result;
+                }
+
+                // L2 BFS — find path through switches, VLAN-aware
+                std::vector<int> l2 = FindL2Path(currentId, destNode->id, nodes, cables);
+
+                if (l2.empty()) {
+                    HopDecision hd;
+                    hd.nodeId     = currentId; hd.nodeLabel  = cur->label;
+                    hd.routeType  = "C";       hd.destPrefix = route.dest;
+                    hd.nextHopIp  = "blocked";  hd.outPort   = -1;
+                    result.hops.push_back(hd);
+                    result.reason = "VLAN mismatch — switch port blocked this frame";
+                    return result;
+                }
+
+                // Build path + hop decisions for each L2 step
+                // l2[0] == currentId (already in result.path)
+                int frameVlan = 0;
+                for (int pi = 0; pi + 1 < (int)l2.size(); ++pi) {
+                    int stepId  = l2[pi];
+                    int nextStId = l2[pi + 1];
+                    const DeviceNode* stepNode = FindNode(nodes, stepId);
+                    const DeviceNode* nextNode = FindNode(nodes, nextStId);
+                    const Cable* cab = FindCableL2(cables, stepId, nextStId);
+                    int outPort = -1, inPort = -1;
+                    if (cab) {
+                        outPort = (cab->fromId == stepId)   ? cab->fromPort : cab->toPort;
+                        inPort  = (cab->fromId == nextStId) ? cab->fromPort : cab->toPort;
+                    }
+
+                    // Determine VLAN on this segment: access ingress assigns VLAN,
+                    // trunk ingress keeps current tag.
+                    if (nextNode && nextNode->type == SWITCH && inPort >= 0) {
+                        const VlanPortConfig& inp = nextNode->vlanPorts[inPort];
+                        if (inp.mode == VLAN_ACCESS) frameVlan = inp.accessVlan;
+                        // trunk: frameVlan unchanged
+                    } else {
+                        frameVlan = 0;  // exiting switch domain
+                    }
+
+                    // vlanTag shows on the CABLE leaving stepId; only non-zero on trunk egress.
+                    bool trunkEgress = stepNode && stepNode->type == SWITCH
+                                       && outPort >= 0
+                                       && stepNode->vlanPorts[outPort].mode == VLAN_TRUNK;
+
+                    HopDecision hd;
+                    hd.nodeId     = stepId;
+                    hd.nodeLabel  = stepNode ? stepNode->label : "";
+                    hd.routeType  = (stepNode && stepNode->type == SWITCH) ? "SW" : "C";
+                    hd.destPrefix = route.dest;
+                    hd.nextHopIp  = nextNode ? nextNode->label : "";
+                    hd.outPort    = outPort;
+                    hd.vlanTag    = trunkEgress ? frameVlan : 0;
+                    result.hops.push_back(hd);
+                    result.path.push_back(nextStId);
+                    visited.insert(nextStId);
+                }
+
+                // Final delivery hop at destination
+                {
+                    const DeviceNode* d = FindNode(nodes, l2.back());
+                    HopDecision hd;
+                    hd.nodeId     = l2.back();
+                    hd.nodeLabel  = d ? d->label : "";
+                    hd.routeType  = "C"; hd.destPrefix = route.dest;
+                    hd.nextHopIp  = "delivered"; hd.outPort = -1; hd.vlanTag = 0;
+                    result.hops.push_back(hd);
+                }
+                result.success = true; result.reason = "delivered";
                 return result;
             }
 
