@@ -634,6 +634,16 @@ int main() {
                     ps.vlanPortField       = -1;
                     ps.subActiveField      = -1;
                 }
+                if (CheckCollisionPointRec(screenMouse, PnlVxlanTabRect())) {
+                    ps.activeTab           = TAB_VXLAN;
+                    ps.activeField         = -1;
+                    ps.activeRouteField    = -1;
+                    ps.activePortAreaField = -1;
+                    ps.bgpAsnField         = -1;
+                    ps.vlanPortField       = -1;
+                    ps.subActiveField      = -1;
+                    ps.vxlanField          = -1;
+                }
                 // Config tab field focus
                 if (ps.activeTab == TAB_CONFIG) {
                     ps.activeField         = -1;
@@ -818,6 +828,38 @@ int main() {
                             }
                     }
                 }
+                // VXLAN tab: toggle + VNI/VTEP field clicks
+                if (ps.activeTab == TAB_VXLAN) {
+                    DeviceNode* selNode = nullptr;
+                    for (auto& nd : nodes)
+                        if (nd.id == selectedId) { selNode = &nd; break; }
+                    if (selNode && selNode->type == ROUTER) {
+                        if (CheckCollisionPointRec(screenMouse, PnlVxlanToggleRect())) {
+                            selNode->vxlanEnabled = !selNode->vxlanEnabled;
+                            if (!selNode->vxlanEnabled) {
+                                selNode->evpnEnabled = false;
+                                selNode->vni = 0;
+                                selNode->vtepIp.clear();
+                                ps.vxlanField = -1;
+                                ps.vxlanVniBuf.clear();
+                                ps.vxlanVtepBuf.clear();
+                            }
+                        }
+                        if (selNode->vxlanEnabled) {
+                            if (CheckCollisionPointRec(screenMouse, PnlVxlanVniRect())) {
+                                ps.vxlanField = 0;
+                                ps.vxlanVniBuf = selNode->vni > 0 ? std::to_string(selNode->vni) : "";
+                            }
+                            if (CheckCollisionPointRec(screenMouse, PnlVxlanVtepRect())) {
+                                ps.vxlanField = 1;
+                                ps.vxlanVtepBuf = selNode->vtepIp;
+                            }
+                            if (CheckCollisionPointRec(screenMouse, PnlVxlanEvpnRect())) {
+                                selNode->evpnEnabled = !selNode->evpnEnabled;
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -936,6 +978,53 @@ int main() {
                 if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_ESCAPE))
                     ps.subActiveField = -1;
             }
+        } else if (ps.vxlanField != -1 && selectedId != -1) {
+            DeviceNode* selNode = nullptr;
+            for (auto& nd : nodes)
+                if (nd.id == selectedId) { selNode = &nd; break; }
+            if (selNode) {
+                if (ps.vxlanField == 0) {
+                    // VNI field: digits only, up to 8 digits (16777215 = 8 chars)
+                    int key = GetCharPressed();
+                    while (key > 0) {
+                        if (key >= '0' && key <= '9' && (int)ps.vxlanVniBuf.size() < 8)
+                            ps.vxlanVniBuf += static_cast<char>(key);
+                        key = GetCharPressed();
+                    }
+                    if (IsKeyPressed(KEY_BACKSPACE) && !ps.vxlanVniBuf.empty())
+                        ps.vxlanVniBuf.pop_back();
+                    if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER) || IsKeyPressed(KEY_TAB)) {
+                        try {
+                            uint32_t v = (uint32_t)std::stoul(ps.vxlanVniBuf);
+                            if (v >= 1 && v <= 16777215) selNode->vni = v;
+                        } catch (...) {}
+                        ps.vxlanField = -1;
+                        ps.vxlanVniBuf.clear();
+                        while (GetCharPressed() > 0) {}
+                    } else if (IsKeyPressed(KEY_ESCAPE)) {
+                        ps.vxlanField = -1;
+                        ps.vxlanVniBuf.clear();
+                    }
+                } else if (ps.vxlanField == 1) {
+                    // VTEP IP field: digits, dots only (no slash — bare IP)
+                    int key = GetCharPressed();
+                    while (key > 0) {
+                        if ((std::isdigit(key) || key == '.') && (int)ps.vxlanVtepBuf.size() < 15)
+                            ps.vxlanVtepBuf += static_cast<char>(key);
+                        key = GetCharPressed();
+                    }
+                    if (IsKeyPressed(KEY_BACKSPACE) && !ps.vxlanVtepBuf.empty())
+                        ps.vxlanVtepBuf.pop_back();
+                    if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER)) {
+                        selNode->vtepIp = ps.vxlanVtepBuf;
+                        ps.vxlanField = -1;
+                        ps.vxlanVtepBuf.clear();
+                    } else if (IsKeyPressed(KEY_ESCAPE)) {
+                        ps.vxlanField = -1;
+                        ps.vxlanVtepBuf.clear();
+                    }
+                }
+            }
         } else {
             while (GetCharPressed() > 0) {}  // flush char queue when no field active
         }
@@ -954,6 +1043,9 @@ int main() {
             ps.vlanPortField       = -1;
             ps.vlanPortBuf.clear();
             ps.subActiveField      = -1;
+            ps.vxlanField          = -1;
+            ps.vxlanVniBuf.clear();
+            ps.vxlanVtepBuf.clear();
             prevSelectedId         = selectedId;
         }
 

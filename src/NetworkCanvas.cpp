@@ -973,6 +973,75 @@ void DrawSubIfaceTab(const DeviceNode* n, const PanelState& ps) {
              (int)(addBtn.y + 7), 10, WHITE);
 }
 
+void DrawVxlanTab(const DeviceNode* n, const PanelState& ps) {
+    if (!n) {
+        DrawText("No device selected", CANVAS_W() + 20, 130, 12, Color{100,116,139,255});
+        return;
+    }
+    if (n->type != ROUTER) {
+        DrawText("VXLAN: routers only", CANVAS_W() + 20, 130, 12, Color{100,116,139,255});
+        return;
+    }
+
+    // VXLAN Enabled toggle
+    Rectangle vxBtn = PnlVxlanToggleRect();
+    Color vxCol = n->vxlanEnabled ? Color{20,184,166,255} : Color{51,65,85,255};
+    DrawRectangleRec(vxBtn, vxCol);
+    DrawRectangleLinesEx(vxBtn, 1.0f, Color{71,85,105,255});
+    const char* vxLabel = n->vxlanEnabled ? "VXLAN: Enabled" : "VXLAN: Disabled";
+    {
+        int tw = MeasureText(vxLabel, 12);
+        DrawText(vxLabel, (int)(vxBtn.x + (vxBtn.width - tw) / 2), (int)(vxBtn.y + 7), 12,
+                 n->vxlanEnabled ? Color{15,23,42,255} : Color{148,163,184,255});
+    }
+
+    if (!n->vxlanEnabled) return;
+
+    // VNI field
+    DrawText("VNI:", CANVAS_W() + 12, 148, 10, Color{100,116,139,255});
+    Rectangle vniRect = PnlVxlanVniRect();
+    bool vniActive = (ps.vxlanField == 0);
+    DrawRectangleRec(vniRect, vniActive ? Color{30,41,59,255} : Color{15,23,42,255});
+    DrawRectangleLinesEx(vniRect, 1.0f, vniActive ? Color{59,130,246,255} : Color{71,85,105,255});
+    std::string vniStr = vniActive ? ps.vxlanVniBuf
+                                   : (n->vni > 0 ? std::to_string(n->vni) : "unset");
+    DrawText(vniStr.c_str(), (int)(vniRect.x + 4), (int)(vniRect.y + 5), 11,
+             n->vni > 0 || vniActive ? WHITE : Color{100,116,139,255});
+
+    // VTEP IP field
+    DrawText("VTEP IP:", CANVAS_W() + 12, 184, 10, Color{100,116,139,255});
+    Rectangle vtepRect = PnlVxlanVtepRect();
+    bool vtepActive = (ps.vxlanField == 1);
+    DrawRectangleRec(vtepRect, vtepActive ? Color{30,41,59,255} : Color{15,23,42,255});
+    DrawRectangleLinesEx(vtepRect, 1.0f, vtepActive ? Color{59,130,246,255} : Color{71,85,105,255});
+    std::string vtepStr = vtepActive ? ps.vxlanVtepBuf
+                                     : (n->vtepIp.empty() ? "unset" : n->vtepIp);
+    DrawText(vtepStr.c_str(), (int)(vtepRect.x + 4), (int)(vtepRect.y + 5), 11,
+             !n->vtepIp.empty() || vtepActive ? WHITE : Color{100,116,139,255});
+
+    if (n->vtepIp.empty()) {
+        DrawText("Must match a port IP", CANVAS_W() + 12, 218, 10, Color{234,179,8,255});
+    }
+
+    // EVPN Enabled toggle
+    Rectangle evpnBtn = PnlVxlanEvpnRect();
+    Color evpnCol = n->evpnEnabled ? Color{34,197,94,255} : Color{51,65,85,255};
+    DrawRectangleRec(evpnBtn, evpnCol);
+    DrawRectangleLinesEx(evpnBtn, 1.0f, Color{71,85,105,255});
+    const char* evpnLabel = n->evpnEnabled ? "EVPN: Enabled" : "EVPN: Disabled";
+    {
+        int tw = MeasureText(evpnLabel, 11);
+        DrawText(evpnLabel, (int)(evpnBtn.x + (evpnBtn.width - tw) / 2), (int)(evpnBtn.y + 6), 11,
+                 n->evpnEnabled ? Color{15,23,42,255} : Color{148,163,184,255});
+    }
+
+    if (n->evpnEnabled) {
+        char routeBuf[48];
+        std::snprintf(routeBuf, sizeof(routeBuf), "EVPN routes: %d", (int)n->evpnRoutes.size());
+        DrawText(routeBuf, CANVAS_W() + 12, 260, 10, Color{94,234,212,255});
+    }
+}
+
 void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
                const PanelState& ps)
 {
@@ -1118,6 +1187,20 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
                  subActive ? Color{234, 88, 12, 255} : Color{100, 116, 139, 255});
     }
 
+    Rectangle vxlTab    = PnlVxlanTabRect();
+    bool      vxlActive = (ps.activeTab == TAB_VXLAN);
+    DrawRectangleRec(vxlTab, vxlActive ? Color{30,41,59,255} : PANEL_BG);
+    if (vxlActive)
+        DrawLineEx({vxlTab.x, vxlTab.y + vxlTab.height},
+                   {vxlTab.x + vxlTab.width, vxlTab.y + vxlTab.height}, 2.0f,
+                   Color{20, 184, 166, 255});
+    {
+        int twX = MeasureText("VXL", 10);
+        DrawText("VXL", (int)(vxlTab.x + (vxlTab.width - twX) / 2),
+                 (int)(vxlTab.y + 8), 10,
+                 vxlActive ? Color{20,184,166,255} : Color{100, 116, 139, 255});
+    }
+
     DrawLineEx({(float)CANVAS_W(), 116.0f}, {(float)(CANVAS_W() + PANEL_W), 116.0f},
                1.0f, PANEL_BORDER);
 
@@ -1137,6 +1220,7 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
     else if (ps.activeTab == TAB_VLAN)
         DrawVlanTab(n, ps);
     else if (ps.activeTab == TAB_SUB) DrawSubIfaceTab(n, ps);
+    else if (ps.activeTab == TAB_VXLAN) DrawVxlanTab(n, ps);
 }
 
 // ── Context menu draw ────────────────────────────────────────────────────

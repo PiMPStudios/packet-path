@@ -15,7 +15,7 @@ Rectangle PnlPortAreaFieldRect(int port) {
             44.0f, 24.0f};
 }
 
-float PnlTabW() { return (PANEL_W - 24.0f - 7.0f * 4.0f) / 8.0f; }
+float PnlTabW() { return (PANEL_W - 24.0f - 8.0f * 4.0f) / 9.0f; }
 Rectangle PnlConfigTabRect() {
     return {(float)(CANVAS_W() + 12), 88.0f, PnlTabW(), 26.0f};
 }
@@ -61,6 +61,21 @@ Rectangle PnlVlanTabRect() {
 }
 Rectangle PnlSubTabRect() {
     return {(float)(CANVAS_W() + 12) + 7.0f * (PnlTabW() + 4.0f), 88.0f, PnlTabW(), 26.0f};
+}
+Rectangle PnlVxlanTabRect() {
+    return {(float)(CANVAS_W() + 12) + 8.0f * (PnlTabW() + 4.0f), 88.0f, PnlTabW(), 26.0f};
+}
+Rectangle PnlVxlanToggleRect() {
+    return {(float)(CANVAS_W() + 12), 120.0f, (float)(PANEL_W - 24), 26.0f};
+}
+Rectangle PnlVxlanVniRect() {
+    return {(float)(CANVAS_W() + 12), 158.0f, (float)(PANEL_W - 24), 22.0f};
+}
+Rectangle PnlVxlanVtepRect() {
+    return {(float)(CANVAS_W() + 12), 194.0f, (float)(PANEL_W - 24), 22.0f};
+}
+Rectangle PnlVxlanEvpnRect() {
+    return {(float)(CANVAS_W() + 12), 230.0f, (float)(PANEL_W - 24), 22.0f};
 }
 Rectangle PnlSubPortBtnRect(int port) {
     float btnW = 28.0f, gap = 4.0f;
