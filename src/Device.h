@@ -124,7 +124,7 @@ struct DeviceNode {
     std::vector<RouteEntry>                                        ospfRoutes;
     // LDP / MPLS state (routers only)
     bool ldpEnabled = false;
-    std::unordered_map<std::string, LdpBinding> lfib;  // key = network address e.g. "10.0.1.0"
+    std::unordered_map<std::string, LdpBinding> lfib;  // key = CIDR prefix e.g. "10.0.1.0/24" (NetworkAddress() form)
 };
 
 // ── Device geometry helpers (no draw calls) ───────────────────────────────

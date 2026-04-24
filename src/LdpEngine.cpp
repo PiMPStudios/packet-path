@@ -43,7 +43,7 @@ void UpdateLdp(std::vector<DeviceNode>& nodes,
         if (n.type != ROUTER || !n.ospfEnabled || !n.ldpEnabled) continue;
         if (n.routerId.empty()) continue;
 
-        uint32_t localBase = (uint32_t)n.id * 100u;
+        uint32_t localBase = (uint32_t)n.id * 100u;  // up to 100 non-CONNECTED prefixes per router
         uint32_t idx       = 0;
         auto table = GetRoutingTable(n);
 
