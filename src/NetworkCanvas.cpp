@@ -616,12 +616,84 @@ void DrawMplsTab(const DeviceNode* n) {
 }
 
 void DrawBgpTab(const DeviceNode* n, const PanelState& ps) {
-    (void)ps;
     if (!n || n->type != ROUTER) {
         DrawText("BGP: routers only", CANVAS_W + 20, 130, 12, Color{100,116,139,255});
         return;
     }
-    DrawText("(BGP - Task 4)", CANVAS_W + 20, 130, 10, Color{71,85,105,255});
+
+    // ── Enable / disable toggle ────────────────────────────────────────
+    Rectangle btn    = PnlBgpToggleRect();
+    Color     btnCol = n->bgpEnabled ? Color{34,197,94,255} : Color{51,65,85,255};
+    DrawRectangleRec(btn, btnCol);
+    DrawRectangleLinesEx(btn, 1.0f, Color{71,85,105,255});
+    const char* btnLabel = n->bgpEnabled ? "BGP: Enabled" : "BGP: Disabled";
+    int tw = MeasureText(btnLabel, 12);
+    DrawText(btnLabel, (int)(btn.x + (btn.width - tw) / 2), (int)(btn.y + 7), 12,
+             n->bgpEnabled ? Color{15,23,42,255} : Color{148,163,184,255});
+
+    if (!n->bgpEnabled) return;
+
+    // ── ASN input ─────────────────────────────────────────────────────
+    int y = 152;
+    DrawText("ASN:", CANVAS_W + 12, y + 4, 11, Color{100,116,139,255});
+    Rectangle asnRect  = PnlBgpAsnRect();
+    bool      asnActive = (ps.bgpAsnField == n->id);
+    DrawRectangleRec(asnRect, asnActive ? Color{30,41,59,255} : Color{15,23,42,255});
+    DrawRectangleLinesEx(asnRect, 1.0f,
+                         asnActive ? Color{59,130,246,255} : Color{71,85,105,255});
+    std::string asnStr = asnActive ? ps.bgpAsnBuf
+                                   : (n->localAsn > 0 ? std::to_string(n->localAsn) : "0");
+    DrawText(asnStr.c_str(), (int)(asnRect.x + 4), (int)(asnRect.y + 5), 11, WHITE);
+
+    if (n->localAsn == 0)
+        DrawText("Set ASN to form sessions", CANVAS_W + 12, y + 28, 10,
+                 Color{234,179,8,255});
+
+    y = 192;
+
+    // ── Neighbors ─────────────────────────────────────────────────────
+    DrawText("NEIGHBORS", CANVAS_W + 12, y, 10, Color{71,85,105,255});
+    y += 14;
+    if (n->bgpNeighbors.empty()) {
+        DrawText("(none)", CANVAS_W + 16, y, 10, Color{71,85,105,255});
+        y += 14;
+    } else {
+        for (const auto& nb : n->bgpNeighbors) {
+            if (y > CANVAS_H - 80) break;
+            DrawText(nb.neighborIp.c_str(),  CANVAS_W + 12,  y, 10, WHITE);
+            std::string asnTag = "AS" + std::to_string(nb.neighborAsn);
+            DrawText(asnTag.c_str(), CANVAS_W + 105, y, 10, Color{253,186,116,255});
+            const char* state = nb.established ? "ESTAB" : "DOWN";
+            Color stCol = nb.established ? Color{34,197,94,255} : Color{239,68,68,255};
+            DrawText(state, CANVAS_W + 155, y, 10, stCol);
+            y += 14;
+        }
+    }
+
+    // ── BGP RIB ───────────────────────────────────────────────────────
+    y += 4;
+    DrawText("BGP RIB", CANVAS_W + 12, y, 10, Color{71,85,105,255});
+    y += 14;
+    if (n->bgpRoutes.empty()) {
+        DrawText("(no routes)", CANVAS_W + 16, y, 10, Color{71,85,105,255});
+    } else {
+        DrawText("PREFIX",   CANVAS_W + 12,  y, 9, Color{71,85,105,255});
+        DrawText("NEXT-HOP", CANVAS_W + 90,  y, 9, Color{71,85,105,255});
+        DrawText("AS-PATH",  CANVAS_W + 158, y, 9, Color{71,85,105,255});
+        y += 12;
+        for (const auto& r : n->bgpRoutes) {
+            if (y > CANVAS_H - 20) break;
+            DrawText(r.prefix.c_str(),  CANVAS_W + 12, y, 10, WHITE);
+            DrawText(r.nextHop.c_str(), CANVAS_W + 90, y, 10, Color{94,234,212,255});
+            std::string path;
+            for (size_t i = 0; i < r.asPath.size(); ++i) {
+                if (i) path += ' ';
+                path += std::to_string(r.asPath[i]);
+            }
+            DrawText(path.c_str(), CANVAS_W + 158, y, 10, Color{253,186,116,255});
+            y += 14;
+        }
+    }
 }
 
 void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
@@ -755,7 +827,8 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
         DrawOspfTab(n);
     else if (ps.activeTab == TAB_MPLS)
         DrawMplsTab(n);
-    else if (ps.activeTab == TAB_BGP)  DrawBgpTab(n, ps);
+    else if (ps.activeTab == TAB_BGP)
+        DrawBgpTab(n, ps);
 }
 
 // ── Context menu draw ────────────────────────────────────────────────────
