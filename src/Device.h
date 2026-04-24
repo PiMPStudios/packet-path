@@ -94,7 +94,8 @@ struct OspfNeighbor {
 };
 
 // ── ARP & log types ───────────────────────────────────────────────────────
-enum LogType { LOG_FORWARD, LOG_ARP_REQ, LOG_ARP_REPLY, LOG_ARP_HIT, LOG_OSPF };
+enum LogType { LOG_FORWARD, LOG_ARP_REQ, LOG_ARP_REPLY, LOG_ARP_HIT, LOG_OSPF,
+               LOG_LINK_DOWN, LOG_DEVICE_CRASH, LOG_RESTORED };
 
 struct ArpEvent {
     int         nodeId   = 0;
@@ -143,6 +144,7 @@ struct DeviceNode {
     Vector2     position = {0.0f, 0.0f};
     std::string label;
     bool        selected = false;
+    bool        crashed  = false;
     std::string mgmtIp;
     std::string portIp[PORTS_PER_NODE];
     std::vector<RouteEntry> staticRoutes;

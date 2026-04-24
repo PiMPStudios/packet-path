@@ -3,8 +3,9 @@
 #include <vector>
 
 struct Cable {
-    int fromId, fromPort;
-    int toId,   toPort;
+    int  fromId, fromPort;
+    int  toId,   toPort;
+    bool broken = false;
 };
 
 const DeviceNode* FindNode(const std::vector<DeviceNode>& nodes, int id);
