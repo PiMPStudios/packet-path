@@ -3,8 +3,8 @@
 #include <cstdio>
 
 Rectangle WinOverlayRect() {
-    return {(float)(CANVAS_W - 320) / 2.0f,
-            (float)(CANVAS_H - 260) / 2.0f,
+    return {(float)(CANVAS_W() - 320) / 2.0f,
+            (float)(CANVAS_H() - 260) / 2.0f,
             320.0f, 260.0f};
 }
 
@@ -53,7 +53,7 @@ void DrawLevelHUD(int levelId, const std::string& title,
 
 void DrawWinOverlay(const LevelDef& def, bool hasNextLevel, int starsEarned) {
     // Canvas dim
-    DrawRectangle(0, 0, CANVAS_W, CANVAS_H, Color{0, 0, 0, 150});
+    DrawRectangle(0, 0, CANVAS_W(), CANVAS_H(), Color{0, 0, 0, 150});
 
     Rectangle r = WinOverlayRect();
     DrawRectangleRounded(r, 0.12f, 8, Color{22, 33, 62, 255});

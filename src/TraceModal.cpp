@@ -7,16 +7,16 @@
 //   lineY = CANVAS_H + 8 + (shown - 1 - i) * 24   (newest at top, 24px stride)
 int LogConsoleHitTest(Vector2 mouse, const std::vector<LogEntry>& entries) {
     if (entries.empty()) return -1;
-    if (mouse.y < (float)CANVAS_H || mouse.y >= (float)SCREEN_H) return -1;
-    if (mouse.x >= (float)CANVAS_W) return -1;   // ignore panel-side clicks
+    if (mouse.y < (float)CANVAS_H() || mouse.y >= (float)SCREEN_H()) return -1;
+    if (mouse.x >= (float)CANVAS_W()) return -1;   // ignore panel-side clicks
 
     int maxLines = 3;
     int startIdx = std::max(0, (int)entries.size() - maxLines);
     int shown    = std::min(maxLines, (int)entries.size());
 
     for (int i = 0; i < shown; ++i) {
-        int       lineY = CANVAS_H + 8 + (shown - 1 - i) * 24;
-        Rectangle r     = {0.f, (float)(lineY - 2), (float)CANVAS_W, 22.f};
+        int       lineY = CANVAS_H() + 8 + (shown - 1 - i) * 24;
+        Rectangle r     = {0.f, (float)(lineY - 2), (float)CANVAS_W(), 22.f};
         if (CheckCollisionPointRec(mouse, r)) {
             int idx = startIdx + i;
             return (entries[idx].type == LOG_FORWARD) ? idx : -1;
@@ -27,11 +27,11 @@ int LogConsoleHitTest(Vector2 mouse, const std::vector<LogEntry>& entries) {
 
 void DrawTraceModal(const ForwardResult& trace) {
     // Dim entire screen behind modal
-    DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Color{0, 0, 0, 140});
+    DrawRectangle(0, 0, SCREEN_W(), SCREEN_H(), Color{0, 0, 0, 140});
 
     const float MW = 480.f, MH = 360.f;
-    const float MX = (SCREEN_W - MW) / 2.f;
-    const float MY = (SCREEN_H - MH) / 2.f;
+    const float MX = (SCREEN_W() - MW) / 2.f;
+    const float MY = (SCREEN_H() - MH) / 2.f;
     Rectangle modal = {MX, MY, MW, MH};
 
     DrawRectangleRounded(modal, 0.08f, 8, Color{22, 33, 62, 255});
