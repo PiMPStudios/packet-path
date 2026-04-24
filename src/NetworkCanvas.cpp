@@ -665,14 +665,18 @@ void DrawBgpTab(const DeviceNode* n, const PanelState& ps) {
         y += 14;
     } else {
         for (const auto& nb : n->bgpNeighbors) {
-            if (y > CANVAS_H - 80) break;  // leave room for BGP RIB section below
-            DrawText(nb.neighborIp.c_str(),  CANVAS_W + 12,  y, 10, WHITE);
-            std::string asnTag = "AS" + std::to_string(nb.neighborAsn);
-            if (asnTag.size() > 9) asnTag = asnTag.substr(0, 8) + "\xe2\x80\xa6";
-            DrawText(asnTag.c_str(), CANVAS_W + 105, y, 10, Color{253,186,116,255});
+            if (y > CANVAS_H - 80) break;
+            std::string ip = nb.neighborIp.size() > 12
+                             ? nb.neighborIp.substr(0, 11) + "\xe2\x80\xa6"
+                             : nb.neighborIp;
+            DrawText(ip.c_str(), CANVAS_W + 12, y, 10, WHITE);
+            const char* typeLabel = nb.ibgp ? "iBGP" : "eBGP";
+            Color typeCol = nb.ibgp ? Color{167,139,250,255}   // purple
+                                    : Color{253,186,116,255};  // orange
+            DrawText(typeLabel, CANVAS_W + 102, y, 10, typeCol);
             const char* state = nb.established ? "ESTAB" : "DOWN";
             Color stCol = nb.established ? Color{34,197,94,255} : Color{239,68,68,255};
-            DrawText(state, CANVAS_W + 155, y, 10, stCol);
+            DrawText(state, CANVAS_W + 142, y, 10, stCol);
             y += 14;
         }
     }
