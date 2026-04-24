@@ -1,0 +1,66 @@
+{
+  "id": 16,
+  "title": "Level 16 — NAT: Internet Access",
+  "briefing": "PC-LAN (192.168.1.2) needs to reach the Internet Server (203.0.113.2), but the ISP does not route private 192.168.x.x addresses. Open the NAT tab on RTR-NAT, set inside port to 0, outside port to 1, enter inside prefix 192.168.1.0/24, then enable NAT. The teal badge on the packet will show the address translation.",
+  "devices": [
+    {
+      "id": 1,
+      "label": "PC-LAN",
+      "type": "PC",
+      "x": -400,
+      "y": 0,
+      "portIp0": "192.168.1.2/24",
+      "staticRoutes": [
+        { "dest": "0.0.0.0/0", "nextHop": "192.168.1.1" }
+      ]
+    },
+    {
+      "id": 2,
+      "label": "RTR-NAT",
+      "type": "ROUTER",
+      "x": -100,
+      "y": 0,
+      "portIp0": "192.168.1.1/24",
+      "portIp1": "10.0.0.1/30",
+      "natEnabled": false,
+      "natInsidePort": 0,
+      "natOutsidePort": 1,
+      "staticRoutes": [
+        { "dest": "0.0.0.0/0", "nextHop": "10.0.0.2" }
+      ]
+    },
+    {
+      "id": 3,
+      "label": "ISP-RTR",
+      "type": "ROUTER",
+      "x": 150,
+      "y": 0,
+      "portIp0": "10.0.0.2/30",
+      "portIp1": "203.0.113.1/24"
+    },
+    {
+      "id": 4,
+      "label": "Internet-Server",
+      "type": "PC",
+      "x": 400,
+      "y": 0,
+      "portIp0": "203.0.113.2/24",
+      "staticRoutes": [
+        { "dest": "0.0.0.0/0", "nextHop": "203.0.113.1" }
+      ]
+    }
+  ],
+  "cables": [
+    { "from": 1, "fromPort": 0, "to": 2, "toPort": 0 },
+    { "from": 2, "fromPort": 1, "to": 3, "toPort": 0 },
+    { "from": 3, "fromPort": 1, "to": 4, "toPort": 0 }
+  ],
+  "winConditions": [
+    {
+      "src": "PC-LAN",
+      "dst": "Internet-Server",
+      "description": "PC-LAN reaches Internet-Server via NAT translation",
+      "requiresNatOnDevice": "RTR-NAT"
+    }
+  ]
+}
