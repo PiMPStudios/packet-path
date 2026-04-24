@@ -46,6 +46,12 @@ bool LoadLevel(const std::string& path, LevelDef& out) {
         if (d.contains("bgpNetworks") && d["bgpNetworks"].is_array())
             for (const auto& net : d["bgpNetworks"])
                 n.bgpNetworks.push_back(net.get<std::string>());
+
+        n.vxlanEnabled = d.value("vxlanEnabled", false);
+        n.evpnEnabled  = d.value("evpnEnabled",  false);
+        n.vni          = (uint32_t)d.value("vni", 0);
+        n.vtepIp       = d.value("vtepIp", "");
+
         for (int i = 0; i < PORTS_PER_NODE; ++i) {
             std::string key = "ospfArea" + std::to_string(i);
             n.ospfPortArea[i] = (uint32_t)d.value(key, 0);
@@ -185,6 +191,13 @@ bool SaveScene(const std::string& path,
                 for (const auto& net : n.bgpNetworks) nets.push_back(net);
                 d["bgpNetworks"] = nets;
             }
+        }
+
+        if (n.vxlanEnabled) {
+            d["vxlanEnabled"] = true;
+            d["vni"]          = n.vni;
+            if (!n.vtepIp.empty()) d["vtepIp"] = n.vtepIp;
+            if (n.evpnEnabled) d["evpnEnabled"] = true;
         }
 
         for (int i = 0; i < PORTS_PER_NODE; ++i)
