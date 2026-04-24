@@ -608,6 +608,7 @@ int main() {
                             if (!selNode->bgpEnabled) {
                                 selNode->bgpNeighbors.clear();
                                 selNode->bgpRoutes.clear();
+                                selNode->isRouteReflector = false;
                             }
                             ps.bgpAsnField = -1;
                             ps.bgpAsnBuf.clear();

@@ -671,7 +671,7 @@ void DrawBgpTab(const DeviceNode* n, const PanelState& ps) {
     y = 210;
 
     // ── Neighbors ─────────────────────────────────────────────────────
-    const char* neighborHeader = n->isRouteReflector ? "CLIENTS" : "NEIGHBORS";
+    const char* neighborHeader = (n->isRouteReflector && n->localAsn > 0) ? "CLIENTS" : "NEIGHBORS";
     DrawText(neighborHeader, CANVAS_W + 12, y, 10, Color{71,85,105,255});
     y += 14;
     if (n->bgpNeighbors.empty()) {

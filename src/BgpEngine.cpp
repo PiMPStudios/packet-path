@@ -166,7 +166,11 @@ void UpdateBgp(std::vector<DeviceNode>& nodes,
                     relay.asPath = {n.localAsn};         // eBGP: prepend local AS
                     for (auto asn : learned.asPath) relay.asPath.push_back(asn);
                 }
-                // Stamp ORIGINATOR_ID and append cluster ID when RR reflects to client
+                // Stamp ORIGINATOR_ID and append cluster ID when RR reflects to client.
+                // NOTE: originatorId is set to learned.neighborNodeId (the route sender),
+                // not a true BGP ROUTER_ID of the AS-local client. This approximation is
+                // safe for star-topology Level 8 but must be revisited before implementing
+                // RFC 4456 §9 ORIGINATOR_ID loop prevention or hierarchical RR levels.
                 if (n.isRouteReflector && nb.ibgp) {
                     relay.originatorId = (learned.originatorId != 0)
                                          ? learned.originatorId
