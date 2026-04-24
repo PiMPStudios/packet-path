@@ -1,5 +1,6 @@
 #include "GameUI.h"
 #include "NetworkCanvas.h"   // CANVAS_W, CANVAS_H
+#include <algorithm>
 #include <cstdio>
 
 Rectangle WinOverlayRect() {
@@ -16,6 +17,42 @@ Rectangle WinRetryBtnRect() {
 Rectangle WinNextBtnRect() {
     Rectangle r = WinOverlayRect();
     return {r.x + 180, r.y + 206, 120.0f, 36.0f};
+}
+
+Rectangle SandboxMenuBtnRect()     { return {120.f, 8.f,  52.f, 22.f}; }
+Rectangle LevelHudMenuBtnRect()    { return {252.f, 8.f,  52.f, 22.f}; }
+Rectangle LevelHudSandboxBtnRect() { return {308.f, 8.f,  72.f, 22.f}; }
+
+Rectangle LevelSelectCardRect(int i) {
+    // 4-column grid, 180x80 cards, 10px gaps, centered in canvas
+    const float cardW = 180.f, cardH = 80.f, gapX = 10.f, gapY = 10.f;
+    const float gridW = 4.f * cardW + 3.f * gapX;   // 750 px
+    float xs = std::max(8.f, ((float)CANVAS_W() - gridW) / 2.f);
+    int col = i % 4, row = i / 4;
+    return {xs + col * (cardW + gapX), 90.f + row * (cardH + gapY), cardW, cardH};
+}
+
+Rectangle LevelSelectSandboxBtnRect() {
+    const float cardW = 180.f, cardH = 80.f, gapX = 10.f, gapY = 10.f;
+    const float gridW = 4.f * cardW + 3.f * gapX;
+    float xs = std::max(8.f, ((float)CANVAS_W() - gridW) / 2.f);
+    return {xs, 90.f + 4.f * (cardH + gapY), gridW, 50.f};
+}
+
+void DrawSandboxHUD() {
+    // Teal "SANDBOX" badge
+    DrawRectangle(8, 8, 108, 22, Color{15, 118, 110, 210});
+    DrawRectangleLinesEx({8.f, 8.f, 108.f, 22.f}, 1.0f, Color{20, 184, 166, 255});
+    DrawText("SANDBOX", 14, 13, 10, Color{204, 251, 241, 255});
+
+    // MENU button — opens level select
+    Rectangle mb = SandboxMenuBtnRect();
+    DrawRectangle((int)mb.x, (int)mb.y, (int)mb.width, (int)mb.height,
+                  Color{30, 41, 59, 210});
+    DrawRectangleLinesEx(mb, 1.0f, Color{51, 65, 85, 255});
+    int tw = MeasureText("MENU", 10);
+    DrawText("MENU", (int)(mb.x + (mb.width - tw) / 2.f), (int)(mb.y + 6),
+             10, Color{148, 163, 184, 255});
 }
 
 void DrawLevelHUD(int levelId, const std::string& title,
