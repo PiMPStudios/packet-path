@@ -31,6 +31,8 @@ struct BgpRoute {
     std::string           nextHop;          // peer's facing IP (no mask)
     std::vector<uint32_t> asPath;           // ASNs, closest first
     int                   neighborNodeId = -1;  // node that sent this route
+    uint32_t              originatorId   = 0;        // RFC 4456: first originating client node ID
+    std::vector<uint32_t> clusterList;               // RFC 4456: RR cluster IDs traversed
 };
 
 // ── Device geometry constants ─────────────────────────────────────────────
@@ -142,8 +144,9 @@ struct DeviceNode {
     bool ldpEnabled = false;
     std::unordered_map<std::string, LdpBinding> lfib;  // key = CIDR prefix e.g. "10.0.1.0/24" (NetworkAddress() form)
     // BGP state (routers only)
-    bool                     bgpEnabled  = false;
-    uint32_t                 localAsn    = 0;
+    bool                     bgpEnabled       = false;
+    bool                     isRouteReflector = false;   // RR-centric toggle; all iBGP peers are clients
+    uint32_t                 localAsn         = 0;
     std::vector<std::string> bgpNetworks;    // prefixes to advertise; empty = auto-advertise connected
     std::vector<BgpNeighbor> bgpNeighbors;
     std::vector<BgpRoute>    bgpRoutes;      // received BGP routes (RIB-in)
