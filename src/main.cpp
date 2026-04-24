@@ -63,8 +63,9 @@ int main() {
             if (IsKeyPressed(KEY_S)) nodes.push_back(SpawnNode(SWITCH, worldMouse));
             // Level shortcuts: 1–8 load JSON levels, 0 returns to sandbox
             if (ps.activePortAreaField == -1) {
-                for (int k = 1; k <= 9; ++k) {
-                    if (IsKeyPressed(KEY_ONE + (k - 1))) {
+                for (int k = 1; k <= 10; ++k) {
+                    int key = (k <= 9) ? (KEY_ONE + (k - 1)) : KEY_ZERO;
+                    if (IsKeyPressed(key)) {
                         char path[64];
                         std::snprintf(path, sizeof(path), "levels/level_%02d.json", k);
                         LevelDef def;
@@ -88,13 +89,6 @@ int main() {
                         }
                     }
                 }
-                if (IsKeyPressed(KEY_ZERO)) {
-                    gameMode            = GAME_SANDBOX;
-                    currentLevel        = 0;
-                    traceModalOpen      = false;
-                    failAnnotationTimer = 0.f;
-                    lastFailedTrace     = {};
-                }
             }
         }
 
@@ -116,6 +110,8 @@ int main() {
                 } else if (ps.vlanPortField != -1) {
                     ps.vlanPortField = -1;
                     ps.vlanPortBuf.clear();
+                } else if (ps.subActiveField != -1) {
+                    ps.subActiveField = -1;
                 } else if (connecting) {
                     connecting  = false;
                     hoverNodeId = -1;
@@ -185,7 +181,7 @@ int main() {
                     failAnnotationTimer  = 0.f;
                     lastFailedTrace      = {};
                 } else if (CheckCollisionPointRec(screenMouse, WinNextBtnRect()) &&
-                           currentLevel < 9) {
+                           currentLevel < 10) {
                     int nextLevel = currentLevel + 1;
                     char path[64];
                     std::snprintf(path, sizeof(path), "levels/level_%02d.json", nextLevel);
@@ -459,8 +455,9 @@ int main() {
                     ps.activeRouteField    = -1;
                     ps.activePortAreaField = -1;
                     ps.portAreaBuf.clear();
-                    ps.bgpAsnField = -1;
+                    ps.bgpAsnField         = -1;
                     ps.bgpAsnBuf.clear();
+                    ps.subActiveField      = -1;
                 }
                 if (CheckCollisionPointRec(screenMouse, PnlRoutesTabRect())) {
                     ps.activeTab           = TAB_ROUTES;
@@ -468,8 +465,9 @@ int main() {
                     ps.activeRouteField    = -1;
                     ps.activePortAreaField = -1;
                     ps.portAreaBuf.clear();
-                    ps.bgpAsnField = -1;
+                    ps.bgpAsnField         = -1;
                     ps.bgpAsnBuf.clear();
+                    ps.subActiveField      = -1;
                 }
                 if (CheckCollisionPointRec(screenMouse, PnlArpTabRect())) {
                     ps.activeTab           = TAB_ARP;
@@ -477,8 +475,9 @@ int main() {
                     ps.activeRouteField    = -1;
                     ps.activePortAreaField = -1;
                     ps.portAreaBuf.clear();
-                    ps.bgpAsnField = -1;
+                    ps.bgpAsnField         = -1;
                     ps.bgpAsnBuf.clear();
+                    ps.subActiveField      = -1;
                 }
                 if (CheckCollisionPointRec(screenMouse, PnlOspfTabRect())) {
                     ps.activeTab           = TAB_OSPF;
@@ -486,8 +485,9 @@ int main() {
                     ps.activeRouteField    = -1;
                     ps.activePortAreaField = -1;
                     ps.portAreaBuf.clear();
-                    ps.bgpAsnField = -1;
+                    ps.bgpAsnField         = -1;
                     ps.bgpAsnBuf.clear();
+                    ps.subActiveField      = -1;
                 }
                 if (CheckCollisionPointRec(screenMouse, PnlMplsTabRect())) {
                     ps.activeTab           = TAB_MPLS;
@@ -495,8 +495,9 @@ int main() {
                     ps.activeRouteField    = -1;
                     ps.activePortAreaField = -1;
                     ps.portAreaBuf.clear();
-                    ps.bgpAsnField = -1;
+                    ps.bgpAsnField         = -1;
                     ps.bgpAsnBuf.clear();
+                    ps.subActiveField      = -1;
                 }
                 if (CheckCollisionPointRec(screenMouse, PnlBgpTabRect())) {
                     ps.activeTab           = TAB_BGP;
@@ -506,6 +507,7 @@ int main() {
                     ps.portAreaBuf.clear();
                     ps.bgpAsnField         = -1;
                     ps.bgpAsnBuf.clear();
+                    ps.subActiveField      = -1;
                 }
                 if (CheckCollisionPointRec(screenMouse, PnlVlanTabRect())) {
                     ps.activeTab           = TAB_VLAN;
@@ -517,6 +519,16 @@ int main() {
                     ps.bgpAsnBuf.clear();
                     ps.vlanPortField       = -1;
                     ps.vlanPortBuf.clear();
+                    ps.subActiveField      = -1;
+                }
+                else if (CheckCollisionPointRec(screenMouse, PnlSubTabRect())) {
+                    ps.activeTab           = TAB_SUB;
+                    ps.activeField         = -1;
+                    ps.activeRouteField    = -1;
+                    ps.activePortAreaField = -1;
+                    ps.bgpAsnField         = -1;
+                    ps.vlanPortField       = -1;
+                    ps.subActiveField      = -1;
                 }
                 // Config tab field focus
                 if (ps.activeTab == TAB_CONFIG) {
@@ -664,6 +676,44 @@ int main() {
                         }
                     }
                 }
+
+                // Sub-interface tab: port selector, VLAN/IP fields, add/delete
+                else if (ps.activeTab == TAB_SUB && selectedId != -1) {
+                    DeviceNode* n = nullptr;
+                    for (auto& node : nodes) if (node.id == selectedId) { n = &node; break; }
+                    if (n && n->type == ROUTER) {
+                        // Port selector buttons
+                        for (int p = 0; p < PORTS_PER_NODE; ++p)
+                            if (CheckCollisionPointRec(screenMouse, PnlSubPortBtnRect(p)))
+                                ps.subFormPort = p;
+                        // VLAN text field
+                        if (CheckCollisionPointRec(screenMouse, PnlSubVlanFieldRect()))
+                            ps.subActiveField = 0;
+                        // IP text field
+                        if (CheckCollisionPointRec(screenMouse, PnlSubIpFieldRect()))
+                            ps.subActiveField = 1;
+                        // Add button
+                        if (CheckCollisionPointRec(screenMouse, PnlSubAddBtnRect())) {
+                            int vlan = std::atoi(ps.subVlanBuf.c_str());
+                            if (vlan >= 1 && vlan <= 4094 && ValidateIP(ps.subIpBuf)) {
+                                SubInterface sif;
+                                sif.parentPort = ps.subFormPort;
+                                sif.vlanId     = vlan;
+                                sif.ip         = ps.subIpBuf;
+                                n->subIfaces.push_back(sif);
+                                ps.subVlanBuf.clear();
+                                ps.subIpBuf.clear();
+                                ps.subActiveField = -1;
+                            }
+                        }
+                        // Delete buttons
+                        for (int i = 0; i < (int)n->subIfaces.size(); ++i)
+                            if (CheckCollisionPointRec(screenMouse, PnlSubRowDeleteRect(i))) {
+                                n->subIfaces.erase(n->subIfaces.begin() + i);
+                                break;
+                            }
+                    }
+                }
             }
         }
 
@@ -754,6 +804,34 @@ int main() {
                 ps.vlanPortField = -1;
                 ps.vlanPortBuf.clear();
             }
+        } else if (ps.subActiveField != -1 && selectedId != -1) {
+            if (ps.subActiveField == 0) {
+                // VLAN field: digits only, max 4 chars
+                int key = GetCharPressed();
+                while (key > 0) {
+                    if (key >= '0' && key <= '9' && (int)ps.subVlanBuf.size() < 4)
+                        ps.subVlanBuf += static_cast<char>(key);
+                    key = GetCharPressed();
+                }
+                if (IsKeyPressed(KEY_BACKSPACE) && !ps.subVlanBuf.empty())
+                    ps.subVlanBuf.pop_back();
+                if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_TAB))
+                    ps.subActiveField = 1;
+                if (IsKeyPressed(KEY_ESCAPE))
+                    ps.subActiveField = -1;
+            } else if (ps.subActiveField == 1) {
+                // IP/CIDR field: allow digits, dots, slash
+                int key = GetCharPressed();
+                while (key > 0) {
+                    if ((std::isdigit(key) || key == '.' || key == '/') && (int)ps.subIpBuf.size() < 18)
+                        ps.subIpBuf += static_cast<char>(key);
+                    key = GetCharPressed();
+                }
+                if (IsKeyPressed(KEY_BACKSPACE) && !ps.subIpBuf.empty())
+                    ps.subIpBuf.pop_back();
+                if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_ESCAPE))
+                    ps.subActiveField = -1;
+            }
         } else {
             while (GetCharPressed() > 0) {}  // flush char queue when no field active
         }
@@ -771,6 +849,7 @@ int main() {
             ps.bgpAsnBuf.clear();
             ps.vlanPortField       = -1;
             ps.vlanPortBuf.clear();
+            ps.subActiveField      = -1;
             prevSelectedId         = selectedId;
         }
 
@@ -873,13 +952,13 @@ int main() {
                              (int)activeLevelDef.winConditions.size());
             }
             if (gameMode == GAME_WIN) {
-                DrawWinOverlay(activeLevelDef, currentLevel < 9);
+                DrawWinOverlay(activeLevelDef, currentLevel < 10);
             }
 
             // HUD — screen space, outside camera
             DrawFPS(CANVAS_W - 80, 10);
             DrawText("P=PC  R=Router  S=Switch  Del=Delete  MMB=Pan  Scroll=Zoom  "
-                     "Drag-port=Cable  Esc=Cancel  1-9=Level  0=Sandbox",
+                     "Drag-port=Cable  Esc=Cancel  1-9,0=Level",
                      10, CANVAS_H - 24, 10, Color{100, 116, 139, 255});
         EndDrawing();
     }
