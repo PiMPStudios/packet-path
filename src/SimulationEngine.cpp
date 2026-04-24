@@ -17,6 +17,29 @@ static const DeviceNode* FindNodeByIp(const std::vector<DeviceNode>& nodes,
     return nullptr;
 }
 
+// Like FindNodeByIp but also checks subinterface IPs (needed for next-hop resolution).
+static const DeviceNode* FindNodeOwningIp(const std::vector<DeviceNode>& nodes,
+                                           const std::string& ip)
+{
+    auto slash = ip.find('/');
+    std::string plain = (slash != std::string::npos) ? ip.substr(0, slash) : ip;
+
+    for (const auto& n : nodes) {
+        for (int p = 0; p < PORTS_PER_NODE; ++p) {
+            auto s = n.portIp[p].find('/');
+            std::string portPlain = (s != std::string::npos)
+                                    ? n.portIp[p].substr(0, s) : n.portIp[p];
+            if (portPlain == plain) return &n;
+        }
+        for (const auto& si : n.subIfaces) {
+            auto s = si.ip.find('/');
+            std::string siPlain = (s != std::string::npos) ? si.ip.substr(0, s) : si.ip;
+            if (siPlain == plain) return &n;
+        }
+    }
+    return nullptr;
+}
+
 static const Cable* FindCableL2(const std::vector<Cable>& cables, int a, int b)
 {
     for (const auto& c : cables)
@@ -31,7 +54,8 @@ static const Cable* FindCableL2(const std::vector<Cable>& cables, int a, int b)
 // trunk ports preserve it.
 static std::vector<int> FindL2Path(int srcId, int dstId,
                                     const std::vector<DeviceNode>& nodes,
-                                    const std::vector<Cable>& cables)
+                                    const std::vector<Cable>& cables,
+                                    int startVlan = 0)
 {
     if (srcId == dstId) return {srcId};
 
@@ -43,7 +67,7 @@ static std::vector<int> FindL2Path(int srcId, int dstId,
 
     std::unordered_set<int> visited;
     std::queue<State>       q;
-    q.push({srcId, 0, {srcId}});
+    q.push({srcId, startVlan, {srcId}});
     visited.insert(srcId);
 
     while (!q.empty()) {
@@ -143,7 +167,8 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
                 }
 
                 // L2 BFS — find path through switches, VLAN-aware
-                std::vector<int> l2 = FindL2Path(currentId, destNode->id, nodes, cables);
+                std::vector<int> l2 = FindL2Path(currentId, destNode->id, nodes, cables,
+                                                  route.subVlanId);
 
                 if (l2.empty()) {
                     HopDecision hd;
@@ -218,29 +243,10 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
             bool        arpHit    = cur->arpTable.count(route.nextHop) > 0;
             std::string cachedMac = arpHit ? cur->arpTable.at(route.nextHop) : "";
 
-            // Find the directly-connected neighbor that owns route.nextHop
-            int         neighborId  = -1;
-            std::string resolvedMac;
-            for (const auto& cable : cables) {
-                int candidateId = -1;
-                if      (cable.fromId == currentId) candidateId = cable.toId;
-                else if (cable.toId   == currentId) candidateId = cable.fromId;
-                if (candidateId == -1) continue;
-
-                const DeviceNode* neighbor = FindNode(nodes, candidateId);
-                if (!neighbor) continue;
-
-                auto nbTable = GetRoutingTable(*neighbor);
-                for (const auto& nbRoute : nbTable) {
-                    if (nbRoute.src == ROUTE_CONNECTED &&
-                        IpInSubnet(route.nextHop, nbRoute.dest)) {
-                        neighborId  = candidateId;
-                        resolvedMac = GetDeviceMac(candidateId);
-                        break;
-                    }
-                }
-                if (neighborId != -1) break;
-            }
+            // Find the node owning route.nextHop (checks portIp + subIfaces)
+            const DeviceNode* nextHopNode = FindNodeOwningIp(nodes, route.nextHop);
+            int         neighborId  = nextHopNode ? nextHopNode->id : -1;
+            std::string resolvedMac = (neighborId != -1) ? GetDeviceMac(neighborId) : "";
 
             // Emit ARP event
             if (arpHit) {
@@ -262,6 +268,15 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
                 return result;
             }
 
+            // Find L2 path to neighbor (handles switches between L3 devices)
+            std::vector<int> l2nh = {};
+            if (neighborId != -1)
+                l2nh = FindL2Path(currentId, neighborId, nodes, cables);
+            if (neighborId == -1 || l2nh.empty()) {
+                result.reason = "ARP: who has " + route.nextHop + "? — no reply";
+                return result;
+            }
+
             {
                 HopDecision hd;
                 hd.nodeId     = currentId;
@@ -273,9 +288,12 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
                 else                                  hd.routeType = "?";
                 hd.destPrefix = route.dest;
                 hd.nextHopIp  = route.nextHop;
-                hd.outPort    = route.outPort;
-
-                // MPLS: decorate with label operation if this router has an LFIB entry
+                // Compute outPort from first hop in L2 path
+                if (l2nh.size() >= 2) {
+                    const Cable* c = FindCableL2(cables, l2nh[0], l2nh[1]);
+                    if (c) hd.outPort = (c->fromId == l2nh[0]) ? c->fromPort : c->toPort;
+                }
+                // MPLS label operation (preserve existing MPLS logic verbatim)
                 if (cur->ldpEnabled) {
                     auto it = cur->lfib.find(NetworkAddress(route.dest));
                     if (it != cur->lfib.end()) {
@@ -288,7 +306,7 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
                         } else if (nextOut == MPLS_IMPLICIT_NULL) {
                             hd.labelOp    = LABEL_POP;
                             hd.inLabel    = currentLabel;
-                            hd.outLabel   = 0;   // packet exits label-free (PHP)
+                            hd.outLabel   = 0;
                             currentLabel  = 0;
                         } else {
                             hd.labelOp    = LABEL_SWAP;
@@ -297,15 +315,52 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
                             currentLabel  = nextOut;
                         }
                     } else if (currentLabel != 0) {
-                        // LDP router with no LFIB binding — LSP terminates here
                         currentLabel = 0;
                     }
                 } else if (currentLabel != 0) {
-                    // Non-LDP router — LSP terminates at this hop
                     currentLabel = 0;
                 }
                 result.hops.push_back(hd);
             }
+
+            // Add intermediate switch hops (l2nh[1] .. l2nh[n-2])
+            {
+                int frameVlan = 0;
+                for (int pi = 1; pi + 1 < (int)l2nh.size(); ++pi) {
+                    int stepId   = l2nh[pi];
+                    int nextStId = l2nh[pi + 1];
+                    const DeviceNode* stepNode = FindNode(nodes, stepId);
+                    const DeviceNode* nextNode = FindNode(nodes, nextStId);
+                    const Cable* cab = FindCableL2(cables, stepId, nextStId);
+                    int outPort = -1, inPort = -1;
+                    if (cab) {
+                        outPort = (cab->fromId == stepId)   ? cab->fromPort : cab->toPort;
+                        inPort  = (cab->fromId == nextStId) ? cab->fromPort : cab->toPort;
+                    }
+                    int prevFrameVlan = frameVlan;
+                    if (nextNode && nextNode->type == SWITCH && inPort >= 0) {
+                        const VlanPortConfig& inp = nextNode->vlanPorts[inPort];
+                        if (inp.mode == VLAN_ACCESS) frameVlan = inp.accessVlan;
+                    } else {
+                        frameVlan = 0;
+                    }
+                    bool trunkEgress = stepNode && stepNode->type == SWITCH
+                                       && outPort >= 0
+                                       && stepNode->vlanPorts[outPort].mode == VLAN_TRUNK;
+                    HopDecision swHd;
+                    swHd.nodeId     = stepId;
+                    swHd.nodeLabel  = stepNode ? stepNode->label : "";
+                    swHd.routeType  = "SW";
+                    swHd.destPrefix = route.dest;
+                    swHd.nextHopIp  = nextNode ? nextNode->label : "";
+                    swHd.outPort    = outPort;
+                    swHd.vlanTag    = trunkEgress ? prevFrameVlan : 0;
+                    result.hops.push_back(swHd);
+                    result.path.push_back(stepId);
+                    visited.insert(stepId);
+                }
+            }
+
             visited.insert(neighborId);
             result.path.push_back(neighborId);
             currentId = neighborId;
