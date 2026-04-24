@@ -198,8 +198,8 @@ struct DeviceNode {
     int                  aclOutPort = -1;  // port ACL applied outbound (-1 = not applied)
     // NAT — source overload / PAT (routers only)
     bool        natEnabled      = false;
-    int         natInsidePort   = 0;           // port facing inside network
-    int         natOutsidePort  = 1;           // port facing outside / ISP
+    int         natInsidePort   = -1;          // port facing inside network (-1 = not set)
+    int         natOutsidePort  = -1;          // port facing outside / ISP  (-1 = not set)
     std::string natInsidePrefix;               // CIDR of inside subnet, e.g. "192.168.1.0/24"
 };
 
