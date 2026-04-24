@@ -61,9 +61,9 @@ int main() {
             if (IsKeyPressed(KEY_P)) nodes.push_back(SpawnNode(PC,     worldMouse));
             if (IsKeyPressed(KEY_R)) nodes.push_back(SpawnNode(ROUTER, worldMouse));
             if (IsKeyPressed(KEY_S)) nodes.push_back(SpawnNode(SWITCH, worldMouse));
-            // Level shortcuts: 1–7 load JSON levels, 0 returns to sandbox
+            // Level shortcuts: 1–8 load JSON levels, 0 returns to sandbox
             if (ps.activePortAreaField == -1) {
-                for (int k = 1; k <= 7; ++k) {
+                for (int k = 1; k <= 8; ++k) {
                     if (IsKeyPressed(KEY_ONE + (k - 1))) {
                         char path[64];
                         std::snprintf(path, sizeof(path), "levels/level_%02d.json", k);
@@ -182,7 +182,7 @@ int main() {
                     failAnnotationTimer  = 0.f;
                     lastFailedTrace      = {};
                 } else if (CheckCollisionPointRec(screenMouse, WinNextBtnRect()) &&
-                           currentLevel < 7) {
+                           currentLevel < 8) {
                     int nextLevel = currentLevel + 1;
                     char path[64];
                     std::snprintf(path, sizeof(path), "levels/level_%02d.json", nextLevel);
@@ -618,6 +618,10 @@ int main() {
                             ps.bgpAsnBuf   = selNode->localAsn > 0
                                              ? std::to_string(selNode->localAsn) : "";
                         }
+                        if (selNode->bgpEnabled && selNode->localAsn > 0 &&
+                            CheckCollisionPointRec(screenMouse, PnlBgpRrRect())) {
+                            selNode->isRouteReflector = !selNode->isRouteReflector;
+                        }
                     }
                 }
             }
@@ -801,13 +805,13 @@ int main() {
                              (int)activeLevelDef.winConditions.size());
             }
             if (gameMode == GAME_WIN) {
-                DrawWinOverlay(activeLevelDef, currentLevel < 7);
+                DrawWinOverlay(activeLevelDef, currentLevel < 8);
             }
 
             // HUD — screen space, outside camera
             DrawFPS(CANVAS_W - 80, 10);
             DrawText("P=PC  R=Router  S=Switch  Del=Delete  MMB=Pan  Scroll=Zoom  "
-                     "Drag-port=Cable  Esc=Cancel  1-7=Level  0=Sandbox",
+                     "Drag-port=Cable  Esc=Cancel  1-8=Level  0=Sandbox",
                      10, CANVAS_H - 24, 10, Color{100, 116, 139, 255});
         EndDrawing();
     }
