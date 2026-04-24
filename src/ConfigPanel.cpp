@@ -15,7 +15,7 @@ Rectangle PnlPortAreaFieldRect(int port) {
             44.0f, 24.0f};
 }
 
-float PnlTabW() { return (PANEL_W - 24 - 12) / 6.0f; }
+float PnlTabW() { return (PANEL_W - 24.0f - 6.0f * 4.0f) / 7.0f; }
 Rectangle PnlConfigTabRect() {
     return {(float)(CANVAS_W + 12), 88.0f, PnlTabW(), 26.0f};
 }
@@ -56,6 +56,15 @@ Rectangle PnlRouteDeleteRect(int rowIdx) {
 Rectangle PnlRouteDestRect()   { return {(float)(CANVAS_W+12),(float)RTE_DEST_Y,(float)(PANEL_W-24),26.0f}; }
 Rectangle PnlRouteNextRect()   { return {(float)(CANVAS_W+12),(float)RTE_NEXT_Y,(float)(PANEL_W-24),26.0f}; }
 Rectangle PnlRouteAddBtnRect() { return {(float)(CANVAS_W+12),(float)RTE_BTN_Y, (float)(PANEL_W-24),28.0f}; }
+Rectangle PnlVlanTabRect() {
+    return {(float)(CANVAS_W + 12) + 6.0f * (PnlTabW() + 4.0f), 88.0f, PnlTabW(), 26.0f};
+}
+Rectangle PnlVlanPortModeRect(int port) {
+    return {(float)(CANVAS_W + 12), (float)(152 + port * 34), 70.0f, 22.0f};
+}
+Rectangle PnlVlanPortIdRect(int port) {
+    return {(float)(CANVAS_W + 90), (float)(152 + port * 34), 48.0f, 22.0f};
+}
 
 void UpdateTextField(std::string& text, int maxLen) {
     int ch;

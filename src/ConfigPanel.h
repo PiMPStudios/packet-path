@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-enum PanelTab { TAB_CONFIG, TAB_ROUTES, TAB_ARP, TAB_OSPF, TAB_MPLS, TAB_BGP };
+enum PanelTab { TAB_CONFIG, TAB_ROUTES, TAB_ARP, TAB_OSPF, TAB_MPLS, TAB_BGP, TAB_VLAN };
 
 struct PanelState {
     int         activeField      = -1;
@@ -16,6 +16,8 @@ struct PanelState {
     std::string portAreaBuf;               // edit buffer for area number
     int         bgpAsnField = -1;    // nodeId being edited (-1 = inactive)
     std::string bgpAsnBuf;
+    int         vlanPortField = -1;   // 0..3 = which port's VLAN ID field is active, -1 = none
+    std::string vlanPortBuf;          // edit buffer for VLAN ID digits
 };
 
 // Layout rect helpers
@@ -34,6 +36,9 @@ Rectangle PnlBgpTabRect();
 Rectangle PnlBgpToggleRect();
 Rectangle PnlBgpAsnRect();
 Rectangle PnlBgpRrRect();
+Rectangle PnlVlanTabRect();
+Rectangle PnlVlanPortModeRect(int port);
+Rectangle PnlVlanPortIdRect(int port);
 Rectangle PnlRouteDeleteRect(int rowIdx);
 Rectangle PnlRouteDestRect();
 Rectangle PnlRouteNextRect();
