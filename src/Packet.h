@@ -16,6 +16,7 @@ struct PacketAnim {
     float    failPulse    = 0.f;
     float    successPulse = 0.f;
     uint32_t currentLabel = 0;  // top-of-stack label displayed on the packet dot (0 = unlabeled)
+    int      currentVlan  = 0;   // VLAN badge to display while animating (0 = hidden)
 };
 
 struct SimState {

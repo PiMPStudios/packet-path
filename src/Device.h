@@ -7,6 +7,14 @@
 #include <cmath>
 #include <unordered_map>
 
+// ── VLAN / 802.1Q types ───────────────────────────────────────────────────
+enum VlanPortMode { VLAN_ACCESS, VLAN_TRUNK };
+
+struct VlanPortConfig {
+    VlanPortMode mode      = VLAN_ACCESS;
+    int          accessVlan = 1;   // VLAN ID for access mode (1-4094); ignored when trunk
+};
+
 // ── MPLS types ────────────────────────────────────────────────────────────
 static const uint32_t MPLS_IMPLICIT_NULL = 3;  // RFC 3032 §2.1
 
@@ -99,6 +107,7 @@ struct HopDecision {
     LabelOp  labelOp  = LABEL_NONE;
     uint32_t inLabel  = 0;   // label arriving at this router (0 = unlabeled)
     uint32_t outLabel = 0;   // label leaving this router (0 = unlabeled after POP)
+    int      vlanTag  = 0;   // 802.1Q VLAN on the cable leaving this hop (0 = untagged)
 };
 
 struct ForwardResult {
@@ -150,6 +159,8 @@ struct DeviceNode {
     std::vector<std::string> bgpNetworks;    // prefixes to advertise; empty = auto-advertise connected
     std::vector<BgpNeighbor> bgpNeighbors;
     std::vector<BgpRoute>    bgpRoutes;      // received BGP routes (RIB-in)
+    // VLAN state (switches only)
+    VlanPortConfig vlanPorts[PORTS_PER_NODE];
 };
 
 // ── Device geometry helpers (no draw calls) ───────────────────────────────
