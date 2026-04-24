@@ -23,7 +23,7 @@ struct BgpNeighbor {
     int         neighborNodeId = -1;
     uint32_t    neighborAsn    = 0;
     bool        established    = false;
-    bool        ibgp           = false;  // same-AS peer; Phase 2: add isRouteReflector
+    bool        ibgp           = false;  // same-AS peer (iBGP session)
 };
 
 struct BgpRoute {
