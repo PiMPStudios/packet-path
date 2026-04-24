@@ -1,0 +1,50 @@
+{
+  "id": 11,
+  "title": "Level 11 — Link Down",
+  "briefing": "PC-A can't reach PC-B — a cable has been cut. Press T for Troubleshoot Mode to see the broken link highlighted in red. Right-click the broken cable and choose Restore Link, then verify connectivity with a ping.",
+  "devices": [
+    {
+      "id": 1,
+      "label": "PC-A",
+      "type": "PC",
+      "x": -300,
+      "y": 0,
+      "portIp0": "10.1.0.2/24",
+      "staticRoutes": [
+        { "dest": "0.0.0.0/0", "nextHop": "10.1.0.1" }
+      ]
+    },
+    {
+      "id": 2,
+      "label": "RTR-1",
+      "type": "ROUTER",
+      "x": 0,
+      "y": 0,
+      "portIp0": "10.1.0.1/24",
+      "portIp1": "10.2.0.1/24"
+    },
+    {
+      "id": 3,
+      "label": "PC-B",
+      "type": "PC",
+      "x": 300,
+      "y": 0,
+      "portIp0": "10.2.0.2/24",
+      "staticRoutes": [
+        { "dest": "0.0.0.0/0", "nextHop": "10.2.0.1" }
+      ]
+    }
+  ],
+  "cables": [
+    { "from": 1, "fromPort": 0, "to": 2, "toPort": 0, "broken": true },
+    { "from": 2, "fromPort": 1, "to": 3, "toPort": 0 }
+  ],
+  "winConditions": [
+    {
+      "src": "PC-A",
+      "dst": "PC-B",
+      "description": "PC-A can reach PC-B after link restoration",
+      "requiresFix": true
+    }
+  ]
+}
