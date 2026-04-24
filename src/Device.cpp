@@ -84,6 +84,16 @@ std::vector<RouteEntry> GetRoutingTable(const DeviceNode& n) {
     for (int i = 0; i < PORTS_PER_NODE; ++i)
         if (ValidateIP(n.portIp[i]))
             table.push_back({NetworkAddress(n.portIp[i]), "direct", i, ROUTE_CONNECTED});
+    for (const auto& si : n.subIfaces)
+        if (ValidateIP(si.ip)) {
+            RouteEntry re;
+            re.dest      = NetworkAddress(si.ip);
+            re.nextHop   = "direct";
+            re.outPort   = si.parentPort;
+            re.src       = ROUTE_CONNECTED;
+            re.subVlanId = si.vlanId;
+            table.push_back(re);
+        }
     for (const auto& r : n.staticRoutes)
         table.push_back(r);
     for (const auto& r : n.ospfRoutes)

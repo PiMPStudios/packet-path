@@ -15,6 +15,12 @@ struct VlanPortConfig {
     int          accessVlan = 1;   // VLAN ID for access mode (1-4094); ignored when trunk
 };
 
+struct SubInterface {
+    int         parentPort = 0;   // physical port index (0-3)
+    int         vlanId     = 0;   // 802.1Q VLAN ID (1-4094)
+    std::string ip;               // CIDR e.g. "10.10.0.1/24"
+};
+
 // ── MPLS types ────────────────────────────────────────────────────────────
 static const uint32_t MPLS_IMPLICIT_NULL = 3;  // RFC 3032 §2.1
 
@@ -59,6 +65,7 @@ struct RouteEntry {
     int         outPort;
     RouteSource src;
     uint32_t    area = 0;   // OSPF area (set by SPF; 0 for non-OSPF routes)
+    int         subVlanId = 0;  // non-zero: route exits via tagged subinterface
 };
 
 // ── OSPF types ────────────────────────────────────────────────────────────
@@ -161,6 +168,7 @@ struct DeviceNode {
     std::vector<BgpRoute>    bgpRoutes;      // received BGP routes (RIB-in)
     // VLAN state (switches only)
     VlanPortConfig vlanPorts[PORTS_PER_NODE];
+    std::vector<SubInterface> subIfaces;  // routers only
 };
 
 // ── Device geometry helpers (no draw calls) ───────────────────────────────
