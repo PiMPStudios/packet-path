@@ -17,4 +17,4 @@ void DrawLevelHUD(int levelId, const std::string& title,
 
 // Semi-transparent win overlay with "LEVEL COMPLETE!", stars, checklist, and buttons.
 // hasNextLevel: if false, the Next Level button is greyed out.
-void DrawWinOverlay(const LevelDef& def, bool hasNextLevel);
+void DrawWinOverlay(const LevelDef& def, bool hasNextLevel, int starsEarned = 0);

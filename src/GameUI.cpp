@@ -4,18 +4,18 @@
 
 Rectangle WinOverlayRect() {
     return {(float)(CANVAS_W - 320) / 2.0f,
-            (float)(CANVAS_H - 240) / 2.0f,
-            320.0f, 240.0f};
+            (float)(CANVAS_H - 260) / 2.0f,
+            320.0f, 260.0f};
 }
 
 Rectangle WinRetryBtnRect() {
     Rectangle r = WinOverlayRect();
-    return {r.x + 20, r.y + 186, 120.0f, 36.0f};
+    return {r.x + 20, r.y + 206, 120.0f, 36.0f};
 }
 
 Rectangle WinNextBtnRect() {
     Rectangle r = WinOverlayRect();
-    return {r.x + 180, r.y + 186, 120.0f, 36.0f};
+    return {r.x + 180, r.y + 206, 120.0f, 36.0f};
 }
 
 void DrawLevelHUD(int levelId, const std::string& title,
@@ -38,7 +38,7 @@ void DrawLevelHUD(int levelId, const std::string& title,
     DrawText(prog, 8 + 224 - pw - 8, 13, 10, progColor);
 }
 
-void DrawWinOverlay(const LevelDef& def, bool hasNextLevel) {
+void DrawWinOverlay(const LevelDef& def, bool hasNextLevel, int starsEarned) {
     // Canvas dim
     DrawRectangle(0, 0, CANVAS_W, CANVAS_H, Color{0, 0, 0, 150});
 
@@ -57,23 +57,41 @@ void DrawWinOverlay(const LevelDef& def, bool hasNextLevel) {
              (int)(r.x + (r.width - ttw) / 2.0f), (int)r.y + 50, 12,
              Color{148, 163, 184, 255});
 
-    // Three gold circles as star stand-ins (★ U+2605 is outside raylib default font)
-    Color starC = Color{234, 179, 8, 255};
-    float sy    = r.y + 88.0f;
-    float scx   = r.x + r.width / 2.0f;
-    DrawCircle((int)(scx - 28), (int)sy, 9.0f, starC);
-    DrawCircle((int)scx,        (int)sy, 9.0f, starC);
-    DrawCircle((int)(scx + 28), (int)sy, 9.0f, starC);
+    // Stars: filled gold = earned, grey ring = not yet earned
+    float sy  = r.y + 90.0f;
+    float scx = r.x + r.width / 2.0f;
+    float offsets[3] = {-30.0f, 0.0f, 30.0f};
+    for (int i = 0; i < 3; ++i) {
+        int cx = (int)(scx + offsets[i]);
+        int cy = (int)sy;
+        if (i < starsEarned)
+            DrawCircle(cx, cy, 11.0f, Color{234, 179, 8, 255});
+        else
+            DrawCircleLines(cx, cy, 11.0f, Color{71, 85, 105, 255});
+    }
 
-    // Win conditions checklist (capped at 4 to stay above buttons)
-    int cy = (int)r.y + 116;
+    // Score label beneath stars
+    const char* scoreLabel = (starsEarned == 3) ? "PERFECT!"
+                           : (starsEarned == 2) ? "GREAT!" : "CLEARED!";
+    Color slColor = (starsEarned == 3) ? Color{234, 179, 8, 255}
+                  : (starsEarned == 2) ? Color{148, 163, 184, 255}
+                  :                      Color{100, 116, 139, 255};
+    int slw = MeasureText(scoreLabel, 11);
+    DrawText(scoreLabel, (int)(r.x + (r.width - slw) / 2.0f), (int)r.y + 110, 11, slColor);
+
+    // Separator
+    DrawLineEx({r.x + 16, r.y + 126}, {r.x + r.width - 16, r.y + 126},
+               0.5f, Color{51, 65, 85, 255});
+
+    // Win conditions checklist (capped at 3 rows to stay above buttons)
+    int cy2 = (int)r.y + 134;
     int shownConditions = 0;
     for (const auto& wc : def.winConditions) {
-        if (shownConditions >= 4) break;
+        if (shownConditions >= 3) break;
         char lineBuf[128];
         std::snprintf(lineBuf, sizeof(lineBuf), "\xe2\x9c\x93 %s", wc.description.c_str());
-        DrawText(lineBuf, (int)(r.x + 20), cy, 11, Color{34, 197, 94, 255});
-        cy += 18;
+        DrawText(lineBuf, (int)(r.x + 20), cy2, 11, Color{34, 197, 94, 255});
+        cy2 += 18;
         ++shownConditions;
     }
 
