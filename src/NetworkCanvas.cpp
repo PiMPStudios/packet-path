@@ -616,7 +616,11 @@ void DrawMplsTab(const DeviceNode* n) {
 }
 
 void DrawBgpTab(const DeviceNode* n, const PanelState& ps) {
-    if (!n || n->type != ROUTER) {
+    if (!n) {
+        DrawText("No device selected", CANVAS_W + 20, 130, 12, Color{100,116,139,255});
+        return;
+    }
+    if (n->type != ROUTER) {
         DrawText("BGP: routers only", CANVAS_W + 20, 130, 12, Color{100,116,139,255});
         return;
     }
@@ -659,9 +663,10 @@ void DrawBgpTab(const DeviceNode* n, const PanelState& ps) {
         y += 14;
     } else {
         for (const auto& nb : n->bgpNeighbors) {
-            if (y > CANVAS_H - 80) break;
+            if (y > CANVAS_H - 80) break;  // leave room for BGP RIB section below
             DrawText(nb.neighborIp.c_str(),  CANVAS_W + 12,  y, 10, WHITE);
             std::string asnTag = "AS" + std::to_string(nb.neighborAsn);
+            if (asnTag.size() > 9) asnTag = asnTag.substr(0, 8) + "\xe2\x80\xa6";
             DrawText(asnTag.c_str(), CANVAS_W + 105, y, 10, Color{253,186,116,255});
             const char* state = nb.established ? "ESTAB" : "DOWN";
             Color stCol = nb.established ? Color{34,197,94,255} : Color{239,68,68,255};
@@ -683,8 +688,16 @@ void DrawBgpTab(const DeviceNode* n, const PanelState& ps) {
         y += 12;
         for (const auto& r : n->bgpRoutes) {
             if (y > CANVAS_H - 20) break;
-            DrawText(r.prefix.c_str(),  CANVAS_W + 12, y, 10, WHITE);
-            DrawText(r.nextHop.c_str(), CANVAS_W + 90, y, 10, Color{94,234,212,255});
+            {
+                std::string pfx = r.prefix.size() > 15
+                                  ? r.prefix.substr(0, 14) + "\xe2\x80\xa6" : r.prefix;
+                DrawText(pfx.c_str(), CANVAS_W + 12, y, 10, WHITE);
+            }
+            {
+                std::string nh = r.nextHop.size() > 12
+                                 ? r.nextHop.substr(0, 11) + "\xe2\x80\xa6" : r.nextHop;
+                DrawText(nh.c_str(), CANVAS_W + 90, y, 10, Color{94,234,212,255});
+            }
             std::string path;
             for (size_t i = 0; i < r.asPath.size(); ++i) {
                 if (i) path += ' ';
