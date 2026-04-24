@@ -506,6 +506,9 @@ int main() {
                 }
                 if (CheckCollisionPointRec(screenMouse, PnlVlanTabRect())) {
                     ps.activeTab           = TAB_VLAN;
+                    ps.activeField         = -1;
+                    ps.activePortAreaField = -1;
+                    ps.portAreaBuf.clear();
                     ps.bgpAsnField         = -1;
                     ps.bgpAsnBuf.clear();
                     ps.vlanPortField       = -1;
