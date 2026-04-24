@@ -225,7 +225,7 @@ int main() {
             } else {
             if (contextMenu.visible) {
                 if (contextMenu.hoverItem != -1)
-                    ExecuteMenuAction(contextMenu, nodes, cables, selectedId, ps, camera, simState);
+                    ExecuteMenuAction(contextMenu, nodes, cables, selectedId, ps, camera, simState, logEntries);
                 contextMenu.visible = false;
             } else if (simState.mode == SIM_SELECTING_DST && inCanvas) {
                 // Destination selection — find clicked node

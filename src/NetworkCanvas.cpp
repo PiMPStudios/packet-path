@@ -1102,14 +1102,18 @@ void DrawContextMenu(const ContextMenu& menu, Vector2 screenMouse) {
     (void)screenMouse;
     if (!menu.visible) return;
 
-    static const char* nodeItems[]   = {"Rename", "Delete", "Send Packet To\xe2\x80\xa6", nullptr};
-    static const char* cableItems[]  = {"Delete Cable", nullptr};
-    static const char* canvasItems[] = {"Add PC Here", "Add Router Here",
-                                        "Add Switch Here", "Reset View", nullptr};
+    static const char* nodeItemsNormal[]  = {"Rename", "Crash Device", "Delete",
+                                              "Send Packet To\xe2\x80\xa6", nullptr};
+    static const char* nodeItemsCrashed[] = {"Rename", "Restore Device", "Delete",
+                                              "Send Packet To\xe2\x80\xa6", nullptr};
+    static const char* cableItemsNormal[] = {"Cut Link", "Delete Cable", nullptr};
+    static const char* cableItemsBroken[] = {"Restore Link", "Delete Cable", nullptr};
+    static const char* canvasItems[]      = {"Add PC Here", "Add Router Here",
+                                             "Add Switch Here", "Reset View", nullptr};
 
     const char** items = nullptr;
-    if      (menu.ctx == CTX_NODE)   items = nodeItems;
-    else if (menu.ctx == CTX_CABLE)  items = cableItems;
+    if      (menu.ctx == CTX_NODE)   items = menu.targetBroken ? nodeItemsCrashed : nodeItemsNormal;
+    else if (menu.ctx == CTX_CABLE)  items = menu.targetBroken ? cableItemsBroken : cableItemsNormal;
     else if (menu.ctx == CTX_CANVAS) items = canvasItems;
     else return;
 

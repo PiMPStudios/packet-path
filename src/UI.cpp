@@ -18,13 +18,18 @@ DeviceNode SpawnNode(DeviceType type, Vector2 worldPos) {
 void UpdateContextMenuHover(ContextMenu& menu, Vector2 screenMouse) {
     if (!menu.visible) { menu.hoverItem = -1; return; }
 
-    static const char* nodeItems[]   = {"Rename", "Delete", "Send Packet To\xe2\x80\xa6", nullptr};
-    static const char* cableItems[]  = {"Delete Cable", nullptr};
-    static const char* canvasItems[] = {"Add PC Here", "Add Router Here",
-                                        "Add Switch Here", "Reset View", nullptr};
+    static const char* nodeItemsNormal[]  = {"Rename", "Crash Device", "Delete",
+                                              "Send Packet To\xe2\x80\xa6", nullptr};
+    static const char* nodeItemsCrashed[] = {"Rename", "Restore Device", "Delete",
+                                              "Send Packet To\xe2\x80\xa6", nullptr};
+    static const char* cableItemsNormal[] = {"Cut Link", "Delete Cable", nullptr};
+    static const char* cableItemsBroken[] = {"Restore Link", "Delete Cable", nullptr};
+    static const char* canvasItems[]      = {"Add PC Here", "Add Router Here",
+                                             "Add Switch Here", "Reset View", nullptr};
+
     const char** items = nullptr;
-    if      (menu.ctx == CTX_NODE)   items = nodeItems;
-    else if (menu.ctx == CTX_CABLE)  items = cableItems;
+    if      (menu.ctx == CTX_NODE)   items = menu.targetBroken ? nodeItemsCrashed : nodeItemsNormal;
+    else if (menu.ctx == CTX_CABLE)  items = menu.targetBroken ? cableItemsBroken : cableItemsNormal;
     else if (menu.ctx == CTX_CANVAS) items = canvasItems;
     else { menu.hoverItem = -1; return; }
 
@@ -45,17 +50,39 @@ void UpdateContextMenuHover(ContextMenu& menu, Vector2 screenMouse) {
 
 void ExecuteMenuAction(ContextMenu& menu, std::vector<DeviceNode>& nodes,
                        std::vector<Cable>& cables, int& selectedId,
-                       PanelState& ps, Camera2D& camera, SimState& simState)
+                       PanelState& ps, Camera2D& camera, SimState& simState,
+                       std::vector<LogEntry>& logEntries)
 {
-    if (simState.mode == SIM_ANIMATING) return;  // no mutations while packet is in-flight
+    if (simState.mode == SIM_ANIMATING) return;
     int item = menu.hoverItem;
+
+    auto pushFaultLog = [&](LogType type, bool success, const std::string& path) {
+        LogEntry le;
+        le.type      = type;
+        le.success   = success;
+        le.pathStr   = path;
+        le.timestamp = GetTime();
+        if (logEntries.size() >= 50) logEntries.erase(logEntries.begin());
+        logEntries.push_back(le);
+    };
+
     if (menu.ctx == CTX_NODE) {
-        if (item == 0) {  // Rename — select node and focus hostname field
+        if (item == 0) {  // Rename
             selectedId = menu.targetId;
             for (auto& n : nodes) n.selected = (n.id == selectedId);
             ps.activeTab   = TAB_CONFIG;
             ps.activeField = 0;
-        } else if (item == 1) {  // Delete
+        } else if (item == 1) {  // Crash Device / Restore Device
+            for (auto& n : nodes) {
+                if (n.id != menu.targetId) continue;
+                n.crashed = !n.crashed;
+                if (n.crashed)
+                    pushFaultLog(LOG_DEVICE_CRASH, false, "DEVICE CRASHED: " + n.label);
+                else
+                    pushFaultLog(LOG_RESTORED,     true,  "RESTORED: "       + n.label);
+                break;
+            }
+        } else if (item == 2) {  // Delete
             cables.erase(std::remove_if(cables.begin(), cables.end(),
                 [&](const Cable& c){
                     return c.fromId == menu.targetId || c.toId == menu.targetId;
@@ -65,15 +92,31 @@ void ExecuteMenuAction(ContextMenu& menu, std::vector<DeviceNode>& nodes,
                 nodes.end());
             if (selectedId == menu.targetId) { selectedId = -1; ps.activeField = -1; }
             if (simState.srcId == menu.targetId) { simState.mode = SIM_IDLE; simState.srcId = -1; }
-        } else if (item == 2) {  // Send Packet To…
+        } else if (item == 3) {  // Send Packet To…
             if (simState.mode == SIM_IDLE || simState.mode == SIM_SELECTING_DST) {
                 simState.mode  = SIM_SELECTING_DST;
                 simState.srcId = menu.targetId;
             }
         }
     } else if (menu.ctx == CTX_CABLE) {
-        if (item == 0 && menu.targetId >= 0 && menu.targetId < (int)cables.size())
-            cables.erase(cables.begin() + menu.targetId);
+        if (item == 0) {  // Cut Link / Restore Link
+            if (menu.targetId >= 0 && menu.targetId < (int)cables.size()) {
+                Cable& cab = cables[menu.targetId];
+                cab.broken = !cab.broken;
+                const DeviceNode* from = FindNode(nodes, cab.fromId);
+                const DeviceNode* to   = FindNode(nodes, cab.toId);
+                std::string label = (from ? from->label : "?") +
+                                    " \xe2\x80\x94 " +
+                                    (to   ? to->label   : "?");
+                if (cab.broken)
+                    pushFaultLog(LOG_LINK_DOWN, false, "LINK DOWN: "  + label);
+                else
+                    pushFaultLog(LOG_RESTORED,  true,  "RESTORED: "   + label);
+            }
+        } else if (item == 1) {  // Delete Cable
+            if (menu.targetId >= 0 && menu.targetId < (int)cables.size())
+                cables.erase(cables.begin() + menu.targetId);
+        }
     } else if (menu.ctx == CTX_CANVAS) {
         if      (item == 0) nodes.push_back(SpawnNode(PC,     menu.worldPos));
         else if (item == 1) nodes.push_back(SpawnNode(ROUTER, menu.worldPos));
