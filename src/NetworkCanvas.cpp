@@ -1,5 +1,4 @@
 #include "NetworkCanvas.h"
-#include "AclEngine.h"
 
 void DrawDeviceNode(const DeviceNode& n) {
     Rectangle r = GetNodeRect(n);
@@ -1414,35 +1413,35 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
                  vxlActive ? Color{20,184,166,255} : Color{100, 116, 139, 255});
     }
 
-        // ACL tab
-        Rectangle aclTab    = PnlAclTabRect();
-        bool      aclActive = (ps.activeTab == TAB_ACL);
-        DrawRectangleRec(aclTab, aclActive ? Color{30,41,59,255} : PANEL_BG);
-        if (aclActive)
-            DrawLineEx({aclTab.x, aclTab.y + aclTab.height},
-                       {aclTab.x + aclTab.width, aclTab.y + aclTab.height}, 2.0f,
-                       Color{59, 130, 246, 255});
-        {
-            int tw = MeasureText("ACL", 10);
-            DrawText("ACL", (int)(aclTab.x + (aclTab.width - tw) / 2),
-                     (int)(aclTab.y + 8), 10,
-                     aclActive ? Color{239,68,68,255} : Color{100,116,139,255});
-        }
+    // ACL tab
+    Rectangle aclTab    = PnlAclTabRect();
+    bool      aclActive = (ps.activeTab == TAB_ACL);
+    DrawRectangleRec(aclTab, aclActive ? Color{30,41,59,255} : PANEL_BG);
+    if (aclActive)
+        DrawLineEx({aclTab.x, aclTab.y + aclTab.height},
+                   {aclTab.x + aclTab.width, aclTab.y + aclTab.height}, 2.0f,
+                   Color{59, 130, 246, 255});
+    {
+        int tw = MeasureText("ACL", 10);
+        DrawText("ACL", (int)(aclTab.x + (aclTab.width - tw) / 2),
+                 (int)(aclTab.y + 8), 10,
+                 aclActive ? Color{239,68,68,255} : Color{100,116,139,255});
+    }
 
-        // NAT tab
-        Rectangle natTab    = PnlNatTabRect();
-        bool      natActive = (ps.activeTab == TAB_NAT);
-        DrawRectangleRec(natTab, natActive ? Color{30,41,59,255} : PANEL_BG);
-        if (natActive)
-            DrawLineEx({natTab.x, natTab.y + natTab.height},
-                       {natTab.x + natTab.width, natTab.y + natTab.height}, 2.0f,
-                       Color{59, 130, 246, 255});
-        {
-            int tw = MeasureText("NAT", 10);
-            DrawText("NAT", (int)(natTab.x + (natTab.width - tw) / 2),
-                     (int)(natTab.y + 8), 10,
-                     natActive ? Color{234,179,8,255} : Color{100,116,139,255});
-        }
+    // NAT tab
+    Rectangle natTab    = PnlNatTabRect();
+    bool      natActive = (ps.activeTab == TAB_NAT);
+    DrawRectangleRec(natTab, natActive ? Color{30,41,59,255} : PANEL_BG);
+    if (natActive)
+        DrawLineEx({natTab.x, natTab.y + natTab.height},
+                   {natTab.x + natTab.width, natTab.y + natTab.height}, 2.0f,
+                   Color{59, 130, 246, 255});
+    {
+        int tw = MeasureText("NAT", 10);
+        DrawText("NAT", (int)(natTab.x + (natTab.width - tw) / 2),
+                 (int)(natTab.y + 8), 10,
+                 natActive ? Color{234,179,8,255} : Color{100,116,139,255});
+    }
 
     DrawLineEx({(float)CANVAS_W(), 116.0f}, {(float)(CANVAS_W() + PANEL_W), 116.0f},
                1.0f, PANEL_BORDER);
