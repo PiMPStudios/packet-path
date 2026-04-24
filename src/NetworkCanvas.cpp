@@ -836,7 +836,9 @@ void DrawSubIfaceTab(const DeviceNode* n, const PanelState& ps) {
     if (n->subIfaces.empty()) {
         DrawText("(none configured)", CANVAS_W + 20, SUB_ROW_Y0, 10, Color{100, 116, 139, 255});
     } else {
-        for (int i = 0; i < (int)n->subIfaces.size(); ++i) {
+        int maxRows = (SUB_FORM_Y0 - 12 - SUB_ROW_Y0) / SUB_ROW_H;
+        int shown   = std::min((int)n->subIfaces.size(), maxRows);
+        for (int i = 0; i < shown; ++i) {
             const SubInterface& si = n->subIfaces[i];
             int y = SUB_ROW_Y0 + i * SUB_ROW_H;
             char buf[64];
@@ -846,7 +848,14 @@ void DrawSubIfaceTab(const DeviceNode* n, const PanelState& ps) {
 
             Rectangle delR = PnlSubRowDeleteRect(i);
             DrawRectangleRec(delR, Color{127, 29, 29, 255});
-            DrawText("\xc3\x97", (int)(delR.x + 3), (int)(delR.y + 1), 11, WHITE);
+            DrawText("x", (int)(delR.x + 3), (int)(delR.y + 1), 11, WHITE);
+        }
+        if ((int)n->subIfaces.size() > shown) {
+            char more[32];
+            std::snprintf(more, sizeof(more), "+%d more",
+                          (int)n->subIfaces.size() - shown);
+            DrawText(more, CANVAS_W + 12,
+                     SUB_ROW_Y0 + shown * SUB_ROW_H + 4, 9, Color{100, 116, 139, 255});
         }
     }
 
