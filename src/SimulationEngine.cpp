@@ -81,6 +81,7 @@ static std::vector<int> FindL2Path(int srcId, int dstId,
             int myPort = -1, nextId = -1, nextPort = -1;
             if      (cable.fromId == curId) { myPort = cable.fromPort; nextId = cable.toId;   nextPort = cable.toPort; }
             else if (cable.toId   == curId) { myPort = cable.toPort;   nextId = cable.fromId; nextPort = cable.fromPort; }
+            if (cable.broken) continue;
             if (nextId == -1 || visited.count(nextId)) continue;
 
             const DeviceNode* next = FindNode(nodes, nextId);
@@ -127,6 +128,13 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
     if (!FindNode(nodes, srcId))
         return {false, {}, "source node not found", {}, {}};
 
+    {
+        const DeviceNode* srcNode = FindNode(nodes, srcId);
+        if (srcNode && srcNode->crashed)
+            return {false, {srcId},
+                    srcNode->label + " is crashed \xe2\x80\x94 device offline", {}, {}};
+    }
+
     if (!ValidateIPOnly(destIp))
         return {false, {srcId}, "invalid destination", {}, {}};
 
@@ -141,7 +149,8 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
 
     for (int i = 0; i < MAX_HOPS; ++i) {
         const DeviceNode* cur = FindNode(nodes, currentId);
-        if (!cur) { result.reason = "node not found"; return result; }
+        if (!cur)         { result.reason = "node not found"; return result; }
+        if (cur->crashed) { result.reason = cur->label + " is crashed \xe2\x80\x94 device offline"; return result; }
 
         auto table = GetRoutingTable(*cur);
         std::sort(table.begin(), table.end(), [](const RouteEntry& a, const RouteEntry& b) {
