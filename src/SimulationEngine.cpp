@@ -257,6 +257,36 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
                 return result;
             }
 
+            // ── VXLAN EVPN tunnel ─────────────────────────────────────────
+            if (route.src == ROUTE_EVPN) {
+                // Phase 1: trace underlay from this VTEP to remote VTEP IP
+                ForwardResult ul = SimulateForward(currentId, route.nextHop, nodes, cables);
+                if (!ul.success) {
+                    result.reason = "VXLAN underlay: " + ul.reason;
+                    return result;
+                }
+                // Mark all underlay hops as VXLAN-encapsulated
+                for (auto& h : ul.hops) h.vxlanVni = route.vni;
+                // Splice underlay hops + path (skip ul.path[0] = currentId, already recorded)
+                for (auto& h : ul.hops)  result.hops.push_back(h);
+                for (int k = 1; k < (int)ul.path.size(); ++k) result.path.push_back(ul.path[k]);
+
+                // Phase 2: local delivery from remote VTEP to actual destination
+                int remoteVtepId = ul.path.back();
+                ForwardResult lo = SimulateForward(remoteVtepId, destIp, nodes, cables);
+                if (!lo.success) {
+                    result.reason = "VXLAN decap: " + lo.reason;
+                    return result;
+                }
+                for (auto& h : lo.hops)  result.hops.push_back(h);
+                for (int k = 1; k < (int)lo.path.size(); ++k) result.path.push_back(lo.path[k]);
+
+                result.success = true;
+                result.reason  = "delivered";
+                return result;
+            }
+            // ── end VXLAN EVPN ───────────────────────────────────────────
+
             // ARP cache check for this next-hop
             bool        arpHit    = cur->arpTable.count(route.nextHop) > 0;
             std::string cachedMac = arpHit ? cur->arpTable.at(route.nextHop) : "";
@@ -305,6 +335,7 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
                 else if (route.src == ROUTE_OSPF)    hd.routeType = "O";
                 else if (route.src == ROUTE_OSPF_IA) hd.routeType = "O IA";
                 else if (route.src == ROUTE_BGP)     hd.routeType = "B";
+                else if (route.src == ROUTE_EVPN)    hd.routeType = "VX";
                 else                                  hd.routeType = "?";
                 hd.destPrefix = route.dest;
                 hd.nextHopIp  = route.nextHop;
