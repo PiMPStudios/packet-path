@@ -34,6 +34,7 @@ void UpdateBgp(std::vector<DeviceNode>& nodes,
         DeviceNode* a = FindNodeMut(nodes, cable.fromId);
         DeviceNode* b = FindNodeMut(nodes, cable.toId);
         if (!a || !b) continue;
+        // Raw pointers are stable: no nodes are added/removed inside this loop
         if (a->type != ROUTER || b->type != ROUTER) continue;
         if (!a->bgpEnabled || !b->bgpEnabled) continue;
         if (a->localAsn == 0 || b->localAsn == 0) continue;
@@ -69,12 +70,13 @@ void UpdateBgp(std::vector<DeviceNode>& nodes,
         // What to advertise: explicit bgpNetworks, or all connected prefixes if empty
         std::vector<std::string> toAdvertise;
         if (!n.bgpNetworks.empty()) {
-            toAdvertise = n.bgpNetworks;
+            for (const auto& net : n.bgpNetworks)
+                toAdvertise.push_back(NetworkAddress(net));
         } else {
             auto table = GetRoutingTable(n);
             for (const auto& r : table)
                 if (r.src == ROUTE_CONNECTED)
-                    toAdvertise.push_back(NetworkAddress(r.dest));
+                    toAdvertise.push_back(r.dest);
         }
 
         for (const auto& nb : n.bgpNeighbors) {
@@ -104,10 +106,10 @@ void UpdateBgp(std::vector<DeviceNode>& nodes,
         if (auto* nd = FindNodeMut(nodes, tid)) nd->bgpRoutes.push_back(r);
 
     // ── Phase 2b: Relay routes learned in 2a to other peers ──────────────
-    // Enables 3+ AS topologies (e.g. AS100 — AS200 — AS300).
+    // Enables 3-AS linear chains (one relay hop: AS100→AS200→AS300).
     pending.clear();
     for (const auto& n : nodes) {
-        if (!n.bgpEnabled || n.bgpRoutes.empty()) continue;
+        if (!n.bgpEnabled || n.localAsn == 0 || n.bgpRoutes.empty()) continue;
 
         for (const auto& nb : n.bgpNeighbors) {
             if (!nb.established) continue;
