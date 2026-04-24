@@ -27,28 +27,29 @@ void UpdateBgp(std::vector<DeviceNode>& nodes,
         n.bgpRoutes.clear();
     }
 
-    // ── Phase 1: Form eBGP sessions ──────────────────────────────────────
-    // One session per cable where both endpoints: ROUTER, bgpEnabled, localAsn != 0,
-    // and different AS numbers.
+    // ── Phase 1: Form BGP sessions (eBGP = different AS, iBGP = same AS) ─
+    // One session per cable where both endpoints: ROUTER, bgpEnabled, localAsn != 0.
+    // Same AS → iBGP (full mesh, direct cable); different AS → eBGP.
     for (const auto& cable : cables) {
         DeviceNode* a = FindNodeMut(nodes, cable.fromId);
         DeviceNode* b = FindNodeMut(nodes, cable.toId);
         if (!a || !b) continue;
-        // Raw pointers are stable: no nodes are added/removed inside this loop
         if (a->type != ROUTER || b->type != ROUTER) continue;
         if (!a->bgpEnabled || !b->bgpEnabled) continue;
         if (a->localAsn == 0 || b->localAsn == 0) continue;
-        if (a->localAsn == b->localAsn) continue;  // iBGP not supported
 
         std::string aIp = FaceIp(*a, cable);
         std::string bIp = FaceIp(*b, cable);
         if (aIp.empty() || bIp.empty()) continue;
+
+        bool sameAs = (a->localAsn == b->localAsn);
 
         BgpNeighbor nbA;
         nbA.neighborIp     = StripMask(bIp);
         nbA.neighborNodeId = b->id;
         nbA.neighborAsn    = b->localAsn;
         nbA.established    = true;
+        nbA.ibgp           = sameAs;
         a->bgpNeighbors.push_back(nbA);
 
         BgpNeighbor nbB;
@@ -56,6 +57,7 @@ void UpdateBgp(std::vector<DeviceNode>& nodes,
         nbB.neighborNodeId = a->id;
         nbB.neighborAsn    = a->localAsn;
         nbB.established    = true;
+        nbB.ibgp           = sameAs;
         b->bgpNeighbors.push_back(nbB);
     }
 
