@@ -3,10 +3,9 @@
 #include "raylib.h"
 #include <string>
 
-enum GameMode { GAME_SANDBOX, GAME_PLAYING, GAME_WIN };
+enum GameMode    { GAME_SANDBOX, GAME_PLAYING, GAME_WIN };
+enum FileOpState { FILEOP_NONE, FILEOP_SAVING, FILEOP_LOADING };
 
-// Overlay layout (centered on the canvas — requires CANVAS_W/CANVAS_H from NetworkCanvas.h,
-// so implementations live in GameUI.cpp which includes NetworkCanvas.h).
 Rectangle WinOverlayRect();
 Rectangle WinRetryBtnRect();
 Rectangle WinNextBtnRect();
@@ -19,3 +18,11 @@ void DrawLevelHUD(int levelId, const std::string& title,
 // Semi-transparent win overlay with "LEVEL COMPLETE!", stars, checklist, and buttons.
 // hasNextLevel: if false, the Next Level button is greyed out.
 void DrawWinOverlay(const LevelDef& def, bool hasNextLevel, int starsEarned = 0);
+
+// Centered filename-input dialog for Ctrl+S / Ctrl+O.
+// Shows modal when state != FILEOP_NONE.
+// Shows toast when state == FILEOP_NONE and msgTimer > 0.
+void DrawFileDialog(FileOpState        state,
+                    const std::string& buf,
+                    const std::string& msg,
+                    float              msgTimer);

@@ -132,3 +132,55 @@ void DrawWinOverlay(const LevelDef& def, bool hasNextLevel, int starsEarned) {
                  (int)(next.y + 12), 12, nextTx);
     }
 }
+
+void DrawFileDialog(FileOpState        state,
+                    const std::string& buf,
+                    const std::string& msg,
+                    float              msgTimer)
+{
+    // Toast only (dialog closed, show brief result)
+    if (state == FILEOP_NONE) {
+        if (msgTimer <= 0.f || msg.empty()) return;
+        bool  ok  = (msg.rfind("Error", 0) != 0);
+        Color tc  = ok ? Color{34, 197, 94, 255} : Color{239, 68, 68, 255};
+        int   tw  = MeasureText(msg.c_str(), 11);
+        DrawRectangle((CANVAS_W() - tw) / 2 - 8, 6, tw + 16, 20,
+                      Color{15, 23, 42, 220});
+        DrawText(msg.c_str(), (CANVAS_W() - tw) / 2, 10, 11, tc);
+        return;
+    }
+
+    // Dim the screen behind the modal
+    DrawRectangle(0, 0, SCREEN_W(), SCREEN_H(), Color{0, 0, 0, 160});
+
+    // Dialog box
+    const float BW = 480.f, BH = 148.f;
+    const float BX = (SCREEN_W() - BW) / 2.f;
+    const float BY = (SCREEN_H() - BH) / 2.f;
+
+    DrawRectangleRounded({BX, BY, BW, BH}, 0.08f, 6, Color{22, 33, 62, 255});
+    DrawRectangleRoundedLinesEx({BX, BY, BW, BH}, 0.08f, 6, 1.5f,
+                                Color{51, 65, 85, 255});
+
+    const char* title = (state == FILEOP_SAVING) ? "Save Scene" : "Open Scene";
+    DrawText(title, (int)(BX + 20), (int)(BY + 16), 14, WHITE);
+
+    // Filename input field
+    DrawRectangleRounded({BX + 20, BY + 46, BW - 40, 32}, 0.12f, 4,
+                         Color{15, 23, 42, 255});
+    DrawRectangleRoundedLinesEx({BX + 20, BY + 46, BW - 40, 32}, 0.12f, 4,
+                                1.0f, Color{94, 234, 212, 255});
+    std::string display = buf + "|";
+    DrawText(display.c_str(), (int)(BX + 28), (int)(BY + 54), 12,
+             Color{203, 213, 225, 255});
+
+    DrawText("Enter to confirm   \xe2\x80\xa2   Esc to cancel",
+             (int)(BX + 20), (int)(BY + 96), 10, Color{100, 116, 139, 255});
+
+    // Error/status message inside dialog
+    if (!msg.empty()) {
+        bool  ok = (msg.rfind("Error", 0) != 0);
+        Color ec = ok ? Color{34, 197, 94, 255} : Color{239, 68, 68, 255};
+        DrawText(msg.c_str(), (int)(BX + 20), (int)(BY + 120), 10, ec);
+    }
+}
