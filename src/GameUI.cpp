@@ -56,13 +56,14 @@ void DrawSandboxHUD() {
 }
 
 void DrawLevelSelectScreen(const std::string* levelTitles) {
+    if (!levelTitles) return;
     // Dim the entire canvas + panel area
     DrawRectangle(0, 0, CANVAS_W(), SCREEN_H(), Color{0, 0, 0, 200});
 
     // Title
     const char* hdr = "SELECT A LEVEL";
     int hdw = MeasureText(hdr, 18);
-    DrawText(hdr, (CANVAS_W() - hdw) / 2, 50, 18, WHITE);
+    DrawText(hdr, (int)((CANVAS_W() - hdw) / 2.f), 50, 18, WHITE);
 
     Vector2 mouse = GetMousePosition();
 
@@ -101,7 +102,7 @@ void DrawLevelSelectScreen(const std::string* levelTitles) {
     int stw = MeasureText(sandTxt, 13);
     DrawText(sandTxt,
              (int)(sr.x + (sr.width  - stw) / 2.f),
-             (int)(sr.y + (sr.height - 13)  / 2.f),
+             (int)(sr.y + (sr.height - 13)  / 2.f - 2.f),
              13, Color{204, 251, 241, 255});
 }
 
