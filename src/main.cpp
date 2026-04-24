@@ -562,6 +562,7 @@ int main() {
                     ps.bgpAsnField         = -1;
                     ps.bgpAsnBuf.clear();
                     ps.subActiveField      = -1;
+                    ps.vxlanField          = -1;
                 }
                 if (CheckCollisionPointRec(screenMouse, PnlRoutesTabRect())) {
                     ps.activeTab           = TAB_ROUTES;
@@ -572,6 +573,7 @@ int main() {
                     ps.bgpAsnField         = -1;
                     ps.bgpAsnBuf.clear();
                     ps.subActiveField      = -1;
+                    ps.vxlanField          = -1;
                 }
                 if (CheckCollisionPointRec(screenMouse, PnlArpTabRect())) {
                     ps.activeTab           = TAB_ARP;
@@ -582,6 +584,7 @@ int main() {
                     ps.bgpAsnField         = -1;
                     ps.bgpAsnBuf.clear();
                     ps.subActiveField      = -1;
+                    ps.vxlanField          = -1;
                 }
                 if (CheckCollisionPointRec(screenMouse, PnlOspfTabRect())) {
                     ps.activeTab           = TAB_OSPF;
@@ -592,6 +595,7 @@ int main() {
                     ps.bgpAsnField         = -1;
                     ps.bgpAsnBuf.clear();
                     ps.subActiveField      = -1;
+                    ps.vxlanField          = -1;
                 }
                 if (CheckCollisionPointRec(screenMouse, PnlMplsTabRect())) {
                     ps.activeTab           = TAB_MPLS;
@@ -602,6 +606,7 @@ int main() {
                     ps.bgpAsnField         = -1;
                     ps.bgpAsnBuf.clear();
                     ps.subActiveField      = -1;
+                    ps.vxlanField          = -1;
                 }
                 if (CheckCollisionPointRec(screenMouse, PnlBgpTabRect())) {
                     ps.activeTab           = TAB_BGP;
@@ -612,6 +617,7 @@ int main() {
                     ps.bgpAsnField         = -1;
                     ps.bgpAsnBuf.clear();
                     ps.subActiveField      = -1;
+                    ps.vxlanField          = -1;
                 }
                 if (CheckCollisionPointRec(screenMouse, PnlVlanTabRect())) {
                     ps.activeTab           = TAB_VLAN;
@@ -1016,7 +1022,10 @@ int main() {
                     if (IsKeyPressed(KEY_BACKSPACE) && !ps.vxlanVtepBuf.empty())
                         ps.vxlanVtepBuf.pop_back();
                     if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER)) {
-                        selNode->vtepIp = ps.vxlanVtepBuf;
+                        if (!ps.vxlanVtepBuf.empty() && ValidateIPOnly(ps.vxlanVtepBuf))
+                            selNode->vtepIp = ps.vxlanVtepBuf;
+                        else if (ps.vxlanVtepBuf.empty())
+                            selNode->vtepIp.clear();
                         ps.vxlanField = -1;
                         ps.vxlanVtepBuf.clear();
                     } else if (IsKeyPressed(KEY_ESCAPE)) {
