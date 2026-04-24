@@ -20,6 +20,8 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
     int currentId = srcId;
     std::unordered_set<int> visited = {srcId};
 
+    uint32_t currentLabel = 0;
+
     for (int i = 0; i < MAX_HOPS; ++i) {
         const DeviceNode* cur = FindNode(nodes, currentId);
         if (!cur) { result.reason = "node not found"; return result; }
@@ -106,6 +108,30 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
                 hd.destPrefix = route.dest;
                 hd.nextHopIp  = route.nextHop;
                 hd.outPort    = route.outPort;
+
+                // MPLS: decorate with label operation if this router has an LFIB entry
+                if (cur->ldpEnabled && !cur->lfib.empty()) {
+                    auto it = cur->lfib.find(NetworkAddress(route.dest));
+                    if (it != cur->lfib.end()) {
+                        uint32_t nextOut = it->second.outLabel;
+                        if (currentLabel == 0) {
+                            hd.labelOp    = LABEL_PUSH;
+                            hd.inLabel    = 0;
+                            hd.outLabel   = nextOut;
+                            currentLabel  = nextOut;
+                        } else if (nextOut == MPLS_IMPLICIT_NULL) {
+                            hd.labelOp    = LABEL_POP;
+                            hd.inLabel    = currentLabel;
+                            hd.outLabel   = 0;   // packet exits label-free (PHP)
+                            currentLabel  = 0;
+                        } else {
+                            hd.labelOp    = LABEL_SWAP;
+                            hd.inLabel    = currentLabel;
+                            hd.outLabel   = nextOut;
+                            currentLabel  = nextOut;
+                        }
+                    }
+                }
                 result.hops.push_back(hd);
             }
             visited.insert(neighborId);

@@ -67,12 +67,12 @@ void DrawTraceModal(const ForwardResult& trace) {
             DrawText(h.nodeLabel.c_str(), (int)(MX + 40.f), (int)rowY, 12,
                      Color{226, 232, 240, 255});
 
-            // Route type badge (color-coded)
+            // Route type badge
             Color rtCol;
-            if      (h.routeType == "C")    rtCol = Color{34, 197, 94, 255};   // green
-            else if (h.routeType == "S")    rtCol = Color{234, 179, 8, 255};   // yellow
-            else if (h.routeType == "O")    rtCol = Color{59, 130, 246, 255};  // blue
-            else                            rtCol = Color{168, 85, 247, 255};   // purple (O IA)
+            if      (h.routeType == "C")    rtCol = Color{34, 197, 94, 255};
+            else if (h.routeType == "S")    rtCol = Color{234, 179, 8, 255};
+            else if (h.routeType == "O")    rtCol = Color{59, 130, 246, 255};
+            else                            rtCol = Color{168, 85, 247, 255};
             DrawText(h.routeType.c_str(), (int)(MX + 40.f), (int)(rowY + 16.f), 10, rtCol);
 
             // Matched prefix → next hop
@@ -82,7 +82,40 @@ void DrawTraceModal(const ForwardResult& trace) {
             DrawText(detail, (int)(MX + 72.f), (int)(rowY + 16.f), 10,
                      Color{100, 116, 139, 255});
 
-            rowY += 44.f;
+            // MPLS label op annotation
+            bool hasLabel = (h.labelOp != LABEL_NONE);
+            if (hasLabel) {
+                const char* opStr = "";
+                Color        opCol = WHITE;
+                char         lblBuf[32] = "";
+
+                if (h.labelOp == LABEL_PUSH) {
+                    opStr = "PUSH";
+                    opCol = Color{249, 115, 22, 255};
+                    std::snprintf(lblBuf, sizeof(lblBuf), "%u", h.outLabel);
+                } else if (h.labelOp == LABEL_SWAP) {
+                    opStr = "SWAP";
+                    opCol = Color{234, 179, 8, 255};
+                    std::snprintf(lblBuf, sizeof(lblBuf), "%u\xe2\x86\x92%u",
+                                  h.inLabel, h.outLabel);
+                } else if (h.labelOp == LABEL_POP) {
+                    opStr = "POP";
+                    opCol = Color{168, 85, 247, 255};
+                    std::snprintf(lblBuf, sizeof(lblBuf), "%u", h.inLabel);
+                }
+
+                float bw = (float)(MeasureText(opStr, 9) + 10);
+                DrawRectangleRounded({MX + 40.f, rowY + 30.f, bw, 13.f},
+                                     0.4f, 4, opCol);
+                int tw5 = MeasureText(opStr, 9);
+                DrawText(opStr, (int)(MX + 40.f + (bw - tw5) / 2.f),
+                         (int)(rowY + 32.f), 9, WHITE);
+                DrawText(lblBuf, (int)(MX + 40.f + bw + 6.f),
+                         (int)(rowY + 31.f), 10, Color{253, 186, 116, 255});
+            }
+
+            float rowStride = hasLabel ? 52.f : 44.f;
+            rowY += rowStride;
             if (i + 1 < (int)trace.hops.size())
                 DrawLineEx({MX + 8.f, rowY - 4.f}, {MX + MW - 8.f, rowY - 4.f},
                            0.5f, Color{30, 41, 59, 255});
