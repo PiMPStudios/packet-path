@@ -210,6 +210,17 @@ void DrawPacketAnim(const PacketAnim& anim,
 
     Vector2 pos = EvaluateCubicBezier(p0, c1, c2, p3, anim.t);
 
+    // MPLS label badge — orange rounded rect above the packet dot
+    if (anim.currentLabel != 0) {
+        char lbuf[12];
+        std::snprintf(lbuf, sizeof(lbuf), "%u", anim.currentLabel);
+        int   lw = MeasureText(lbuf, 10) + 10;
+        float bx = pos.x - lw * 0.5f;
+        float by = pos.y - 30.f;
+        DrawRectangleRounded({bx, by, (float)lw, 16.f}, 0.5f, 4, Color{249, 115, 22, 220});
+        DrawText(lbuf, (int)(bx + 5.f), (int)(by + 3.f), 10, WHITE);
+    }
+
     // Green glow (outer) + core dot — always green during travel
     DrawCircleV(pos, 14.f, Color{34, 197, 94, 55});
     DrawCircleV(pos, 7.f,  Color{34, 197, 94, 255});
