@@ -1,7 +1,7 @@
 {
   "id": 6,
   "title": "eBGP Peering",
-  "briefing": "Two routers are ready to peer. Select RTR-1 and click its ASN field in the BGP tab — type 100 and press Enter. Select RTR-2 and set its ASN to 200. Watch the eBGP session form (ESTAB), then send a packet from PC-A to PC-B.",
+  "briefing": "Two routers are ready to peer — sessions form automatically once both have AS numbers. Select RTR-1, open its BGP tab, click the ASN field, type 100, press Enter. Select RTR-2 and set its ASN to 200. Check RTR-1's BGP tab: the neighbor should show ESTAB (green) and the BGP RIB should list 10.0.1.0/24. Then send a packet from PC-A to PC-B.",
   "devices": [
     {
       "id": 1, "label": "PC-A", "type": "PC",
