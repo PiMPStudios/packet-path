@@ -64,7 +64,7 @@ static std::vector<int> FindL2Path(int srcId, int dstId,
 
             // ── Egress VLAN check on current switch ──────────────────
             int frameVlan = curVlan;
-            if (cur->type == SWITCH && frameVlan != 0) {
+            if (cur->type == SWITCH) {
                 const VlanPortConfig& ep = cur->vlanPorts[myPort];
                 if (ep.mode == VLAN_ACCESS) {
                     if (ep.accessVlan != frameVlan) continue;  // VLAN mismatch: blocked
@@ -170,6 +170,8 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
                         inPort  = (cab->fromId == nextStId) ? cab->fromPort : cab->toPort;
                     }
 
+                    int prevFrameVlan = frameVlan;  // VLAN at egress from stepId
+
                     // Determine VLAN on this segment: access ingress assigns VLAN,
                     // trunk ingress keeps current tag.
                     if (nextNode && nextNode->type == SWITCH && inPort >= 0) {
@@ -192,7 +194,7 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
                     hd.destPrefix = route.dest;
                     hd.nextHopIp  = nextNode ? nextNode->label : "";
                     hd.outPort    = outPort;
-                    hd.vlanTag    = trunkEgress ? frameVlan : 0;
+                    hd.vlanTag    = trunkEgress ? prevFrameVlan : 0;
                     result.hops.push_back(hd);
                     result.path.push_back(nextStId);
                     visited.insert(nextStId);
