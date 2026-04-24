@@ -108,8 +108,10 @@ void UpdateBgp(std::vector<DeviceNode>& nodes,
         if (auto* nd = FindNodeMut(nodes, tid)) nd->bgpRoutes.push_back(r);
 
     // ── Phase 2b: Relay routes to peers ──────────────────────────────────
-    // eBGP: prepend local AS, AS-path loop prevention (unchanged).
-    // iBGP: preserve AS-path (no prepend), split-horizon (no iBGP→iBGP relay).
+    // eBGP: prepend local AS, AS-path loop prevention.
+    // iBGP non-RR: split-horizon (no iBGP→iBGP relay).
+    // iBGP RR: reflect to all clients; CLUSTER_LIST loop prevention;
+    //          stamp ORIGINATOR_ID + append cluster ID on first reflection.
     pending.clear();
     for (const auto& n : nodes) {
         if (!n.bgpEnabled || n.localAsn == 0 || n.bgpRoutes.empty()) continue;
@@ -127,16 +129,23 @@ void UpdateBgp(std::vector<DeviceNode>& nodes,
             if (myFaceIp.empty()) continue;
 
             for (const auto& learned : n.bgpRoutes) {
-                if (learned.neighborNodeId == nb.neighborNodeId) continue;  // don't reflect
+                if (learned.neighborNodeId == nb.neighborNodeId) continue;  // don't reflect back
 
-                // iBGP split-horizon: never relay a route received from an iBGP peer
-                // to another iBGP peer (full-mesh rule; every router hears from border directly).
                 if (nb.ibgp) {
-                    bool learnedViaIbgp = false;
-                    for (const auto& src : n.bgpNeighbors)
-                        if (src.neighborNodeId == learned.neighborNodeId && src.ibgp)
-                            { learnedViaIbgp = true; break; }
-                    if (learnedViaIbgp) continue;
+                    if (n.isRouteReflector) {
+                        // RR: CLUSTER_LIST loop prevention (RFC 4456 §8)
+                        bool loop = false;
+                        for (auto cid : learned.clusterList)
+                            if ((uint32_t)n.id == cid) { loop = true; break; }
+                        if (loop) continue;
+                    } else {
+                        // Non-RR: classic iBGP split-horizon
+                        bool learnedViaIbgp = false;
+                        for (const auto& src : n.bgpNeighbors)
+                            if (src.neighborNodeId == learned.neighborNodeId && src.ibgp)
+                                { learnedViaIbgp = true; break; }
+                        if (learnedViaIbgp) continue;
+                    }
                 }
 
                 // eBGP: AS-path loop prevention
@@ -156,6 +165,17 @@ void UpdateBgp(std::vector<DeviceNode>& nodes,
                 } else {
                     relay.asPath = {n.localAsn};         // eBGP: prepend local AS
                     for (auto asn : learned.asPath) relay.asPath.push_back(asn);
+                }
+                // Stamp ORIGINATOR_ID and append cluster ID when RR reflects to client
+                if (n.isRouteReflector && nb.ibgp) {
+                    relay.originatorId = (learned.originatorId != 0)
+                                         ? learned.originatorId
+                                         : (uint32_t)learned.neighborNodeId;
+                    relay.clusterList  = learned.clusterList;
+                    relay.clusterList.push_back((uint32_t)n.id);
+                } else {
+                    relay.originatorId = learned.originatorId;
+                    relay.clusterList  = learned.clusterList;
                 }
                 pending.push_back({nb.neighborNodeId, relay});
             }
