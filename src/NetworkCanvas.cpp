@@ -8,6 +8,16 @@ void DrawDeviceNode(const DeviceNode& n) {
     DrawRectangleRounded(r, 0.3f, 8, c);
     if (n.selected)
         DrawRectangleRoundedLinesEx(r, 0.3f, 8, 2.5f, WHITE);
+    if (n.crashed) {
+        DrawRectangleRounded(r, 0.3f, 8, Color{239, 68, 68, 50});
+        DrawRectangleRoundedLinesEx(r, 0.3f, 8, 2.0f, Color{239, 68, 68, 255});
+        float bx = n.position.x;
+        float by = n.position.y - NODE_H / 2.f - 18.f;
+        DrawCircle((int)bx, (int)by, 12.f, Color{239, 68, 68, 255});
+        const char* xmark = "\xe2\x9c\x97";
+        int xw = MeasureText(xmark, 11);
+        DrawText(xmark, (int)bx - xw / 2, (int)(by - 6.f), 11, WHITE);
+    }
     int tw = MeasureText(n.label.c_str(), NODE_FONT_SZ);
     DrawText(n.label.c_str(),
              (int)(n.position.x - tw / 2.0f),
@@ -70,6 +80,18 @@ void DrawAllCables(const std::vector<Cable>& cables,
 
         Vector2 p0 = GetPortPosition(*from, c.fromPort);
         Vector2 p3 = GetPortPosition(*to,   c.toPort);
+
+        if (c.broken) {
+            DrawSplineSegmentBezierCubic(p0, BezierCtrl(p0, c.fromPort),
+                                         BezierCtrl(p3, c.toPort), p3,
+                                         3.0f, Color{239, 68, 68, 255});
+            Vector2 mid = {(p0.x + p3.x) / 2.0f, (p0.y + p3.y) / 2.0f};
+            DrawCircle((int)mid.x, (int)mid.y, 7.f, Color{239, 68, 68, 255});
+            const char* xmark = "\xe2\x9c\x97";
+            int xw = MeasureText(xmark, 9);
+            DrawText(xmark, (int)mid.x - xw / 2, (int)(mid.y - 5.f), 9, WHITE);
+            continue;   // skip normal color/OSPF/trunk logic for this cable
+        }
 
         Color cableColor = Color{148, 163, 184, 255};  // default slate-gray
 
@@ -315,6 +337,18 @@ void DrawLogConsole(const std::vector<LogEntry>& entries) {
             case LOG_OSPF:
                 icon    = "O";
                 icColor = Color{59, 130, 246, 255};
+                break;
+            case LOG_LINK_DOWN:
+                icon    = "!";
+                icColor = Color{239, 68, 68, 255};
+                break;
+            case LOG_DEVICE_CRASH:
+                icon    = "!";
+                icColor = Color{239, 68, 68, 255};
+                break;
+            case LOG_RESTORED:
+                icon    = "+";
+                icColor = Color{34, 197, 94, 255};
                 break;
             default:
                 icon    = e.success ? "\xe2\x9c\x93" : "\xe2\x9c\x97";
