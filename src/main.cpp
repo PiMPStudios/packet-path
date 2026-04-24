@@ -1,6 +1,7 @@
 #include "NetworkCanvas.h"
 #include "OspfEngine.h"
 #include "LdpEngine.h"
+#include "BgpEngine.h"
 #include "Level.h"
 #include "GameUI.h"
 #include "TraceModal.h"
@@ -60,9 +61,9 @@ int main() {
             if (IsKeyPressed(KEY_P)) nodes.push_back(SpawnNode(PC,     worldMouse));
             if (IsKeyPressed(KEY_R)) nodes.push_back(SpawnNode(ROUTER, worldMouse));
             if (IsKeyPressed(KEY_S)) nodes.push_back(SpawnNode(SWITCH, worldMouse));
-            // Level shortcuts: 1–5 load JSON levels, 0 returns to sandbox
+            // Level shortcuts: 1–6 load JSON levels, 0 returns to sandbox
             if (ps.activePortAreaField == -1) {
-                for (int k = 1; k <= 5; ++k) {
+                for (int k = 1; k <= 6; ++k) {
                     if (IsKeyPressed(KEY_ONE + (k - 1))) {
                         char path[64];
                         std::snprintf(path, sizeof(path), "levels/level_%02d.json", k);
@@ -109,6 +110,9 @@ int main() {
                 } else if (ps.activePortAreaField != -1) {
                     ps.activePortAreaField = -1;
                     ps.portAreaBuf.clear();
+                } else if (ps.bgpAsnField != -1) {
+                    ps.bgpAsnField = -1;
+                    ps.bgpAsnBuf.clear();
                 } else if (connecting) {
                     connecting  = false;
                     hoverNodeId = -1;
@@ -174,7 +178,7 @@ int main() {
                     failAnnotationTimer  = 0.f;
                     lastFailedTrace      = {};
                 } else if (CheckCollisionPointRec(screenMouse, WinNextBtnRect()) &&
-                           currentLevel < 5) {
+                           currentLevel < 6) {
                     int nextLevel = currentLevel + 1;
                     char path[64];
                     std::snprintf(path, sizeof(path), "levels/level_%02d.json", nextLevel);
@@ -446,6 +450,8 @@ int main() {
                     ps.activeRouteField    = -1;
                     ps.activePortAreaField = -1;
                     ps.portAreaBuf.clear();
+                    ps.bgpAsnField = -1;
+                    ps.bgpAsnBuf.clear();
                 }
                 if (CheckCollisionPointRec(screenMouse, PnlRoutesTabRect())) {
                     ps.activeTab           = TAB_ROUTES;
@@ -453,6 +459,8 @@ int main() {
                     ps.activeRouteField    = -1;
                     ps.activePortAreaField = -1;
                     ps.portAreaBuf.clear();
+                    ps.bgpAsnField = -1;
+                    ps.bgpAsnBuf.clear();
                 }
                 if (CheckCollisionPointRec(screenMouse, PnlArpTabRect())) {
                     ps.activeTab           = TAB_ARP;
@@ -460,6 +468,8 @@ int main() {
                     ps.activeRouteField    = -1;
                     ps.activePortAreaField = -1;
                     ps.portAreaBuf.clear();
+                    ps.bgpAsnField = -1;
+                    ps.bgpAsnBuf.clear();
                 }
                 if (CheckCollisionPointRec(screenMouse, PnlOspfTabRect())) {
                     ps.activeTab           = TAB_OSPF;
@@ -467,6 +477,8 @@ int main() {
                     ps.activeRouteField    = -1;
                     ps.activePortAreaField = -1;
                     ps.portAreaBuf.clear();
+                    ps.bgpAsnField = -1;
+                    ps.bgpAsnBuf.clear();
                 }
                 if (CheckCollisionPointRec(screenMouse, PnlMplsTabRect())) {
                     ps.activeTab           = TAB_MPLS;
@@ -474,6 +486,17 @@ int main() {
                     ps.activeRouteField    = -1;
                     ps.activePortAreaField = -1;
                     ps.portAreaBuf.clear();
+                    ps.bgpAsnField = -1;
+                    ps.bgpAsnBuf.clear();
+                }
+                if (CheckCollisionPointRec(screenMouse, PnlBgpTabRect())) {
+                    ps.activeTab           = TAB_BGP;
+                    ps.activeField         = -1;
+                    ps.activeRouteField    = -1;
+                    ps.activePortAreaField = -1;
+                    ps.portAreaBuf.clear();
+                    ps.bgpAsnField         = -1;
+                    ps.bgpAsnBuf.clear();
                 }
                 // Config tab field focus
                 if (ps.activeTab == TAB_CONFIG) {
@@ -569,6 +592,31 @@ int main() {
                         }
                     }
                 }
+
+                // BGP tab: toggle + ASN field click
+                if (ps.activeTab == TAB_BGP) {
+                    DeviceNode* selNode = nullptr;
+                    for (auto& nd : nodes)
+                        if (nd.id == selectedId) { selNode = &nd; break; }
+                    if (selNode && selNode->type == ROUTER) {
+                        if (CheckCollisionPointRec(screenMouse, PnlBgpToggleRect())) {
+                            selNode->bgpEnabled = !selNode->bgpEnabled;
+                            if (!selNode->bgpEnabled) {
+                                selNode->bgpNeighbors.clear();
+                                selNode->bgpRoutes.clear();
+                                selNode->localAsn = 0;
+                            }
+                            ps.bgpAsnField = -1;
+                            ps.bgpAsnBuf.clear();
+                        }
+                        if (selNode->bgpEnabled &&
+                            CheckCollisionPointRec(screenMouse, PnlBgpAsnRect())) {
+                            ps.bgpAsnField = selNode->id;
+                            ps.bgpAsnBuf   = selNode->localAsn > 0
+                                             ? std::to_string(selNode->localAsn) : "";
+                        }
+                    }
+                }
             }
         }
 
@@ -613,6 +661,30 @@ int main() {
             for (auto& nd : nodes)
                 if (nd.id == selectedId) { selNode = &nd; break; }
             if (selNode) UpdateRoutesTab(selNode, ps);
+        } else if (ps.bgpAsnField != -1 && selectedId != -1) {
+            int key = GetCharPressed();
+            while (key > 0) {
+                if (key >= '0' && key <= '9' && ps.bgpAsnBuf.size() < 9)
+                    ps.bgpAsnBuf += static_cast<char>(key);
+                key = GetCharPressed();
+            }
+            if (IsKeyPressed(KEY_BACKSPACE) && !ps.bgpAsnBuf.empty())
+                ps.bgpAsnBuf.pop_back();
+            if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER)) {
+                for (auto& nd : nodes) {
+                    if (nd.id == ps.bgpAsnField) {
+                        try { nd.localAsn = static_cast<uint32_t>(std::stoul(ps.bgpAsnBuf)); }
+                        catch (...) { nd.localAsn = 0; }
+                        break;
+                    }
+                }
+                ps.bgpAsnField = -1;
+                ps.bgpAsnBuf.clear();
+            }
+            if (IsKeyPressed(KEY_ESCAPE)) {
+                ps.bgpAsnField = -1;
+                ps.bgpAsnBuf.clear();
+            }
         } else {
             while (GetCharPressed() > 0) {}  // flush char queue when no field active
         }
@@ -626,6 +698,8 @@ int main() {
             ps.portAreaBuf.clear();
             ps.newRouteDest.clear();
             ps.newRouteNext.clear();
+            ps.bgpAsnField         = -1;
+            ps.bgpAsnBuf.clear();
             prevSelectedId         = selectedId;
         }
 
@@ -636,6 +710,7 @@ int main() {
         {
             auto ospfEvents = UpdateOspf(dt, nodes, cables);
             UpdateLdp(nodes, cables);   // recompute LFIB after each OSPF tick
+            UpdateBgp(nodes, cables);   // recompute BGP RIB after each OSPF tick
             auto pushLog = [&](LogEntry entry) {
                 if (logEntries.size() >= 50) logEntries.erase(logEntries.begin());
                 logEntries.push_back(entry);
@@ -727,13 +802,13 @@ int main() {
                              (int)activeLevelDef.winConditions.size());
             }
             if (gameMode == GAME_WIN) {
-                DrawWinOverlay(activeLevelDef, currentLevel < 5);
+                DrawWinOverlay(activeLevelDef, currentLevel < 6);
             }
 
             // HUD — screen space, outside camera
             DrawFPS(CANVAS_W - 80, 10);
             DrawText("P=PC  R=Router  S=Switch  Del=Delete  MMB=Pan  Scroll=Zoom  "
-                     "Drag-port=Cable  Esc=Cancel  1-5=Level  0=Sandbox",
+                     "Drag-port=Cable  Esc=Cancel  1-6=Level  0=Sandbox",
                      10, CANVAS_H - 24, 10, Color{100, 116, 139, 255});
         EndDrawing();
     }
