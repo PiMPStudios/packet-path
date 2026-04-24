@@ -277,7 +277,7 @@ int main() {
                     failAnnotationTimer  = 0.f;
                     lastFailedTrace      = {};
                 } else if (CheckCollisionPointRec(screenMouse, WinNextBtnRect()) &&
-                           currentLevel < 14) {
+                           currentLevel < 16) {
                     int nextLevel = currentLevel + 1;
                     char path[64];
                     std::snprintf(path, sizeof(path), "levels/level_%02d.json", nextLevel);
@@ -344,8 +344,10 @@ int main() {
                         le.timestamp = GetTime();
                     } else {
                         PlayPacketSend();
+                        const DeviceNode* simSrcNode = FindNode(nodes, simState.srcId);
+                        std::string       simSrcIp   = simSrcNode ? GetFirstValidIp(*simSrcNode) : "";
                         ForwardResult fr = SimulateForward(simState.srcId, destIp,
-                                                           nodes, cables);
+                                                           nodes, cables, simSrcIp);
 
                         // Apply ARP cache updates to nodes
                         for (const auto& ev : fr.arpEvents) {
@@ -564,6 +566,8 @@ int main() {
                     ps.bgpAsnBuf.clear();
                     ps.subActiveField      = -1;
                     ps.vxlanField          = -1;
+                    ps.aclActiveField      = -1;
+                    ps.natField            = -1;
                 }
                 if (CheckCollisionPointRec(screenMouse, PnlRoutesTabRect())) {
                     ps.activeTab           = TAB_ROUTES;
@@ -575,6 +579,8 @@ int main() {
                     ps.bgpAsnBuf.clear();
                     ps.subActiveField      = -1;
                     ps.vxlanField          = -1;
+                    ps.aclActiveField      = -1;
+                    ps.natField            = -1;
                 }
                 if (CheckCollisionPointRec(screenMouse, PnlArpTabRect())) {
                     ps.activeTab           = TAB_ARP;
@@ -586,6 +592,8 @@ int main() {
                     ps.bgpAsnBuf.clear();
                     ps.subActiveField      = -1;
                     ps.vxlanField          = -1;
+                    ps.aclActiveField      = -1;
+                    ps.natField            = -1;
                 }
                 if (CheckCollisionPointRec(screenMouse, PnlOspfTabRect())) {
                     ps.activeTab           = TAB_OSPF;
@@ -597,6 +605,8 @@ int main() {
                     ps.bgpAsnBuf.clear();
                     ps.subActiveField      = -1;
                     ps.vxlanField          = -1;
+                    ps.aclActiveField      = -1;
+                    ps.natField            = -1;
                 }
                 if (CheckCollisionPointRec(screenMouse, PnlMplsTabRect())) {
                     ps.activeTab           = TAB_MPLS;
@@ -608,6 +618,8 @@ int main() {
                     ps.bgpAsnBuf.clear();
                     ps.subActiveField      = -1;
                     ps.vxlanField          = -1;
+                    ps.aclActiveField      = -1;
+                    ps.natField            = -1;
                 }
                 if (CheckCollisionPointRec(screenMouse, PnlBgpTabRect())) {
                     ps.activeTab           = TAB_BGP;
@@ -619,6 +631,8 @@ int main() {
                     ps.bgpAsnBuf.clear();
                     ps.subActiveField      = -1;
                     ps.vxlanField          = -1;
+                    ps.aclActiveField      = -1;
+                    ps.natField            = -1;
                 }
                 if (CheckCollisionPointRec(screenMouse, PnlVlanTabRect())) {
                     ps.activeTab           = TAB_VLAN;
@@ -631,6 +645,8 @@ int main() {
                     ps.vlanPortField       = -1;
                     ps.vlanPortBuf.clear();
                     ps.subActiveField      = -1;
+                    ps.aclActiveField      = -1;
+                    ps.natField            = -1;
                 }
                 else if (CheckCollisionPointRec(screenMouse, PnlSubTabRect())) {
                     ps.activeTab           = TAB_SUB;
@@ -640,6 +656,8 @@ int main() {
                     ps.bgpAsnField         = -1;
                     ps.vlanPortField       = -1;
                     ps.subActiveField      = -1;
+                    ps.aclActiveField      = -1;
+                    ps.natField            = -1;
                 }
                 if (CheckCollisionPointRec(screenMouse, PnlVxlanTabRect())) {
                     ps.activeTab           = TAB_VXLAN;
@@ -650,6 +668,30 @@ int main() {
                     ps.vlanPortField       = -1;
                     ps.subActiveField      = -1;
                     ps.vxlanField          = -1;
+                    ps.aclActiveField      = -1;
+                    ps.natField            = -1;
+                }
+                if (CheckCollisionPointRec(screenMouse, PnlAclTabRect())) {
+                    ps.activeTab      = TAB_ACL;
+                    ps.activeField    = -1;
+                    ps.activeRouteField = -1;
+                    ps.activePortAreaField = -1;
+                    ps.bgpAsnField    = -1;
+                    ps.vlanPortField  = -1;
+                    ps.subActiveField = -1;
+                    ps.vxlanField     = -1;
+                    ps.natField       = -1;
+                }
+                if (CheckCollisionPointRec(screenMouse, PnlNatTabRect())) {
+                    ps.activeTab      = TAB_NAT;
+                    ps.activeField    = -1;
+                    ps.activeRouteField = -1;
+                    ps.activePortAreaField = -1;
+                    ps.bgpAsnField    = -1;
+                    ps.vlanPortField  = -1;
+                    ps.subActiveField = -1;
+                    ps.vxlanField     = -1;
+                    ps.aclActiveField = -1;
                 }
                 // Config tab field focus
                 if (ps.activeTab == TAB_CONFIG) {
@@ -867,6 +909,82 @@ int main() {
                         }
                     }
                 }
+                if (ps.activeTab == TAB_ACL) {
+                    DeviceNode* selNode = nullptr;
+                    for (auto& nd : nodes) if (nd.id == selectedId) { selNode = &nd; break; }
+                    if (selNode && selNode->type == ROUTER) {
+                        // In-port buttons (p=0..3, p=4 = none/-1)
+                        for (int p = 0; p <= 4; ++p) {
+                            if (CheckCollisionPointRec(screenMouse, PnlAclInPortBtnRect(p)))
+                                selNode->aclInPort = (p < 4) ? p : -1;
+                        }
+                        // Out-port buttons
+                        for (int p = 0; p <= 4; ++p) {
+                            if (CheckCollisionPointRec(screenMouse, PnlAclOutPortBtnRect(p)))
+                                selNode->aclOutPort = (p < 4) ? p : -1;
+                        }
+                        // Delete rule buttons
+                        for (int i = 0; i < (int)selNode->aclRules.size() && i < 5; ++i) {
+                            if (CheckCollisionPointRec(screenMouse, PnlAclRuleDeleteRect(i))) {
+                                selNode->aclRules.erase(selNode->aclRules.begin() + i);
+                                break;
+                            }
+                        }
+                        // Form field clicks
+                        if (CheckCollisionPointRec(screenMouse, PnlAclFormActionRect()))
+                            ps.aclFormAction = (ps.aclFormAction == 0) ? 1 : 0;
+                        if (CheckCollisionPointRec(screenMouse, PnlAclFormSrcRect()))
+                            ps.aclActiveField = 0;
+                        if (CheckCollisionPointRec(screenMouse, PnlAclFormDstRect()))
+                            ps.aclActiveField = 1;
+                        if (CheckCollisionPointRec(screenMouse, PnlAclFormPortRect()))
+                            ps.aclActiveField = 2;
+                        // Add Rule button
+                        if (CheckCollisionPointRec(screenMouse, PnlAclFormAddBtnRect())) {
+                            AclRule r;
+                            int maxSeq = 0;
+                            for (const auto& er : selNode->aclRules)
+                                if (er.seq > maxSeq) maxSeq = er.seq;
+                            r.seq    = maxSeq + 10;
+                            r.action = (ps.aclFormAction == 0) ? ACL_PERMIT : ACL_DENY;
+                            r.srcCidr = ps.aclSrcBuf.empty() ? "any" : ps.aclSrcBuf;
+                            r.dstCidr = ps.aclDstBuf.empty() ? "any" : ps.aclDstBuf;
+                            if (!ps.aclPortBuf.empty()) {
+                                try { r.dstPort = std::stoi(ps.aclPortBuf); } catch (...) {}
+                            }
+                            selNode->aclRules.push_back(r);
+                            ps.aclSrcBuf.clear();
+                            ps.aclDstBuf.clear();
+                            ps.aclPortBuf.clear();
+                            ps.aclActiveField = -1;
+                        }
+                    }
+                }
+                if (ps.activeTab == TAB_NAT) {
+                    DeviceNode* selNode = nullptr;
+                    for (auto& nd : nodes) if (nd.id == selectedId) { selNode = &nd; break; }
+                    if (selNode && selNode->type == ROUTER) {
+                        if (CheckCollisionPointRec(screenMouse, PnlNatToggleRect())) {
+                            selNode->natEnabled = !selNode->natEnabled;
+                            if (!selNode->natEnabled) {
+                                ps.natField = -1;
+                                ps.natInsideBuf.clear();
+                            }
+                        }
+                        if (selNode->natEnabled) {
+                            for (int p = 0; p < 4; ++p) {
+                                if (CheckCollisionPointRec(screenMouse, PnlNatInsidePortBtnRect(p)))
+                                    selNode->natInsidePort = p;
+                                if (CheckCollisionPointRec(screenMouse, PnlNatOutsidePortBtnRect(p)))
+                                    selNode->natOutsidePort = p;
+                            }
+                            if (CheckCollisionPointRec(screenMouse, PnlNatInsidePrefixRect())) {
+                                ps.natField     = 0;
+                                ps.natInsideBuf = selNode->natInsidePrefix;
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -1039,6 +1157,71 @@ int main() {
             while (GetCharPressed() > 0) {}  // flush char queue when no field active
         }
 
+        // ACL tab text input
+        if (ps.activeTab == TAB_ACL && selectedId != -1) {
+            DeviceNode* selNode = nullptr;
+            for (auto& nd : nodes) if (nd.id == selectedId) { selNode = &nd; break; }
+            if (selNode) {
+                if (ps.aclActiveField == 0 || ps.aclActiveField == 1) {
+                    std::string& buf = (ps.aclActiveField == 0) ? ps.aclSrcBuf : ps.aclDstBuf;
+                    int key = GetCharPressed();
+                    while (key > 0) {
+                        if ((std::isdigit(key) || key == '.' || key == '/') && (int)buf.size() < 18)
+                            buf += static_cast<char>(key);
+                        key = GetCharPressed();
+                    }
+                    if (IsKeyPressed(KEY_BACKSPACE) && !buf.empty()) buf.pop_back();
+                    if (IsKeyPressed(KEY_TAB)) {
+                        ps.aclActiveField = (ps.aclActiveField == 0) ? 1 : 2;
+                        while (GetCharPressed() > 0) {}
+                    }
+                    if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER)) {
+                        ps.aclActiveField = -1;
+                        while (GetCharPressed() > 0) {}
+                    }
+                    if (IsKeyPressed(KEY_ESCAPE)) ps.aclActiveField = -1;
+                } else if (ps.aclActiveField == 2) {
+                    int key = GetCharPressed();
+                    while (key > 0) {
+                        if (std::isdigit(key) && (int)ps.aclPortBuf.size() < 5)
+                            ps.aclPortBuf += static_cast<char>(key);
+                        key = GetCharPressed();
+                    }
+                    if (IsKeyPressed(KEY_BACKSPACE) && !ps.aclPortBuf.empty())
+                        ps.aclPortBuf.pop_back();
+                    if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER) || IsKeyPressed(KEY_ESCAPE)) {
+                        ps.aclActiveField = -1;
+                        while (GetCharPressed() > 0) {}
+                    }
+                }
+            }
+        }
+
+        // NAT tab text input
+        if (ps.activeTab == TAB_NAT && ps.natField == 0 && selectedId != -1) {
+            DeviceNode* selNode = nullptr;
+            for (auto& nd : nodes) if (nd.id == selectedId) { selNode = &nd; break; }
+            if (selNode) {
+                int key = GetCharPressed();
+                while (key > 0) {
+                    if ((std::isdigit(key) || key == '.' || key == '/') && (int)ps.natInsideBuf.size() < 18)
+                        ps.natInsideBuf += static_cast<char>(key);
+                    key = GetCharPressed();
+                }
+                if (IsKeyPressed(KEY_BACKSPACE) && !ps.natInsideBuf.empty())
+                    ps.natInsideBuf.pop_back();
+                if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER)) {
+                    selNode->natInsidePrefix = ps.natInsideBuf;
+                    ps.natField = -1;
+                    ps.natInsideBuf.clear();
+                    while (GetCharPressed() > 0) {}
+                } else if (IsKeyPressed(KEY_ESCAPE)) {
+                    ps.natField = -1;
+                    ps.natInsideBuf.clear();
+                }
+            }
+        }
+
         // Reset active field when selection changes
         if (selectedId != prevSelectedId) {
             ps.activeField         = -1;
@@ -1056,6 +1239,12 @@ int main() {
             ps.vxlanField          = -1;
             ps.vxlanVniBuf.clear();
             ps.vxlanVtepBuf.clear();
+            ps.aclActiveField      = -1;
+            ps.aclSrcBuf.clear();
+            ps.aclDstBuf.clear();
+            ps.aclPortBuf.clear();
+            ps.natField            = -1;
+            ps.natInsideBuf.clear();
             prevSelectedId         = selectedId;
         }
 
@@ -1167,7 +1356,7 @@ int main() {
                 }
             }
             if (gameMode == GAME_WIN) {
-                DrawWinOverlay(activeLevelDef, currentLevel < 14, starsEarned);
+                DrawWinOverlay(activeLevelDef, currentLevel < 16, starsEarned);
             }
 
             // HUD — screen space, outside camera
