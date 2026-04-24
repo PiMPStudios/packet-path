@@ -29,6 +29,17 @@ void DrawDeviceNode(const DeviceNode& n) {
             int lw = MeasureText(lbl, 8);
             DrawText(lbl, (int)(pp.x - lw * 0.5f), (int)(pp.y + PORT_RADIUS + 2), 8, lblCol);
         }
+        if (n.type == ROUTER) {
+            for (const auto& si : n.subIfaces) {
+                if (si.parentPort != i) continue;
+                char lbl[8];
+                std::snprintf(lbl, sizeof(lbl), ".%d", si.vlanId);
+                int lw = MeasureText(lbl, 8);
+                DrawText(lbl, (int)(pp.x - lw * 0.5f), (int)(pp.y + PORT_RADIUS + 2),
+                         8, Color{249, 115, 22, 255});
+                break;
+            }
+        }
     }
 }
 
@@ -810,6 +821,72 @@ void DrawVlanTab(const DeviceNode* n, const PanelState& ps) {
     }
 }
 
+void DrawSubIfaceTab(const DeviceNode* n, const PanelState& ps) {
+    if (!n || n->type != ROUTER) {
+        int tw = MeasureText("Select a router to configure subinterfaces.", 10);
+        DrawText("Select a router to configure subinterfaces.",
+                 CANVAS_W + (PANEL_W - tw) / 2, 200, 10, Color{100, 116, 139, 255});
+        return;
+    }
+
+    // ── Existing subinterface list ─────────────────────────────────────────
+    DrawLine(CANVAS_W + 12, 128, CANVAS_W + PANEL_W - 12, 128, Color{51, 65, 85, 255});
+    DrawText("Subinterfaces", CANVAS_W + 12, 132, 10, Color{148, 163, 184, 255});
+
+    if (n->subIfaces.empty()) {
+        DrawText("(none configured)", CANVAS_W + 20, SUB_ROW_Y0, 10, Color{100, 116, 139, 255});
+    } else {
+        for (int i = 0; i < (int)n->subIfaces.size(); ++i) {
+            const SubInterface& si = n->subIfaces[i];
+            int y = SUB_ROW_Y0 + i * SUB_ROW_H;
+            char buf[64];
+            std::snprintf(buf, sizeof(buf), "Gi0/%d.%d  V%d  %s",
+                          si.parentPort, si.vlanId, si.vlanId, si.ip.c_str());
+            DrawText(buf, CANVAS_W + 12, y + 4, 10, Color{203, 213, 225, 255});
+
+            Rectangle delR = PnlSubRowDeleteRect(i);
+            DrawRectangleRec(delR, Color{127, 29, 29, 255});
+            DrawText("\xc3\x97", (int)(delR.x + 3), (int)(delR.y + 1), 11, WHITE);
+        }
+    }
+
+    // ── Add subinterface form ──────────────────────────────────────────────
+    DrawLine(CANVAS_W + 12, SUB_FORM_Y0 - 12,
+             CANVAS_W + PANEL_W - 12, SUB_FORM_Y0 - 12, Color{51, 65, 85, 255});
+    DrawText("Add Subinterface", CANVAS_W + 12, SUB_FORM_Y0 - 8, 10, Color{148, 163, 184, 255});
+
+    DrawText("Port:", CANVAS_W + 12, SUB_FORM_Y0 + 4, 10, Color{148, 163, 184, 255});
+    for (int p = 0; p < PORTS_PER_NODE; ++p) {
+        Rectangle btn = PnlSubPortBtnRect(p);
+        bool sel = (ps.subFormPort == p);
+        DrawRectangleRec(btn, sel ? Color{234, 88, 12, 255} : Color{30, 41, 59, 255});
+        DrawRectangleLinesEx(btn, 1.0f, Color{51, 65, 85, 255});
+        char lbl[4];
+        std::snprintf(lbl, sizeof(lbl), "%d", p);
+        int lw = MeasureText(lbl, 10);
+        DrawText(lbl, (int)(btn.x + (btn.width - lw) * 0.5f), (int)(btn.y + 5), 10, WHITE);
+    }
+
+    DrawText("VLAN:", CANVAS_W + 12, SUB_FORM_Y0 + 34, 10, Color{148, 163, 184, 255});
+    DrawTextField(PnlSubVlanFieldRect(), nullptr, "10",
+                  ps.subVlanBuf, ps.subActiveField == 0,
+                  !ps.subVlanBuf.empty());
+
+    DrawText("IP:", CANVAS_W + 12, SUB_FORM_Y0 + 64, 10, Color{148, 163, 184, 255});
+    DrawTextField(PnlSubIpFieldRect(), nullptr, "10.10.0.1/24",
+                  ps.subIpBuf, ps.subActiveField == 1,
+                  ValidateIP(ps.subIpBuf));
+
+    Rectangle addBtn = PnlSubAddBtnRect();
+    bool canAdd = !ps.subVlanBuf.empty() && ValidateIP(ps.subIpBuf);
+    DrawRectangleRec(addBtn, canAdd ? Color{234, 88, 12, 200} : Color{30, 41, 59, 255});
+    DrawRectangleLinesEx(addBtn, 1.0f, Color{51, 65, 85, 255});
+    int tw2 = MeasureText("Add Subinterface", 10);
+    DrawText("Add Subinterface",
+             (int)(addBtn.x + (addBtn.width - tw2) * 0.5f),
+             (int)(addBtn.y + 7), 10, WHITE);
+}
+
 void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
                const PanelState& ps)
 {
@@ -935,10 +1012,24 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
                    {vlanTab.x + vlanTab.width, vlanTab.y + vlanTab.height}, 2.0f,
                    Color{245, 158, 11, 255});
     {
-        int twV = MeasureText("VLAN", 10);
-        DrawText("VLAN", (int)(vlanTab.x + (vlanTab.width - twV) / 2),
+        int twV = MeasureText("VLN", 10);
+        DrawText("VLN", (int)(vlanTab.x + (vlanTab.width - twV) / 2),
                  (int)(vlanTab.y + 8), 10,
                  vlanActive ? Color{245,158,11,255} : Color{100, 116, 139, 255});
+    }
+
+    Rectangle subTab    = PnlSubTabRect();
+    bool      subActive = (ps.activeTab == TAB_SUB);
+    DrawRectangleRec(subTab, subActive ? Color{30,41,59,255} : PANEL_BG);
+    if (subActive)
+        DrawLineEx({subTab.x, subTab.y + subTab.height},
+                   {subTab.x + subTab.width, subTab.y + subTab.height}, 2.0f,
+                   Color{234, 88, 12, 255});
+    {
+        int twS = MeasureText("Sub", 10);
+        DrawText("Sub", (int)(subTab.x + (subTab.width - twS) / 2),
+                 (int)(subTab.y + 8), 10,
+                 subActive ? Color{234, 88, 12, 255} : Color{100, 116, 139, 255});
     }
 
     DrawLineEx({(float)CANVAS_W, 116.0f}, {(float)(CANVAS_W + PANEL_W), 116.0f},
@@ -959,6 +1050,7 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
         DrawBgpTab(n, ps);
     else if (ps.activeTab == TAB_VLAN)
         DrawVlanTab(n, ps);
+    else if (ps.activeTab == TAB_SUB) DrawSubIfaceTab(n, ps);
 }
 
 // ── Context menu draw ────────────────────────────────────────────────────

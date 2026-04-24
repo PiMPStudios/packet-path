@@ -41,6 +41,11 @@ static const int RTE_DEST_Y       = 464;
 static const int RTE_NEXT_Y       = 516;
 static const int RTE_BTN_Y        = 554;
 
+// ── Subinterface tab layout ───────────────────────────────────────────────
+static const int SUB_ROW_Y0   = 148;
+static const int SUB_ROW_H    = 22;
+static const int SUB_FORM_Y0  = 380;
+
 // ── Canvas hit testing ────────────────────────────────────────────────────
 bool HitTestPort(const std::vector<DeviceNode>& nodes, Vector2 worldMouse,
                  int excludeId, int& outNode, int& outPort);
@@ -66,6 +71,7 @@ void DrawOspfTab(const DeviceNode* n);
 void DrawMplsTab(const DeviceNode* n);
 void DrawBgpTab(const DeviceNode* n, const PanelState& ps);
 void DrawVlanTab(const DeviceNode* n, const PanelState& ps);
+void DrawSubIfaceTab(const DeviceNode* n, const PanelState& ps);
 void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
                const PanelState& ps);
 void DrawContextMenu(const ContextMenu& menu, Vector2 screenMouse);
