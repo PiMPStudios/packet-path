@@ -1,4 +1,5 @@
 #include "SimulationEngine.h"
+#include "AclEngine.h"
 #include <algorithm>
 #include <unordered_set>
 #include <queue>
@@ -124,7 +125,9 @@ static std::vector<int> FindL2Path(int srcId, int dstId,
 // ── Forwarding engine ─────────────────────────────────────────────────────
 ForwardResult SimulateForward(int srcId, const std::string& destIp,
                               const std::vector<DeviceNode>& nodes,
-                              const std::vector<Cable>& cables)
+                              const std::vector<Cable>& cables,
+                              const std::string& srcIp,
+                              int               dstPort)
 {
     const DeviceNode* srcNode = FindNode(nodes, srcId);
     if (!srcNode)
@@ -144,11 +147,26 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
     std::unordered_set<int> visited = {srcId};
 
     uint32_t currentLabel = 0;
+    int lastIngressPort = -1;   // port on currentId where packet arrived
 
     for (int i = 0; i < MAX_HOPS; ++i) {
         const DeviceNode* cur = FindNode(nodes, currentId);
         if (!cur)         { result.reason = "node not found"; return result; }
         if (cur->crashed) { result.reason = cur->label + " is crashed \xe2\x80\x94 device offline"; return result; }
+
+        // ── ACL inbound check ──────────────────────────────────────────────
+        if (!cur->aclRules.empty() && cur->aclInPort >= 0
+            && cur->aclInPort == lastIngressPort) {
+            const AclRule* m = MatchAcl(cur->aclRules, srcIp, destIp, dstPort);
+            if (!m || m->action == ACL_DENY) {
+                std::string why = m
+                    ? ("ACL seq " + std::to_string(m->seq) + " deny")
+                    : "ACL implicit deny";
+                result.reason = why + ": " + srcIp + " \xe2\x86\x92 " + destIp;
+                return result;
+            }
+        }
+        // ── end ACL inbound ────────────────────────────────────────────────
 
         auto table = GetRoutingTable(*cur);
         std::sort(table.begin(), table.end(),
@@ -287,7 +305,7 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
 
                 // Phase 2: local delivery from remote VTEP to actual destination
                 int remoteVtepId = ul.path.back();
-                ForwardResult lo = SimulateForward(remoteVtepId, destIp, nodes, cables);
+                ForwardResult lo = SimulateForward(remoteVtepId, destIp, nodes, cables, srcIp, dstPort);
                 if (!lo.success) {
                     result.reason = "VXLAN decap: " + lo.reason;
                     return result;
@@ -385,6 +403,31 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
                 } else if (currentLabel != 0) {
                     currentLabel = 0;
                 }
+                // ── ACL outbound check ─────────────────────────────────────
+                if (!cur->aclRules.empty() && cur->aclOutPort >= 0
+                    && cur->aclOutPort == hd.outPort) {
+                    const AclRule* m = MatchAcl(cur->aclRules, srcIp, destIp, dstPort);
+                    if (!m || m->action == ACL_DENY) {
+                        std::string why = m
+                            ? ("ACL seq " + std::to_string(m->seq) + " deny")
+                            : "ACL implicit deny";
+                        result.reason = why + ": " + srcIp + " \xe2\x86\x92 " + destIp;
+                        return result;
+                    }
+                    hd.aclResult = "PERMIT seq:" + std::to_string(m->seq);
+                }
+                // ── NAT annotation ─────────────────────────────────────────
+                if (cur->natEnabled && hd.outPort == cur->natOutsidePort
+                    && !srcIp.empty()
+                    && !cur->natInsidePrefix.empty()
+                    && AclMatchPrefix(srcIp, cur->natInsidePrefix)) {
+                    const std::string& outsideCidr = cur->portIp[cur->natOutsidePort];
+                    auto slash = outsideCidr.find('/');
+                    std::string outsideIp = (slash != std::string::npos)
+                        ? outsideCidr.substr(0, slash) : outsideCidr;
+                    hd.natResult = srcIp + " \xe2\x86\x92 " + outsideIp;
+                }
+                // ── end ACL/NAT ────────────────────────────────────────────
                 result.hops.push_back(hd);
             }
 
@@ -439,6 +482,16 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
 
             visited.insert(neighborId);
             result.path.push_back(neighborId);
+            // Track which port on neighborId the packet enters from (for next iteration's inbound ACL)
+            {
+                int nextIngress = -1;
+                if (l2nh.size() >= 2) {
+                    const Cable* nc = FindCableL2(cables, l2nh[l2nh.size()-2], neighborId);
+                    if (nc) nextIngress = (nc->fromId == neighborId)
+                                       ? nc->fromPort : nc->toPort;
+                }
+                lastIngressPort = nextIngress;
+            }
             currentId = neighborId;
             matched   = true;
             break;

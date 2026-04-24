@@ -6,4 +6,6 @@
 
 ForwardResult SimulateForward(int srcId, const std::string& destIp,
                               const std::vector<DeviceNode>& nodes,
-                              const std::vector<Cable>& cables);
+                              const std::vector<Cable>& cables,
+                              const std::string& srcIp  = "",
+                              int               dstPort = 0);
