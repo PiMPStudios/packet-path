@@ -36,6 +36,7 @@ bool LoadLevel(const std::string& path, LevelDef& out) {
         }
 
         n.ospfEnabled = d.value("ospfEnabled", false);
+        n.ldpEnabled  = d.value("ldpEnabled",  false);
         for (int i = 0; i < PORTS_PER_NODE; ++i) {
             std::string key = "ospfArea" + std::to_string(i);
             n.ospfPortArea[i] = (uint32_t)d.value(key, 0);
