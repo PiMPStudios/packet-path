@@ -370,6 +370,7 @@ void DrawRoutesTab(const DeviceNode* n, const PanelState& ps) {
             if      (r.src == ROUTE_CONNECTED) rowColor = Color{34,  197,  94, 255};
             else if (r.src == ROUTE_OSPF)      rowColor = Color{234, 179,   8, 255};
             else if (r.src == ROUTE_OSPF_IA)   rowColor = Color{249, 115,  22, 255};
+            else if (r.src == ROUTE_BGP)       rowColor = Color{ 20, 184, 166, 255};  // teal
             else                               rowColor = Color{ 59, 130, 246, 255};
 
             if (r.src == ROUTE_OSPF_IA) {
@@ -377,7 +378,8 @@ void DrawRoutesTab(const DeviceNode* n, const PanelState& ps) {
                 DrawText("IA", CANVAS_W + 21, ry + 5,  9, rowColor);
             } else {
                 const char* typeLetter = (r.src == ROUTE_CONNECTED) ? "C"
-                                       : (r.src == ROUTE_OSPF)      ? "O" : "S";
+                                       : (r.src == ROUTE_OSPF)      ? "O"
+                                       : (r.src == ROUTE_BGP)       ? "B" : "S";
                 DrawText(typeLetter, CANVAS_W + 12, ry + 3, 11, rowColor);
             }
 
