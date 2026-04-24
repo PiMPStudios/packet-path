@@ -107,8 +107,9 @@ void UpdateBgp(std::vector<DeviceNode>& nodes,
     for (auto& [tid, r] : pending)
         if (auto* nd = FindNodeMut(nodes, tid)) nd->bgpRoutes.push_back(r);
 
-    // ── Phase 2b: Relay routes learned in 2a to other peers ──────────────
-    // Enables 3-AS linear chains (one relay hop: AS100→AS200→AS300).
+    // ── Phase 2b: Relay routes to peers ──────────────────────────────────
+    // eBGP: prepend local AS, AS-path loop prevention (unchanged).
+    // iBGP: preserve AS-path (no prepend), split-horizon (no iBGP→iBGP relay).
     pending.clear();
     for (const auto& n : nodes) {
         if (!n.bgpEnabled || n.localAsn == 0 || n.bgpRoutes.empty()) continue;
@@ -128,18 +129,34 @@ void UpdateBgp(std::vector<DeviceNode>& nodes,
             for (const auto& learned : n.bgpRoutes) {
                 if (learned.neighborNodeId == nb.neighborNodeId) continue;  // don't reflect
 
-                // AS path loop prevention: skip if peer's ASN is already in path
-                bool loop = false;
-                for (auto asn : learned.asPath)
-                    if (asn == nb.neighborAsn) { loop = true; break; }
-                if (loop) continue;
+                // iBGP split-horizon: never relay a route received from an iBGP peer
+                // to another iBGP peer (full-mesh rule; every router hears from border directly).
+                if (nb.ibgp) {
+                    bool learnedViaIbgp = false;
+                    for (const auto& src : n.bgpNeighbors)
+                        if (src.neighborNodeId == learned.neighborNodeId && src.ibgp)
+                            { learnedViaIbgp = true; break; }
+                    if (learnedViaIbgp) continue;
+                }
+
+                // eBGP: AS-path loop prevention
+                if (!nb.ibgp) {
+                    bool loop = false;
+                    for (auto asn : learned.asPath)
+                        if (asn == nb.neighborAsn) { loop = true; break; }
+                    if (loop) continue;
+                }
 
                 BgpRoute relay;
                 relay.prefix         = learned.prefix;
                 relay.nextHop        = myFaceIp;
-                relay.asPath         = {n.localAsn};
-                for (auto asn : learned.asPath) relay.asPath.push_back(asn);
                 relay.neighborNodeId = n.id;
+                if (nb.ibgp) {
+                    relay.asPath = learned.asPath;       // iBGP: unchanged
+                } else {
+                    relay.asPath = {n.localAsn};         // eBGP: prepend local AS
+                    for (auto asn : learned.asPath) relay.asPath.push_back(asn);
+                }
                 pending.push_back({nb.neighborNodeId, relay});
             }
         }
