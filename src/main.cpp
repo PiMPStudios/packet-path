@@ -63,7 +63,7 @@ int main() {
             if (IsKeyPressed(KEY_S)) nodes.push_back(SpawnNode(SWITCH, worldMouse));
             // Level shortcuts: 1–8 load JSON levels, 0 returns to sandbox
             if (ps.activePortAreaField == -1) {
-                for (int k = 1; k <= 8; ++k) {
+                for (int k = 1; k <= 9; ++k) {
                     if (IsKeyPressed(KEY_ONE + (k - 1))) {
                         char path[64];
                         std::snprintf(path, sizeof(path), "levels/level_%02d.json", k);
@@ -182,7 +182,7 @@ int main() {
                     failAnnotationTimer  = 0.f;
                     lastFailedTrace      = {};
                 } else if (CheckCollisionPointRec(screenMouse, WinNextBtnRect()) &&
-                           currentLevel < 8) {
+                           currentLevel < 9) {
                     int nextLevel = currentLevel + 1;
                     char path[64];
                     std::snprintf(path, sizeof(path), "levels/level_%02d.json", nextLevel);
@@ -286,9 +286,11 @@ int main() {
                         }
 
                         {
-                            uint32_t seed = (!fr.hops.empty()) ? fr.hops[0].outLabel : 0u;
+                            uint32_t seed    = (!fr.hops.empty()) ? fr.hops[0].outLabel : 0u;
                             if (seed == MPLS_IMPLICIT_NULL) seed = 0u;
-                            simState.anim = PacketAnim{.result = fr, .currentLabel = seed};
+                            int vlanSeed = fr.hops.empty() ? 0 : fr.hops[0].vlanTag;
+                            simState.anim = PacketAnim{.result = fr, .currentLabel = seed,
+                                                       .currentVlan = vlanSeed};
                         }
                         le.success     = fr.success;
                         le.pathStr     = BuildPathStr(fr.path, nodes);
@@ -502,6 +504,13 @@ int main() {
                     ps.bgpAsnField         = -1;
                     ps.bgpAsnBuf.clear();
                 }
+                if (CheckCollisionPointRec(screenMouse, PnlVlanTabRect())) {
+                    ps.activeTab           = TAB_VLAN;
+                    ps.bgpAsnField         = -1;
+                    ps.bgpAsnBuf.clear();
+                    ps.vlanPortField       = -1;
+                    ps.vlanPortBuf.clear();
+                }
                 // Config tab field focus
                 if (ps.activeTab == TAB_CONFIG) {
                     ps.activeField         = -1;
@@ -625,6 +634,29 @@ int main() {
                         }
                     }
                 }
+
+                // VLAN tab: mode toggle + VLAN ID field click
+                if (ps.activeTab == TAB_VLAN) {
+                    DeviceNode* selNode = nullptr;
+                    for (auto& nd : nodes)
+                        if (nd.id == selectedId) { selNode = &nd; break; }
+                    if (selNode && selNode->type == SWITCH) {
+                        for (int p = 0; p < PORTS_PER_NODE; ++p) {
+                            if (CheckCollisionPointRec(screenMouse, PnlVlanPortModeRect(p))) {
+                                selNode->vlanPorts[p].mode =
+                                    (selNode->vlanPorts[p].mode == VLAN_ACCESS)
+                                    ? VLAN_TRUNK : VLAN_ACCESS;
+                                ps.vlanPortField = -1;
+                                ps.vlanPortBuf.clear();
+                            }
+                            if (selNode->vlanPorts[p].mode == VLAN_ACCESS &&
+                                CheckCollisionPointRec(screenMouse, PnlVlanPortIdRect(p))) {
+                                ps.vlanPortField = p;
+                                ps.vlanPortBuf   = std::to_string(selNode->vlanPorts[p].accessVlan);
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -689,6 +721,32 @@ int main() {
                 ps.bgpAsnField = -1;
                 ps.bgpAsnBuf.clear();
             }
+        } else if (ps.vlanPortField != -1 && selectedId != -1) {
+            int key = GetCharPressed();
+            while (key > 0) {
+                if (key >= '0' && key <= '9' && ps.vlanPortBuf.size() < 4)
+                    ps.vlanPortBuf += static_cast<char>(key);
+                key = GetCharPressed();
+            }
+            if (IsKeyPressed(KEY_BACKSPACE) && !ps.vlanPortBuf.empty())
+                ps.vlanPortBuf.pop_back();
+            if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER)) {
+                for (auto& nd : nodes) {
+                    if (nd.id == selectedId) {
+                        try {
+                            int v = std::stoi(ps.vlanPortBuf);
+                            if (v >= 1 && v <= 4094)
+                                nd.vlanPorts[ps.vlanPortField].accessVlan = v;
+                        } catch (...) {}
+                        break;
+                    }
+                }
+                ps.vlanPortField = -1;
+                ps.vlanPortBuf.clear();
+            } else if (IsKeyPressed(KEY_ESCAPE)) {
+                ps.vlanPortField = -1;
+                ps.vlanPortBuf.clear();
+            }
         } else {
             while (GetCharPressed() > 0) {}  // flush char queue when no field active
         }
@@ -704,6 +762,8 @@ int main() {
             ps.newRouteNext.clear();
             ps.bgpAsnField         = -1;
             ps.bgpAsnBuf.clear();
+            ps.vlanPortField       = -1;
+            ps.vlanPortBuf.clear();
             prevSelectedId         = selectedId;
         }
 
@@ -806,13 +866,13 @@ int main() {
                              (int)activeLevelDef.winConditions.size());
             }
             if (gameMode == GAME_WIN) {
-                DrawWinOverlay(activeLevelDef, currentLevel < 8);
+                DrawWinOverlay(activeLevelDef, currentLevel < 9);
             }
 
             // HUD — screen space, outside camera
             DrawFPS(CANVAS_W - 80, 10);
             DrawText("P=PC  R=Router  S=Switch  Del=Delete  MMB=Pan  Scroll=Zoom  "
-                     "Drag-port=Cable  Esc=Cancel  1-8=Level  0=Sandbox",
+                     "Drag-port=Cable  Esc=Cancel  1-9=Level  0=Sandbox",
                      10, CANVAS_H - 24, 10, Color{100, 116, 139, 255});
         EndDrawing();
     }
