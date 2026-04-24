@@ -41,7 +41,7 @@ int main() {
     ContextMenu contextMenu;
     std::vector<LogEntry> logEntries;
     SimState simState;
-    GameMode    gameMode             = GAME_SANDBOX;
+    GameMode    gameMode             = GAME_LEVEL_SELECT;
     int         currentLevel         = 0;
     LevelDef    activeLevelDef;
     int         lastConditionsPassed = 0;
@@ -58,6 +58,42 @@ int main() {
     std::string fileNameBuf = "scene.json";
     std::string fileOpMsg;
     float       fileOpTimer = 0.f;
+
+    // Preload level titles for the level-select screen
+    std::string levelTitles[16];
+    for (int i = 0; i < 16; ++i) {
+        char lpath[64];
+        std::snprintf(lpath, sizeof(lpath), "levels/level_%02d.json", i + 1);
+        LevelDef tmpDef;
+        levelTitles[i] = LoadLevel(lpath, tmpDef) ? tmpDef.title
+                       : std::string("Level ") + std::to_string(i + 1);
+    }
+
+    // Clears all canvas state and enters GAME_SANDBOX
+    auto goSandbox = [&]() {
+        nodes.clear();
+        nodes.push_back(SpawnNode(PC, {0.0f, 0.0f}));
+        cables.clear();
+        selectedId           = -1;
+        currentLevel         = 0;
+        activeLevelDef       = LevelDef{};
+        lastConditionsPassed = 0;
+        failedAttempts       = 0;
+        starsEarned          = 0;
+        gameMode             = GAME_SANDBOX;
+        ps                   = PanelState{};
+        simState             = SimState{};
+        logEntries.clear();
+        dragging             = false;
+        connecting           = false;
+        hoverNodeId          = -1;
+        hoverPort            = -1;
+        contextMenu.visible  = false;
+        troubleshootMode     = false;
+        traceModalOpen       = false;
+        failAnnotationTimer  = 0.f;
+        lastFailedTrace      = {};
+    };
 
     while (!WindowShouldClose()) {
         float dt = GetFrameTime();
@@ -142,6 +178,7 @@ int main() {
 
         // ── Spawn / delete / cancel ────────────────────────────────────
         if (fileOp == FILEOP_NONE && inCanvas && gameMode != GAME_WIN &&
+            gameMode != GAME_LEVEL_SELECT &&
             ps.activeField == -1 && ps.activeRouteField == -1 &&
             simState.mode == SIM_IDLE) {
             if (IsKeyPressed(KEY_P)) nodes.push_back(SpawnNode(PC,     worldMouse));
@@ -149,11 +186,9 @@ int main() {
             if (IsKeyPressed(KEY_S) && !ctrlHeld) nodes.push_back(SpawnNode(SWITCH, worldMouse));
             if (IsKeyPressed(KEY_T))
                 troubleshootMode = !troubleshootMode;
-            // Level shortcuts: 1–8 load JSON levels, 0 returns to sandbox
             if (ps.activePortAreaField == -1) {
-                for (int k = 1; k <= 10; ++k) {
-                    int key = (k <= 9) ? (KEY_ONE + (k - 1)) : KEY_ZERO;
-                    if (IsKeyPressed(key)) {
+                for (int k = 1; k <= 9; ++k) {
+                    if (IsKeyPressed(KEY_ONE + (k - 1))) {
                         char path[64];
                         std::snprintf(path, sizeof(path), "levels/level_%02d.json", k);
                         LevelDef def;
@@ -180,11 +215,15 @@ int main() {
                         }
                     }
                 }
+                if (IsKeyPressed(KEY_ZERO)) goSandbox();
+                if (IsKeyPressed(KEY_M))    gameMode = GAME_LEVEL_SELECT;
             }
         }
 
         if (IsKeyPressed(KEY_ESCAPE)) {
-            if (traceModalOpen) {
+            if (gameMode == GAME_LEVEL_SELECT) {
+                gameMode = (currentLevel > 0) ? GAME_PLAYING : GAME_SANDBOX;
+            } else if (traceModalOpen) {
                 traceModalOpen = false;
             } else {
                 contextMenu.visible = false;
@@ -316,8 +355,50 @@ int main() {
                 if (!CheckCollisionPointRec(screenMouse, modal))
                     traceModalOpen = false;
                 // all clicks consumed while modal is open
+            } else if (gameMode == GAME_LEVEL_SELECT) {
+                for (int i = 0; i < 16; ++i) {
+                    if (CheckCollisionPointRec(screenMouse, LevelSelectCardRect(i))) {
+                        int lvlNum = i + 1;
+                        char path[64];
+                        std::snprintf(path, sizeof(path), "levels/level_%02d.json", lvlNum);
+                        LevelDef def;
+                        if (LoadLevel(path, def)) {
+                            currentLevel         = lvlNum;
+                            activeLevelDef       = def;
+                            ApplyLevel(def, nodes, cables, selectedId);
+                            ps                   = PanelState{};
+                            simState             = SimState{};
+                            logEntries.clear();
+                            lastConditionsPassed = 0;
+                            failedAttempts       = 0;
+                            starsEarned          = 0;
+                            gameMode             = GAME_PLAYING;
+                            dragging             = false;
+                            connecting           = false;
+                            hoverNodeId          = -1;
+                            hoverPort            = -1;
+                            contextMenu.visible  = false;
+                            troubleshootMode     = false;
+                            traceModalOpen       = false;
+                            failAnnotationTimer  = 0.f;
+                            lastFailedTrace      = {};
+                        }
+                    }
+                }
+                if (CheckCollisionPointRec(screenMouse, LevelSelectSandboxBtnRect()))
+                    goSandbox();
             } else {
-            if (contextMenu.visible) {
+            // HUD navigation buttons — take priority over canvas interactions
+            if (gameMode == GAME_SANDBOX &&
+                CheckCollisionPointRec(screenMouse, SandboxMenuBtnRect())) {
+                gameMode = GAME_LEVEL_SELECT;
+            } else if (gameMode == GAME_PLAYING &&
+                       CheckCollisionPointRec(screenMouse, LevelHudMenuBtnRect())) {
+                gameMode = GAME_LEVEL_SELECT;
+            } else if (gameMode == GAME_PLAYING &&
+                       CheckCollisionPointRec(screenMouse, LevelHudSandboxBtnRect())) {
+                goSandbox();
+            } else if (contextMenu.visible) {
                 if (contextMenu.hoverItem != -1)
                     ExecuteMenuAction(contextMenu, nodes, cables, selectedId, ps, camera, simState, logEntries);
                 contextMenu.visible = false;
@@ -1352,26 +1433,55 @@ int main() {
             if (traceModalOpen)
                 DrawTraceModal(activeTrace);
 
-            // Level HUD badge (top-left) and win overlay
+            // Sandbox badge (only in sandbox mode)
+            if (gameMode == GAME_SANDBOX)
+                DrawSandboxHUD();
+
+            // Level HUD badge + MENU / SANDBOX buttons (while actively playing)
             if (gameMode == GAME_PLAYING || gameMode == GAME_WIN) {
                 DrawLevelHUD(currentLevel, activeLevelDef.title,
                              lastConditionsPassed,
                              (int)activeLevelDef.winConditions.size(),
                              starsEarned);
-                if (troubleshootMode) {
-                    DrawRectangle(8, 34, 148, 18, Color{239, 68, 68, 200});
-                    DrawRectangleLinesEx({8, 34, 148, 18}, 1.0f, Color{239, 68, 68, 255});
-                    DrawText("TROUBLESHOOT [T]", 14, 38, 9, WHITE);
+                if (gameMode == GAME_PLAYING) {
+                    // MENU button
+                    {
+                        Rectangle mb = LevelHudMenuBtnRect();
+                        DrawRectangle((int)mb.x,(int)mb.y,(int)mb.width,(int)mb.height,
+                                      Color{30,41,59,210});
+                        DrawRectangleLinesEx(mb, 1.0f, Color{51,65,85,255});
+                        int tw = MeasureText("MENU",10);
+                        DrawText("MENU",(int)(mb.x+(mb.width-tw)/2.f),(int)(mb.y+6),
+                                 10, Color{148,163,184,255});
+                    }
+                    // SANDBOX shortcut button
+                    {
+                        Rectangle sb = LevelHudSandboxBtnRect();
+                        DrawRectangle((int)sb.x,(int)sb.y,(int)sb.width,(int)sb.height,
+                                      Color{13,94,88,180});
+                        DrawRectangleLinesEx(sb, 1.0f, Color{13,148,136,255});
+                        int tw = MeasureText("SANDBOX",10);
+                        DrawText("SANDBOX",(int)(sb.x+(sb.width-tw)/2.f),(int)(sb.y+6),
+                                 10, Color{204,251,241,255});
+                    }
+                    if (troubleshootMode) {
+                        DrawRectangle(8, 34, 148, 18, Color{239, 68, 68, 200});
+                        DrawRectangleLinesEx({8, 34, 148, 18}, 1.0f, Color{239, 68, 68, 255});
+                        DrawText("TROUBLESHOOT [T]", 14, 38, 9, WHITE);
+                    }
                 }
             }
-            if (gameMode == GAME_WIN) {
+            if (gameMode == GAME_WIN)
                 DrawWinOverlay(activeLevelDef, currentLevel < 16, starsEarned);
-            }
+
+            // Level-select overlay (drawn last so it sits above everything)
+            if (gameMode == GAME_LEVEL_SELECT)
+                DrawLevelSelectScreen(levelTitles);
 
             // HUD — screen space, outside camera
             DrawFPS(CANVAS_W() - 80, 10);
             DrawText("P=PC  R=Router  S=Switch  Del=Delete  MMB=Pan  Scroll=Zoom  "
-                     "Drag-port=Cable  Esc=Cancel  1-9,0=Level",
+                     "Drag-port=Cable  Esc=Cancel  1-9=Level  0=Sandbox  M=Menu",
                      10, CANVAS_H() - 24, 10, Color{100, 116, 139, 255});
             DrawFileDialog(fileOp, fileNameBuf, fileOpMsg, fileOpTimer);
         EndDrawing();
