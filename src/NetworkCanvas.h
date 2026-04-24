@@ -1,5 +1,6 @@
 #pragma once
 #include "raylib.h"
+#include "Layout.h"
 #include "Device.h"
 #include "Cable.h"
 #include "Packet.h"
@@ -12,8 +13,7 @@
 #include <string>
 #include <vector>
 
-// ── Screen & layout constants ─────────────────────────────────────────────
-#include "Layout.h"
+// ── Canvas color constants ────────────────────────────────────────────────
 static const Color BG_COLOR     = {15, 23, 42, 255};
 static const Color PANEL_BG     = {22, 33, 62, 255};
 static const Color PANEL_BORDER = {51, 65, 85, 255};
