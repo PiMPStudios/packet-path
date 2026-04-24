@@ -15,7 +15,7 @@ Rectangle PnlPortAreaFieldRect(int port) {
             44.0f, 24.0f};
 }
 
-float PnlTabW() { return (PANEL_W - 24.0f - 8.0f * 4.0f) / 9.0f; }
+float PnlTabW() { return (PANEL_W - 24.0f - 10.0f * 4.0f) / 11.0f; }
 Rectangle PnlConfigTabRect() {
     return {(float)(CANVAS_W() + 12), 88.0f, PnlTabW(), 26.0f};
 }
@@ -76,6 +76,53 @@ Rectangle PnlVxlanVtepRect() {
 }
 Rectangle PnlVxlanEvpnRect() {
     return {(float)(CANVAS_W() + 12), 230.0f, (float)(PANEL_W - 24), 22.0f};
+}
+// ── ACL tab rects ──────────────────────────────────────────────────────────
+Rectangle PnlAclTabRect() {
+    return {(float)(CANVAS_W()+12) + 9.0f*(PnlTabW()+4.0f), 88.0f, PnlTabW(), 26.0f};
+}
+Rectangle PnlAclToggleRect() {
+    return {(float)(CANVAS_W()+12), 120.0f, (float)(PANEL_W-24), 26.0f};
+}
+Rectangle PnlAclInPortBtnRect(int p) {
+    return {(float)(CANVAS_W()+12) + p*52.0f, 154.0f, 48.0f, 22.0f};
+}
+Rectangle PnlAclOutPortBtnRect(int p) {
+    return {(float)(CANVAS_W()+12) + p*52.0f, 180.0f, 48.0f, 22.0f};
+}
+Rectangle PnlAclRuleDeleteRect(int i) {
+    return {(float)(CANVAS_W()+12+PANEL_W-24-20), 226.0f + i*26.0f, 20.0f, 22.0f};
+}
+Rectangle PnlAclFormActionRect() {
+    return {(float)(CANVAS_W()+12), 370.0f, (float)(PANEL_W-24), 26.0f};
+}
+Rectangle PnlAclFormSrcRect() {
+    return {(float)(CANVAS_W()+12), 400.0f, (float)(PANEL_W-24), 22.0f};
+}
+Rectangle PnlAclFormDstRect() {
+    return {(float)(CANVAS_W()+12), 426.0f, (float)(PANEL_W-24), 22.0f};
+}
+Rectangle PnlAclFormPortRect() {
+    return {(float)(CANVAS_W()+12), 452.0f, 80.0f, 22.0f};
+}
+Rectangle PnlAclFormAddBtnRect() {
+    return {(float)(CANVAS_W()+12), 480.0f, (float)(PANEL_W-24), 28.0f};
+}
+// ── NAT tab rects ──────────────────────────────────────────────────────────
+Rectangle PnlNatTabRect() {
+    return {(float)(CANVAS_W()+12) + 10.0f*(PnlTabW()+4.0f), 88.0f, PnlTabW(), 26.0f};
+}
+Rectangle PnlNatToggleRect() {
+    return {(float)(CANVAS_W()+12), 120.0f, (float)(PANEL_W-24), 26.0f};
+}
+Rectangle PnlNatInsidePortBtnRect(int p) {   // p=0..3
+    return {(float)(CANVAS_W()+12) + p*52.0f, 154.0f, 48.0f, 22.0f};
+}
+Rectangle PnlNatOutsidePortBtnRect(int p) {
+    return {(float)(CANVAS_W()+12) + p*52.0f, 180.0f, 48.0f, 22.0f};
+}
+Rectangle PnlNatInsidePrefixRect() {
+    return {(float)(CANVAS_W()+12), 216.0f, (float)(PANEL_W-24), 22.0f};
 }
 Rectangle PnlSubPortBtnRect(int port) {
     float btnW = 28.0f, gap = 4.0f;

@@ -4,7 +4,8 @@
 #include <string>
 #include <vector>
 
-enum PanelTab { TAB_CONFIG, TAB_ROUTES, TAB_ARP, TAB_OSPF, TAB_MPLS, TAB_BGP, TAB_VLAN, TAB_SUB, TAB_VXLAN };
+enum PanelTab { TAB_CONFIG, TAB_ROUTES, TAB_ARP, TAB_OSPF, TAB_MPLS, TAB_BGP,
+                TAB_VLAN, TAB_SUB, TAB_VXLAN, TAB_ACL, TAB_NAT };
 
 struct PanelState {
     int         activeField      = -1;
@@ -29,6 +30,17 @@ struct PanelState {
     int         vxlanField   = -1;   // 0=VNI editing, 1=VTEP IP editing
     std::string vxlanVniBuf;         // digit buffer for VNI
     std::string vxlanVtepBuf;        // text buffer for VTEP IP
+
+    // ACL tab
+    int         aclFormAction  = 0;    // 0=PERMIT, 1=DENY for the add-rule form
+    int         aclActiveField = -1;   // 0=srcCidr, 1=dstCidr, 2=dstPort, -1=none
+    std::string aclSrcBuf;             // edit buffer for source CIDR
+    std::string aclDstBuf;             // edit buffer for dest CIDR
+    std::string aclPortBuf;            // edit buffer for dst port (digits only)
+
+    // NAT tab
+    int         natField       = -1;   // 0=inside prefix editing, -1=none
+    std::string natInsideBuf;          // edit buffer for inside prefix CIDR
 };
 
 // Layout rect helpers
@@ -61,6 +73,23 @@ Rectangle PnlVxlanToggleRect();
 Rectangle PnlVxlanVniRect();
 Rectangle PnlVxlanVtepRect();
 Rectangle PnlVxlanEvpnRect();
+// ACL tab
+Rectangle PnlAclTabRect();
+Rectangle PnlAclToggleRect();
+Rectangle PnlAclInPortBtnRect(int port);    // port 0-3 = ports, 4 = "—" (none)
+Rectangle PnlAclOutPortBtnRect(int port);
+Rectangle PnlAclRuleDeleteRect(int rowIdx);
+Rectangle PnlAclFormActionRect();
+Rectangle PnlAclFormSrcRect();
+Rectangle PnlAclFormDstRect();
+Rectangle PnlAclFormPortRect();
+Rectangle PnlAclFormAddBtnRect();
+// NAT tab
+Rectangle PnlNatTabRect();
+Rectangle PnlNatToggleRect();
+Rectangle PnlNatInsidePortBtnRect(int port);   // port 0-3
+Rectangle PnlNatOutsidePortBtnRect(int port);
+Rectangle PnlNatInsidePrefixRect();
 Rectangle PnlRouteDeleteRect(int rowIdx);
 Rectangle PnlRouteDestRect();
 Rectangle PnlRouteNextRect();
