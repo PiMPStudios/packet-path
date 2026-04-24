@@ -46,6 +46,9 @@ Rectangle PnlBgpToggleRect() {
 Rectangle PnlBgpAsnRect() {
     return {(float)(CANVAS_W + 56), 152.0f, (float)(PANEL_W - 68), 22.0f};
 }
+Rectangle PnlBgpRrRect() {
+    return {(float)(CANVAS_W + 12), 182.0f, (float)(PANEL_W - 24), 22.0f};
+}
 Rectangle PnlRouteDeleteRect(int rowIdx) {
     return {(float)(CANVAS_W + PANEL_W - 22),
             (float)(RTE_ROW_Y0 + rowIdx * RTE_ROW_H + 4), 16.0f, 14.0f};

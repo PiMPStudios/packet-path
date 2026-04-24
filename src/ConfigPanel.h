@@ -33,6 +33,7 @@ Rectangle PnlMplsToggleRect();
 Rectangle PnlBgpTabRect();
 Rectangle PnlBgpToggleRect();
 Rectangle PnlBgpAsnRect();
+Rectangle PnlBgpRrRect();
 Rectangle PnlRouteDeleteRect(int rowIdx);
 Rectangle PnlRouteDestRect();
 Rectangle PnlRouteNextRect();

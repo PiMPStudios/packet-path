@@ -651,14 +651,28 @@ void DrawBgpTab(const DeviceNode* n, const PanelState& ps) {
                                    : (n->localAsn > 0 ? std::to_string(n->localAsn) : "0");
     DrawText(asnStr.c_str(), (int)(asnRect.x + 4), (int)(asnRect.y + 5), 11, WHITE);
 
-    if (n->localAsn == 0)
-        DrawText("Set ASN to form sessions", CANVAS_W + 12, y + 28, 10,
+    if (n->localAsn == 0) {
+        DrawText("Set ASN to form sessions", CANVAS_W + 12, y + 30, 10,
                  Color{234,179,8,255});
+    } else {
+        // Route Reflector toggle (only when ASN is set)
+        Rectangle rrRect = PnlBgpRrRect();
+        Color rrCol = n->isRouteReflector ? Color{167,139,250,255} : Color{51,65,85,255};
+        DrawRectangleRec(rrRect, rrCol);
+        DrawRectangleLinesEx(rrRect, 1.0f, Color{71,85,105,255});
+        const char* rrLabel = n->isRouteReflector ? "Route Reflector: ON"
+                                                  : "Route Reflector: OFF";
+        int rrTw = MeasureText(rrLabel, 11);
+        DrawText(rrLabel, (int)(rrRect.x + (rrRect.width - rrTw) / 2),
+                 (int)(rrRect.y + 5), 11,
+                 n->isRouteReflector ? Color{15,23,42,255} : Color{148,163,184,255});
+    }
 
-    y = 192;
+    y = 210;
 
     // ── Neighbors ─────────────────────────────────────────────────────
-    DrawText("NEIGHBORS", CANVAS_W + 12, y, 10, Color{71,85,105,255});
+    const char* neighborHeader = n->isRouteReflector ? "CLIENTS" : "NEIGHBORS";
+    DrawText(neighborHeader, CANVAS_W + 12, y, 10, Color{71,85,105,255});
     y += 14;
     if (n->bgpNeighbors.empty()) {
         DrawText("(none)", CANVAS_W + 16, y, 10, Color{71,85,105,255});
