@@ -417,15 +417,18 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
                     hd.aclResult = "PERMIT seq:" + std::to_string(m->seq);
                 }
                 // ── NAT annotation ─────────────────────────────────────────
-                if (cur->natEnabled && hd.outPort == cur->natOutsidePort
+                if (cur->natEnabled && cur->natOutsidePort >= 0
+                    && hd.outPort == cur->natOutsidePort
                     && !srcIp.empty()
                     && !cur->natInsidePrefix.empty()
                     && AclMatchPrefix(srcIp, cur->natInsidePrefix)) {
                     const std::string& outsideCidr = cur->portIp[cur->natOutsidePort];
-                    auto slash = outsideCidr.find('/');
-                    std::string outsideIp = (slash != std::string::npos)
-                        ? outsideCidr.substr(0, slash) : outsideCidr;
-                    hd.natResult = srcIp + " \xe2\x86\x92 " + outsideIp;
+                    if (!outsideCidr.empty()) {
+                        auto slash = outsideCidr.find('/');
+                        std::string outsideIp = (slash != std::string::npos)
+                            ? outsideCidr.substr(0, slash) : outsideCidr;
+                        hd.natResult = srcIp + " \xe2\x86\x92 " + outsideIp;
+                    }
                 }
                 // ── end ACL/NAT ────────────────────────────────────────────
                 result.hops.push_back(hd);
