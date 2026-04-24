@@ -277,7 +277,11 @@ int main() {
                             }
                         }
 
-                        simState.anim  = PacketAnim{.result = fr};
+                        {
+                            uint32_t seed = (!fr.hops.empty()) ? fr.hops[0].outLabel : 0u;
+                            if (seed == MPLS_IMPLICIT_NULL) seed = 0u;
+                            simState.anim = PacketAnim{.result = fr, .currentLabel = seed};
+                        }
                         le.success     = fr.success;
                         le.pathStr     = BuildPathStr(fr.path, nodes);
                         le.reason      = fr.reason;
