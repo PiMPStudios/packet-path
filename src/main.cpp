@@ -182,7 +182,7 @@ int main() {
                     failAnnotationTimer  = 0.f;
                     lastFailedTrace      = {};
                 } else if (CheckCollisionPointRec(screenMouse, WinNextBtnRect()) &&
-                           currentLevel < 6) {
+                           currentLevel < 7) {
                     int nextLevel = currentLevel + 1;
                     char path[64];
                     std::snprintf(path, sizeof(path), "levels/level_%02d.json", nextLevel);
@@ -801,13 +801,13 @@ int main() {
                              (int)activeLevelDef.winConditions.size());
             }
             if (gameMode == GAME_WIN) {
-                DrawWinOverlay(activeLevelDef, currentLevel < 6);
+                DrawWinOverlay(activeLevelDef, currentLevel < 7);
             }
 
             // HUD — screen space, outside camera
             DrawFPS(CANVAS_W - 80, 10);
             DrawText("P=PC  R=Router  S=Switch  Del=Delete  MMB=Pan  Scroll=Zoom  "
-                     "Drag-port=Cable  Esc=Cancel  1-6=Level  0=Sandbox",
+                     "Drag-port=Cable  Esc=Cancel  1-7=Level  0=Sandbox",
                      10, CANVAS_H - 24, 10, Color{100, 116, 139, 255});
         EndDrawing();
     }
