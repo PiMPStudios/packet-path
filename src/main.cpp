@@ -42,6 +42,8 @@ int main() {
     int         currentLevel         = 0;
     LevelDef    activeLevelDef;
     int         lastConditionsPassed = 0;
+    int         failedAttempts       = 0;
+    int         starsEarned          = 0;
     bool          traceModalOpen = false;
     ForwardResult activeTrace;
     float         failAnnotationTimer = 0.f;
@@ -77,6 +79,8 @@ int main() {
                             simState             = SimState{};
                             logEntries.clear();
                             lastConditionsPassed = 0;
+                            failedAttempts       = 0;
+                            starsEarned          = 0;
                             gameMode             = GAME_PLAYING;
                             dragging             = false;
                             connecting           = false;
@@ -173,6 +177,8 @@ int main() {
                     simState             = SimState{};
                     logEntries.clear();
                     lastConditionsPassed = 0;
+                    failedAttempts       = 0;
+                    starsEarned          = 0;
                     gameMode             = GAME_PLAYING;
                     dragging             = false;
                     connecting           = false;
@@ -196,6 +202,8 @@ int main() {
                         simState             = SimState{};
                         logEntries.clear();
                         lastConditionsPassed = 0;
+                        failedAttempts       = 0;
+                        starsEarned          = 0;
                         gameMode             = GAME_PLAYING;
                         dragging             = false;
                         connecting           = false;
@@ -304,6 +312,7 @@ int main() {
                             PlayPacketArrive();
                             failAnnotationTimer = 0.f;
                         } else {
+                            ++failedAttempts;
                             PlayPacketFail();
                             failAnnotationTimer = 5.0f;
                             lastFailedTrace     = fr;
@@ -316,8 +325,10 @@ int main() {
                         int passed = CheckWinConditions(
                                          activeLevelDef, nodes, cables);
                         lastConditionsPassed = passed;
-                        if (passed == (int)activeLevelDef.winConditions.size())
-                            gameMode = GAME_WIN;
+                        if (passed == (int)activeLevelDef.winConditions.size()) {
+                            gameMode    = GAME_WIN;
+                            starsEarned = ComputeStars(failedAttempts);
+                        }
                     }
                     if (simState.mode != SIM_ANIMATING) {
                         simState.mode  = SIM_IDLE;
@@ -951,10 +962,11 @@ int main() {
             if (gameMode == GAME_PLAYING || gameMode == GAME_WIN) {
                 DrawLevelHUD(currentLevel, activeLevelDef.title,
                              lastConditionsPassed,
-                             (int)activeLevelDef.winConditions.size());
+                             (int)activeLevelDef.winConditions.size(),
+                             starsEarned);
             }
             if (gameMode == GAME_WIN) {
-                DrawWinOverlay(activeLevelDef, currentLevel < 10);
+                DrawWinOverlay(activeLevelDef, currentLevel < 10, starsEarned);
             }
 
             // HUD — screen space, outside camera
