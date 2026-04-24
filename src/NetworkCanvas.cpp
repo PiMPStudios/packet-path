@@ -17,6 +17,18 @@ void DrawDeviceNode(const DeviceNode& n) {
         Vector2 pp = GetPortPosition(n, i);
         DrawCircleV(pp, PORT_RADIUS,        Color{51,  65,  85, 255});
         DrawCircleV(pp, PORT_RADIUS - 2.0f, Color{100, 116, 139, 255});
+        if (n.type == SWITCH) {
+            const VlanPortConfig& vc = n.vlanPorts[i];
+            char lbl[8];
+            if (vc.mode == VLAN_TRUNK)
+                std::snprintf(lbl, sizeof(lbl), "T");
+            else
+                std::snprintf(lbl, sizeof(lbl), "%d", vc.accessVlan);
+            Color lblCol = (vc.mode == VLAN_TRUNK) ? Color{245,158,11,255}
+                                                   : Color{96,165,250,255};
+            int lw = MeasureText(lbl, 8);
+            DrawText(lbl, (int)(pp.x - lw * 0.5f), (int)(pp.y + PORT_RADIUS + 2), 8, lblCol);
+        }
     }
 }
 
@@ -61,6 +73,15 @@ void DrawAllCables(const std::vector<Cable>& cables,
                 cableColor = Color{34, 197, 94, 220};   // green
             else if (best >= OSPF_INIT)
                 cableColor = Color{234, 179, 8, 220};   // yellow
+        }
+
+        // Trunk cable: amber if either endpoint switch port is trunk mode
+        {
+            bool isTrunk =
+                (from->type == SWITCH && from->vlanPorts[c.fromPort].mode == VLAN_TRUNK) ||
+                (to->type   == SWITCH && to->vlanPorts[c.toPort].mode   == VLAN_TRUNK);
+            if (isTrunk)
+                cableColor = Color{245, 158, 11, 220};
         }
 
         DrawSplineSegmentBezierCubic(p0, BezierCtrl(p0, c.fromPort),
@@ -219,6 +240,18 @@ void DrawPacketAnim(const PacketAnim& anim,
         float by = pos.y - 30.f;
         DrawRectangleRounded({bx, by, (float)lw, 16.f}, 0.5f, 4, Color{249, 115, 22, 220});
         DrawText(lbuf, (int)(bx + 5.f), (int)(by + 3.f), 10, WHITE);
+    }
+
+    // VLAN badge — blue pill above packet (stacks above MPLS badge if both present)
+    if (anim.currentVlan != 0) {
+        char vbuf[10];
+        std::snprintf(vbuf, sizeof(vbuf), "V%d", anim.currentVlan);
+        int   vw = MeasureText(vbuf, 10) + 10;
+        float bx = pos.x - vw * 0.5f;
+        float by = pos.y - 30.f;
+        if (anim.currentLabel != 0) by -= 20.f;
+        DrawRectangleRounded({bx, by, (float)vw, 16.f}, 0.5f, 4, Color{59, 130, 246, 220});
+        DrawText(vbuf, (int)(bx + 5.f), (int)(by + 3.f), 10, WHITE);
     }
 
     // Green glow (outer) + core dot — always green during travel
@@ -729,6 +762,54 @@ void DrawBgpTab(const DeviceNode* n, const PanelState& ps) {
     }
 }
 
+void DrawVlanTab(const DeviceNode* n, const PanelState& ps) {
+    if (!n) {
+        DrawText("No device selected", CANVAS_W + 20, 130, 12, Color{100,116,139,255});
+        return;
+    }
+    if (n->type != SWITCH) {
+        DrawText("VLAN: switches only", CANVAS_W + 20, 130, 12, Color{100,116,139,255});
+        return;
+    }
+
+    DrawText("PORT VLAN CONFIG", CANVAS_W + 12, 124, 10, Color{71,85,105,255});
+
+    for (int p = 0; p < PORTS_PER_NODE; ++p) {
+        const VlanPortConfig& vc = n->vlanPorts[p];
+        int rowY = 152 + p * 34;
+
+        char plabel[12];
+        std::snprintf(plabel, sizeof(plabel), "Port %d", p);
+        DrawText(plabel, CANVAS_W + 12, rowY + 5, 10, Color{100,116,139,255});
+
+        // Mode toggle button
+        Rectangle modeRect = PnlVlanPortModeRect(p);
+        bool isTrunk = (vc.mode == VLAN_TRUNK);
+        Color modeBg = isTrunk ? Color{120, 53, 15, 255} : Color{30, 58, 95, 255};
+        Color modeFg = isTrunk ? Color{245,158,11,255}   : Color{96,165,250,255};
+        Color modeBorder = isTrunk ? Color{180,83,9,255}  : Color{37,99,235,255};
+        DrawRectangleRec(modeRect, modeBg);
+        DrawRectangleLinesEx(modeRect, 1.0f, modeBorder);
+        const char* modeLabel = isTrunk ? "Trunk" : "Access";
+        int mlw = MeasureText(modeLabel, 10);
+        DrawText(modeLabel, (int)(modeRect.x + (modeRect.width - mlw) / 2),
+                 (int)(modeRect.y + 6), 10, modeFg);
+
+        if (isTrunk) {
+            DrawText("-- all --", CANVAS_W + 93, rowY + 5, 10, Color{100,116,139,255});
+        } else {
+            // VLAN ID input field
+            Rectangle idRect = PnlVlanPortIdRect(p);
+            bool active = (ps.vlanPortField == p);
+            DrawRectangleRec(idRect, active ? Color{30,41,59,255} : Color{15,23,42,255});
+            DrawRectangleLinesEx(idRect, 1.0f,
+                                 active ? Color{59,130,246,255} : Color{71,85,105,255});
+            std::string idStr = active ? ps.vlanPortBuf : std::to_string(vc.accessVlan);
+            DrawText(idStr.c_str(), (int)(idRect.x + 4), (int)(idRect.y + 5), 10, WHITE);
+        }
+    }
+}
+
 void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
                const PanelState& ps)
 {
@@ -771,9 +852,9 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
                    {cfgTab.x + cfgTab.width, cfgTab.y + cfgTab.height}, 2.0f,
                    Color{59, 130, 246, 255});
     {
-        int tw2 = MeasureText("Config", 12);
-        DrawText("Config", (int)(cfgTab.x + (cfgTab.width - tw2) / 2),
-                 (int)(cfgTab.y + 7), 12,
+        int tw2 = MeasureText("Cfg", 10);
+        DrawText("Cfg", (int)(cfgTab.x + (cfgTab.width - tw2) / 2),
+                 (int)(cfgTab.y + 8), 10,
                  cfgActive ? WHITE : Color{100, 116, 139, 255});
     }
 
@@ -784,9 +865,9 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
                    {rteTab.x + rteTab.width, rteTab.y + rteTab.height}, 2.0f,
                    Color{59, 130, 246, 255});
     {
-        int tw3 = MeasureText("Routes", 12);
-        DrawText("Routes", (int)(rteTab.x + (rteTab.width - tw3) / 2),
-                 (int)(rteTab.y + 7), 12,
+        int tw3 = MeasureText("Rte", 10);
+        DrawText("Rte", (int)(rteTab.x + (rteTab.width - tw3) / 2),
+                 (int)(rteTab.y + 8), 10,
                  rteActive ? WHITE : Color{100, 116, 139, 255});
     }
 
@@ -846,6 +927,20 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
                  bgpActive ? Color{34,197,94,255} : Color{100, 116, 139, 255});
     }
 
+    Rectangle vlanTab    = PnlVlanTabRect();
+    bool      vlanActive = (ps.activeTab == TAB_VLAN);
+    DrawRectangleRec(vlanTab, vlanActive ? Color{30,41,59,255} : PANEL_BG);
+    if (vlanActive)
+        DrawLineEx({vlanTab.x, vlanTab.y + vlanTab.height},
+                   {vlanTab.x + vlanTab.width, vlanTab.y + vlanTab.height}, 2.0f,
+                   Color{245, 158, 11, 255});
+    {
+        int twV = MeasureText("VLAN", 10);
+        DrawText("VLAN", (int)(vlanTab.x + (vlanTab.width - twV) / 2),
+                 (int)(vlanTab.y + 8), 10,
+                 vlanActive ? Color{245,158,11,255} : Color{100, 116, 139, 255});
+    }
+
     DrawLineEx({(float)CANVAS_W, 116.0f}, {(float)(CANVAS_W + PANEL_W), 116.0f},
                1.0f, PANEL_BORDER);
 
@@ -862,6 +957,8 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
         DrawMplsTab(n);
     else if (ps.activeTab == TAB_BGP)
         DrawBgpTab(n, ps);
+    else if (ps.activeTab == TAB_VLAN)
+        DrawVlanTab(n, ps);
 }
 
 // ── Context menu draw ────────────────────────────────────────────────────
