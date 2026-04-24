@@ -94,7 +94,8 @@ int main() {
                 fileOp = FILEOP_NONE;
                 fileOpMsg.clear();
             }
-            if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER)) {
+            if ((IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER)) &&
+                !fileNameBuf.empty()) {
                 if (fileOp == FILEOP_SAVING) {
                     if (SaveScene(fileNameBuf, nodes, cables)) {
                         fileOpMsg   = "Saved: " + fileNameBuf;
