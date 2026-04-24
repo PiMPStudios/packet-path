@@ -288,6 +288,19 @@ void DrawPacketAnim(const PacketAnim& anim,
         DrawText(vbuf, (int)(bx + 5.f), (int)(by + 3.f), 10, WHITE);
     }
 
+    // VNI badge — teal pill, stacks above existing badges
+    if (anim.currentVni != 0) {
+        char vnibuf[16];
+        std::snprintf(vnibuf, sizeof(vnibuf), "VNI:%u", anim.currentVni);
+        int   nw = MeasureText(vnibuf, 10) + 10;
+        float bx = pos.x - nw * 0.5f;
+        float by = pos.y - 30.f;
+        if (anim.currentLabel != 0) by -= 20.f;
+        if (anim.currentVlan  != 0) by -= 20.f;
+        DrawRectangleRounded({bx, by, (float)nw, 16.f}, 0.5f, 4, Color{20, 184, 166, 220});
+        DrawText(vnibuf, (int)(bx + 5.f), (int)(by + 3.f), 10, WHITE);
+    }
+
     // Green glow (outer) + core dot — always green during travel
     DrawCircleV(pos, 14.f, Color{34, 197, 94, 55});
     DrawCircleV(pos, 7.f,  Color{34, 197, 94, 255});

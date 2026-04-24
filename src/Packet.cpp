@@ -70,14 +70,17 @@ void UpdatePacketAnim(PacketAnim& anim, float dt,
             uint32_t raw = anim.result.hops[anim.hop].outLabel;
             anim.currentLabel = (raw == MPLS_IMPLICIT_NULL) ? 0 : raw;
             anim.currentVlan  = anim.result.hops[anim.hop].vlanTag;
+            anim.currentVni   = anim.result.hops[anim.hop].vxlanVni;
         } else {
             anim.currentLabel = 0;
             anim.currentVlan  = 0;
+            anim.currentVni   = 0;
         }
         if (anim.hop >= (int)path.size() - 1) {
             anim.done = true;
             anim.currentLabel = 0;
             anim.currentVlan  = 0;
+            anim.currentVni   = 0;
             if (anim.result.success) anim.successPulse = 0.5f;
             else                     anim.failPulse    = 0.5f;
         }
