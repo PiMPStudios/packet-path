@@ -1,7 +1,7 @@
 {
   "id": 9,
   "title": "VLAN Trunking",
-  "briefing": "Two switches, four PCs. VLAN 10 hosts need to reach each other across the trunk. Configure port modes and VLAN IDs on both switches to make it work.",
+  "briefing": "Two switches, four PCs. PC-A and PC-C are on VLAN 10, PC-B and PC-D on VLAN 20. The inter-switch link must carry both VLANs. Configure the trunk ports on SW1 and SW2 to connect the two VLAN 10 hosts.",
   "devices": [
     {
       "id": 1, "type": "PC", "label": "PC-A",
@@ -16,16 +16,16 @@
     {
       "id": 3, "type": "SWITCH", "label": "SW1",
       "x": 380, "y": 350,
-      "vlanPort0": {"mode": "access", "vlan": 1},
-      "vlanPort1": {"mode": "access", "vlan": 1},
+      "vlanPort0": {"mode": "access", "vlan": 10},
+      "vlanPort1": {"mode": "access", "vlan": 20},
       "vlanPort2": {"mode": "access", "vlan": 1},
       "vlanPort3": {"mode": "access", "vlan": 1}
     },
     {
       "id": 4, "type": "SWITCH", "label": "SW2",
       "x": 620, "y": 350,
-      "vlanPort0": {"mode": "access", "vlan": 1},
-      "vlanPort1": {"mode": "access", "vlan": 1},
+      "vlanPort0": {"mode": "access", "vlan": 10},
+      "vlanPort1": {"mode": "access", "vlan": 20},
       "vlanPort2": {"mode": "access", "vlan": 1},
       "vlanPort3": {"mode": "access", "vlan": 1}
     },

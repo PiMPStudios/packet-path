@@ -113,6 +113,9 @@ int main() {
                 } else if (ps.bgpAsnField != -1) {
                     ps.bgpAsnField = -1;
                     ps.bgpAsnBuf.clear();
+                } else if (ps.vlanPortField != -1) {
+                    ps.vlanPortField = -1;
+                    ps.vlanPortBuf.clear();
                 } else if (connecting) {
                     connecting  = false;
                     hoverNodeId = -1;
@@ -507,6 +510,7 @@ int main() {
                 if (CheckCollisionPointRec(screenMouse, PnlVlanTabRect())) {
                     ps.activeTab           = TAB_VLAN;
                     ps.activeField         = -1;
+                    ps.activeRouteField    = -1;
                     ps.activePortAreaField = -1;
                     ps.portAreaBuf.clear();
                     ps.bgpAsnField         = -1;
