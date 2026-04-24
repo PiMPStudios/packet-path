@@ -1,5 +1,5 @@
 #include "GameUI.h"
-#include "NetworkCanvas.h"   // CANVAS_W, CANVAS_H
+#include "Layout.h"   // CANVAS_W, CANVAS_H
 #include <algorithm>
 #include <cstdio>
 
