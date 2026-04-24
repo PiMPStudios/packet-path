@@ -57,7 +57,7 @@ static const int   NODE_FONT_SZ   =  14;
 static const float PORT_RADIUS    =   6.0f;
 
 // ── Routing types ─────────────────────────────────────────────────────────
-enum RouteSource { ROUTE_CONNECTED, ROUTE_STATIC, ROUTE_OSPF, ROUTE_OSPF_IA, ROUTE_BGP };
+enum RouteSource { ROUTE_CONNECTED, ROUTE_STATIC, ROUTE_OSPF, ROUTE_OSPF_IA, ROUTE_BGP, ROUTE_EVPN };
 
 struct RouteEntry {
     std::string dest;
@@ -66,6 +66,7 @@ struct RouteEntry {
     RouteSource src;
     uint32_t    area = 0;   // OSPF area (set by SPF; 0 for non-OSPF routes)
     int         subVlanId = 0;  // non-zero: route exits via tagged subinterface
+    uint32_t    vni       = 0;   // non-zero for ROUTE_EVPN entries
 };
 
 // ── OSPF types ────────────────────────────────────────────────────────────
@@ -116,6 +117,7 @@ struct HopDecision {
     uint32_t inLabel  = 0;   // label arriving at this router (0 = unlabeled)
     uint32_t outLabel = 0;   // label leaving this router (0 = unlabeled after POP)
     int      vlanTag  = 0;   // 802.1Q VLAN on the cable leaving this hop (0 = untagged)
+    uint32_t vxlanVni = 0;   // non-zero = hop is inside a VXLAN tunnel
 };
 
 struct ForwardResult {
@@ -171,6 +173,12 @@ struct DeviceNode {
     // VLAN state (switches only)
     VlanPortConfig vlanPorts[PORTS_PER_NODE];
     std::vector<SubInterface> subIfaces;  // routers only
+    // VXLAN / BGP EVPN (routers/leaves only)
+    bool        vxlanEnabled = false;
+    bool        evpnEnabled  = false;
+    uint32_t    vni          = 0;        // VNI (1-16777215)
+    std::string vtepIp;                  // must equal one of this node's portIpN values
+    std::vector<RouteEntry> evpnRoutes;  // populated by EvpnEngine each frame
 };
 
 // ── Device geometry helpers (no draw calls) ───────────────────────────────

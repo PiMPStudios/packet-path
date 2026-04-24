@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-enum PanelTab { TAB_CONFIG, TAB_ROUTES, TAB_ARP, TAB_OSPF, TAB_MPLS, TAB_BGP, TAB_VLAN, TAB_SUB };
+enum PanelTab { TAB_CONFIG, TAB_ROUTES, TAB_ARP, TAB_OSPF, TAB_MPLS, TAB_BGP, TAB_VLAN, TAB_SUB, TAB_VXLAN };
 
 struct PanelState {
     int         activeField      = -1;
@@ -24,6 +24,11 @@ struct PanelState {
     int         subActiveField = -1;   // 0=VLAN field, 1=IP field, -1=none
     std::string subVlanBuf;            // digit buffer for VLAN ID
     std::string subIpBuf;              // buffer for IP/CIDR entry
+
+    // VXLAN tab
+    int         vxlanField   = -1;   // 0=VNI editing, 1=VTEP IP editing
+    std::string vxlanVniBuf;         // digit buffer for VNI
+    std::string vxlanVtepBuf;        // text buffer for VTEP IP
 };
 
 // Layout rect helpers

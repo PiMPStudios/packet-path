@@ -17,6 +17,7 @@ struct PacketAnim {
     float    successPulse = 0.f;
     uint32_t currentLabel = 0;  // top-of-stack label displayed on the packet dot (0 = unlabeled)
     int      currentVlan  = 0;   // VLAN badge to display while animating (0 = hidden)
+    uint32_t currentVni  = 0;   // VXLAN VNI badge: non-zero while inside tunnel
 };
 
 struct SimState {
