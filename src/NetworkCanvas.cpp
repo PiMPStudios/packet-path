@@ -413,9 +413,9 @@ void DrawTroubleshootOverlay(const std::vector<DeviceNode>& nodes,
         Vector2 mid = {(p0.x + p3.x) / 2.0f, (p0.y + p3.y) / 2.0f};
         const char* txt = "LINK DOWN";
         int tw = MeasureText(txt, 9);
-        DrawRectangle((int)(mid.x - tw / 2 - 3), (int)(mid.y + 10), tw + 6, 14,
+        DrawRectangle((int)mid.x - tw / 2 - 3, (int)(mid.y + 10), tw + 6, 14,
                       Color{239, 68, 68, 200});
-        DrawText(txt, (int)(mid.x - tw / 2), (int)(mid.y + 12), 9, WHITE);
+        DrawText(txt, (int)mid.x - tw / 2, (int)(mid.y + 12), 9, WHITE);
     }
 
     for (const auto& n : nodes) {
