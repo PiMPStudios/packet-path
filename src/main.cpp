@@ -112,6 +112,8 @@ int main() {
                     ps.vlanPortBuf.clear();
                 } else if (ps.subActiveField != -1) {
                     ps.subActiveField = -1;
+                    ps.subVlanBuf.clear();
+                    ps.subIpBuf.clear();
                 } else if (connecting) {
                     connecting  = false;
                     hoverNodeId = -1;

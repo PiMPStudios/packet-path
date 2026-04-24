@@ -30,14 +30,15 @@ void DrawDeviceNode(const DeviceNode& n) {
             DrawText(lbl, (int)(pp.x - lw * 0.5f), (int)(pp.y + PORT_RADIUS + 2), 8, lblCol);
         }
         if (n.type == ROUTER) {
+            int subY = (int)(pp.y + PORT_RADIUS + 2);
             for (const auto& si : n.subIfaces) {
                 if (si.parentPort != i) continue;
                 char lbl[8];
                 std::snprintf(lbl, sizeof(lbl), ".%d", si.vlanId);
                 int lw = MeasureText(lbl, 8);
-                DrawText(lbl, (int)(pp.x - lw * 0.5f), (int)(pp.y + PORT_RADIUS + 2),
+                DrawText(lbl, (int)(pp.x - lw * 0.5f), subY,
                          8, Color{249, 115, 22, 255});
-                break;
+                subY += 10;
             }
         }
     }

@@ -327,7 +327,18 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
 
             // Add intermediate switch hops (l2nh[1] .. l2nh[n-2])
             {
+                // Seed frameVlan: determine VLAN assigned at l2nh[1]'s ingress from l2nh[0].
+                // Needed so trunk-egress hops correctly show the VLAN tag in the trace.
                 int frameVlan = 0;
+                if (l2nh.size() >= 3) {
+                    const Cable*      c0 = FindCableL2(cables, l2nh[0], l2nh[1]);
+                    const DeviceNode* sw = FindNode(nodes, l2nh[1]);
+                    if (c0 && sw && sw->type == SWITCH) {
+                        int inPt = (c0->fromId == l2nh[1]) ? c0->fromPort : c0->toPort;
+                        if (sw->vlanPorts[inPt].mode == VLAN_ACCESS)
+                            frameVlan = sw->vlanPorts[inPt].accessVlan;
+                    }
+                }
                 for (int pi = 1; pi + 1 < (int)l2nh.size(); ++pi) {
                     int stepId   = l2nh[pi];
                     int nextStId = l2nh[pi + 1];
