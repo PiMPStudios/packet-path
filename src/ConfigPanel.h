@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-enum PanelTab { TAB_CONFIG, TAB_ROUTES, TAB_ARP, TAB_OSPF, TAB_MPLS, TAB_BGP, TAB_VLAN };
+enum PanelTab { TAB_CONFIG, TAB_ROUTES, TAB_ARP, TAB_OSPF, TAB_MPLS, TAB_BGP, TAB_VLAN, TAB_SUB };
 
 struct PanelState {
     int         activeField      = -1;
@@ -18,6 +18,12 @@ struct PanelState {
     std::string bgpAsnBuf;
     int         vlanPortField = -1;   // 0..3 = which port's VLAN ID field is active, -1 = none
     std::string vlanPortBuf;          // edit buffer for VLAN ID digits
+
+    // Sub (subinterface) tab
+    int         subFormPort    = 0;    // selected parent port for add form (0-3)
+    int         subActiveField = -1;   // 0=VLAN field, 1=IP field, -1=none
+    std::string subVlanBuf;            // digit buffer for VLAN ID
+    std::string subIpBuf;              // buffer for IP/CIDR entry
 };
 
 // Layout rect helpers
@@ -39,6 +45,12 @@ Rectangle PnlBgpRrRect();
 Rectangle PnlVlanTabRect();
 Rectangle PnlVlanPortModeRect(int port);
 Rectangle PnlVlanPortIdRect(int port);
+Rectangle PnlSubTabRect();
+Rectangle PnlSubPortBtnRect(int port);
+Rectangle PnlSubVlanFieldRect();
+Rectangle PnlSubIpFieldRect();
+Rectangle PnlSubAddBtnRect();
+Rectangle PnlSubRowDeleteRect(int rowIdx);
 Rectangle PnlRouteDeleteRect(int rowIdx);
 Rectangle PnlRouteDestRect();
 Rectangle PnlRouteNextRect();

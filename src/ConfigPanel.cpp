@@ -15,7 +15,7 @@ Rectangle PnlPortAreaFieldRect(int port) {
             44.0f, 24.0f};
 }
 
-float PnlTabW() { return (PANEL_W - 24.0f - 6.0f * 4.0f) / 7.0f; }
+float PnlTabW() { return (PANEL_W - 24.0f - 7.0f * 4.0f) / 8.0f; }
 Rectangle PnlConfigTabRect() {
     return {(float)(CANVAS_W + 12), 88.0f, PnlTabW(), 26.0f};
 }
@@ -58,6 +58,27 @@ Rectangle PnlRouteNextRect()   { return {(float)(CANVAS_W+12),(float)RTE_NEXT_Y,
 Rectangle PnlRouteAddBtnRect() { return {(float)(CANVAS_W+12),(float)RTE_BTN_Y, (float)(PANEL_W-24),28.0f}; }
 Rectangle PnlVlanTabRect() {
     return {(float)(CANVAS_W + 12) + 6.0f * (PnlTabW() + 4.0f), 88.0f, PnlTabW(), 26.0f};
+}
+Rectangle PnlSubTabRect() {
+    return {(float)(CANVAS_W + 12) + 7.0f * (PnlTabW() + 4.0f), 88.0f, PnlTabW(), 26.0f};
+}
+Rectangle PnlSubPortBtnRect(int port) {
+    float btnW = 28.0f, gap = 4.0f;
+    float x0 = (float)(CANVAS_W + 64);
+    return {x0 + port * (btnW + gap), (float)(SUB_FORM_Y0), btnW, 22.0f};
+}
+Rectangle PnlSubVlanFieldRect() {
+    return {(float)(CANVAS_W + 64), (float)(SUB_FORM_Y0 + 30), 60.0f, 22.0f};
+}
+Rectangle PnlSubIpFieldRect() {
+    return {(float)(CANVAS_W + 64), (float)(SUB_FORM_Y0 + 60), (float)(PANEL_W - 76), 22.0f};
+}
+Rectangle PnlSubAddBtnRect() {
+    return {(float)(CANVAS_W + 12), (float)(SUB_FORM_Y0 + 92), (float)(PANEL_W - 24), 26.0f};
+}
+Rectangle PnlSubRowDeleteRect(int rowIdx) {
+    return {(float)(CANVAS_W + PANEL_W - 22),
+            (float)(SUB_ROW_Y0 + rowIdx * SUB_ROW_H + 4), 16.0f, 14.0f};
 }
 Rectangle PnlVlanPortModeRect(int port) {
     return {(float)(CANVAS_W + 12), (float)(152 + port * 34), 70.0f, 22.0f};
