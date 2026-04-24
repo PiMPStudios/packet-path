@@ -29,6 +29,8 @@ bool LoadLevel(const std::string& path, LevelDef& out) {
         else if (typeStr == "SWITCH") n.type = SWITCH;
         else                          n.type = PC;
         n.position = {d.value("x", 0.0f), d.value("y", 0.0f)};
+        n.mgmtIp   = d.value("mgmtIp",   "");
+        n.routerId = d.value("routerId", "");
 
         for (int i = 0; i < PORTS_PER_NODE; ++i) {
             std::string key = "portIp" + std::to_string(i);
@@ -139,4 +141,108 @@ int ComputeStars(int failedAttempts) {
     if (failedAttempts == 0) return 3;
     if (failedAttempts <= 2) return 2;
     return 1;
+}
+
+bool SaveScene(const std::string& path,
+               const std::vector<DeviceNode>& nodes,
+               const std::vector<Cable>& cables)
+{
+    json j;
+    j["id"]            = 0;
+    j["title"]         = "Saved Scene";
+    j["briefing"]      = "";
+    j["winConditions"] = json::array();
+
+    json devArr = json::array();
+    for (const auto& n : nodes) {
+        json d;
+        d["id"]    = n.id;
+        d["label"] = n.label;
+        d["x"]     = n.position.x;
+        d["y"]     = n.position.y;
+        std::string typeStr = "PC";
+        if      (n.type == ROUTER) typeStr = "ROUTER";
+        else if (n.type == SWITCH) typeStr = "SWITCH";
+        d["type"] = typeStr;
+
+        if (!n.mgmtIp.empty())   d["mgmtIp"]   = n.mgmtIp;
+        if (!n.routerId.empty()) d["routerId"] = n.routerId;
+
+        for (int i = 0; i < PORTS_PER_NODE; ++i)
+            if (!n.portIp[i].empty())
+                d["portIp" + std::to_string(i)] = n.portIp[i];
+
+        if (n.ospfEnabled) d["ospfEnabled"] = true;
+        if (n.ldpEnabled)  d["ldpEnabled"]  = true;
+        if (n.crashed)     d["crashed"]     = true;
+
+        if (n.bgpEnabled) {
+            d["bgpEnabled"] = true;
+            d["localAsn"]   = n.localAsn;
+            if (n.isRouteReflector) d["isRouteReflector"] = true;
+            if (!n.bgpNetworks.empty()) {
+                json nets = json::array();
+                for (const auto& net : n.bgpNetworks) nets.push_back(net);
+                d["bgpNetworks"] = nets;
+            }
+        }
+
+        for (int i = 0; i < PORTS_PER_NODE; ++i)
+            if (n.ospfPortArea[i] != 0)
+                d["ospfArea" + std::to_string(i)] = n.ospfPortArea[i];
+
+        for (int i = 0; i < PORTS_PER_NODE; ++i) {
+            const auto& vp = n.vlanPorts[i];
+            if (vp.mode != VLAN_ACCESS || vp.accessVlan != 1) {
+                json vpj;
+                vpj["mode"] = (vp.mode == VLAN_TRUNK) ? "trunk" : "access";
+                vpj["vlan"] = vp.accessVlan;
+                d["vlanPort" + std::to_string(i)] = vpj;
+            }
+        }
+
+        if (!n.subIfaces.empty()) {
+            json siArr = json::array();
+            for (const auto& si : n.subIfaces) {
+                json sij;
+                sij["port"] = si.parentPort;
+                sij["vlan"] = si.vlanId;
+                sij["ip"]   = si.ip;
+                siArr.push_back(sij);
+            }
+            d["subIfaces"] = siArr;
+        }
+
+        if (!n.staticRoutes.empty()) {
+            json srArr = json::array();
+            for (const auto& sr : n.staticRoutes) {
+                if (sr.src != ROUTE_STATIC) continue;
+                json srj;
+                srj["dest"]    = sr.dest;
+                srj["nextHop"] = sr.nextHop;
+                srArr.push_back(srj);
+            }
+            if (!srArr.empty()) d["staticRoutes"] = srArr;
+        }
+
+        devArr.push_back(d);
+    }
+    j["devices"] = devArr;
+
+    json cableArr = json::array();
+    for (const auto& c : cables) {
+        json cj;
+        cj["from"]     = c.fromId;
+        cj["fromPort"] = c.fromPort;
+        cj["to"]       = c.toId;
+        cj["toPort"]   = c.toPort;
+        if (c.broken) cj["broken"] = true;
+        cableArr.push_back(cj);
+    }
+    j["cables"] = cableArr;
+
+    std::ofstream f(path);
+    if (!f.is_open()) return false;
+    f << j.dump(2);
+    return f.good();
 }

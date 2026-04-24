@@ -8,7 +8,7 @@ struct WinCondition {
     std::string srcLabel;
     std::string dstLabel;
     std::string description;
-    bool        requiresFix = false;   // true → win condition requires restoration after injected failure
+    bool        requiresFix = false;
 };
 
 struct LevelDef {
@@ -21,6 +21,9 @@ struct LevelDef {
 };
 
 bool LoadLevel(const std::string& path, LevelDef& out);
+bool SaveScene(const std::string& path,
+               const std::vector<DeviceNode>& nodes,
+               const std::vector<Cable>& cables);
 
 void ApplyLevel(const LevelDef& def,
                 std::vector<DeviceNode>& nodes,
@@ -31,6 +34,4 @@ int CheckWinConditions(const LevelDef& def,
                        const std::vector<DeviceNode>& nodes,
                        const std::vector<Cable>& cables);
 
-// Returns 1-3 stars based on failed simulations before winning.
-// 0 failures → 3, 1-2 → 2, 3+ → 1.
 int ComputeStars(int failedAttempts);
