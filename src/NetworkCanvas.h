@@ -66,6 +66,8 @@ void DrawBgpTab(const DeviceNode* n, const PanelState& ps);
 void DrawVlanTab(const DeviceNode* n, const PanelState& ps);
 void DrawSubIfaceTab(const DeviceNode* n, const PanelState& ps);
 void DrawVxlanTab(const DeviceNode* n, const PanelState& ps);
+void DrawAclTab(const DeviceNode* n, const PanelState& ps);
+void DrawNatTab(const DeviceNode* n, const PanelState& ps);
 void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
                const PanelState& ps);
 void DrawContextMenu(const ContextMenu& menu, Vector2 screenMouse);

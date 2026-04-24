@@ -1,4 +1,5 @@
 #include "NetworkCanvas.h"
+#include "AclEngine.h"
 
 void DrawDeviceNode(const DeviceNode& n) {
     Rectangle r = GetNodeRect(n);
@@ -1042,6 +1043,218 @@ void DrawVxlanTab(const DeviceNode* n, const PanelState& ps) {
     }
 }
 
+void DrawAclTab(const DeviceNode* n, const PanelState& ps) {
+    if (!n) { DrawText("No device selected", CANVAS_W()+20, 130, 11, Color{100,116,139,255}); return; }
+    if (n->type != ROUTER) { DrawText("ACL: routers only", CANVAS_W()+20, 130, 11, Color{100,116,139,255}); return; }
+
+    // Enable toggle (grey = no rules, green = rules present)
+    Rectangle togR = PnlAclToggleRect();
+    bool hasRules  = !n->aclRules.empty();
+    Color togCol   = hasRules ? Color{34,197,94,255} : Color{51,65,85,255};
+    DrawRectangleRec(togR, togCol);
+    DrawRectangleLinesEx(togR, 1.f, Color{71,85,105,255});
+    const char* togLabel = hasRules ? "ACL: Active" : "ACL: No Rules";
+    { int tw = MeasureText(togLabel, 12); DrawText(togLabel,
+        (int)(togR.x + (togR.width-tw)/2), (int)(togR.y+7), 12, WHITE); }
+
+    // IN port selector
+    DrawText("IN port:", CANVAS_W()+12, 142, 10, Color{100,116,139,255});
+    for (int p = 0; p <= 4; ++p) {
+        Rectangle br = PnlAclInPortBtnRect(p);
+        bool active  = (p < 4) ? (n->aclInPort == p) : (n->aclInPort == -1);
+        DrawRectangleRec(br, active ? Color{59,130,246,255} : Color{30,41,59,255});
+        DrawRectangleLinesEx(br, 1.f, Color{71,85,105,255});
+        char pbuf[4] = {0};
+        if (p < 4) pbuf[0] = '0' + p;
+        else { pbuf[0]='\xe2'; pbuf[1]='\x80'; pbuf[2]='\x94'; }  // — (em dash UTF-8)
+        int tw2 = MeasureText(pbuf, 10);
+        DrawText(pbuf, (int)(br.x+(br.width-tw2)/2), (int)(br.y+6), 10, WHITE);
+    }
+
+    // OUT port selector
+    DrawText("OUT port:", CANVAS_W()+12, 168, 10, Color{100,116,139,255});
+    for (int p = 0; p <= 4; ++p) {
+        Rectangle br = PnlAclOutPortBtnRect(p);
+        bool active  = (p < 4) ? (n->aclOutPort == p) : (n->aclOutPort == -1);
+        DrawRectangleRec(br, active ? Color{59,130,246,255} : Color{30,41,59,255});
+        DrawRectangleLinesEx(br, 1.f, Color{71,85,105,255});
+        char pbuf[4] = {0};
+        if (p < 4) pbuf[0] = '0' + p;
+        else { pbuf[0]='\xe2'; pbuf[1]='\x80'; pbuf[2]='\x94'; }
+        int tw2 = MeasureText(pbuf, 10);
+        DrawText(pbuf, (int)(br.x+(br.width-tw2)/2), (int)(br.y+6), 10, WHITE);
+    }
+
+    // Rules header
+    DrawText("Rules:", CANVAS_W()+12, 208, 10, Color{100,116,139,255});
+    DrawLineEx({(float)(CANVAS_W()+52), 214.f}, {(float)(CANVAS_W()+12+PANEL_W-24), 214.f},
+               0.5f, Color{51,65,85,255});
+
+    // Rule rows (max 5 visible)
+    int maxVisible = 5;
+    int ruleCount  = (int)n->aclRules.size();
+    for (int i = 0; i < std::min(ruleCount, maxVisible); ++i) {
+        const AclRule& r = n->aclRules[i];
+        float ry = 226.f + i * 26.f;
+
+        // Action badge
+        bool permit = (r.action == ACL_PERMIT);
+        Color badgeCol = permit ? Color{34,197,94,200} : Color{239,68,68,200};
+        Rectangle badgeR = {(float)(CANVAS_W()+12), ry, 46.f, 20.f};
+        DrawRectangleRounded(badgeR, 0.4f, 4, badgeCol);
+        const char* aLabel = permit ? "PERMIT" : "DENY";
+        int aw = MeasureText(aLabel, 9);
+        DrawText(aLabel, (int)(badgeR.x+(46-aw)/2), (int)(ry+5), 9, WHITE);
+
+        // Rule description
+        char rdesc[96];
+        if (r.dstPort > 0)
+            std::snprintf(rdesc, sizeof(rdesc), "%s \xe2\x86\x92 %s :%d",
+                          r.srcCidr.c_str(), r.dstCidr.c_str(), r.dstPort);
+        else
+            std::snprintf(rdesc, sizeof(rdesc), "%s \xe2\x86\x92 %s",
+                          r.srcCidr.c_str(), r.dstCidr.c_str());
+        DrawText(rdesc, CANVAS_W()+62, (int)(ry+5), 9, Color{203,213,225,255});
+
+        // Delete button
+        Rectangle delR = PnlAclRuleDeleteRect(i);
+        DrawRectangleRec(delR, Color{127,29,29,200});
+        DrawRectangleLinesEx(delR, 1.f, Color{153,27,27,255});
+        { int xw = MeasureText("X", 9); DrawText("X",
+            (int)(delR.x+(delR.width-xw)/2), (int)(delR.y+5), 9, WHITE); }
+    }
+    if (ruleCount > maxVisible) {
+        char moreBuf[32];
+        std::snprintf(moreBuf, sizeof(moreBuf), "+%d more", ruleCount - maxVisible);
+        DrawText(moreBuf, CANVAS_W()+12, (int)(226.f + maxVisible*26.f + 2), 9,
+                 Color{100,116,139,255});
+    }
+
+    // Add Rule form separator
+    DrawText("Add Rule:", CANVAS_W()+12, 358, 10, Color{100,116,139,255});
+    DrawLineEx({(float)(CANVAS_W()+68), 364.f}, {(float)(CANVAS_W()+12+PANEL_W-24), 364.f},
+               0.5f, Color{51,65,85,255});
+
+    // Action toggle for new rule
+    Rectangle formAct = PnlAclFormActionRect();
+    Color formActCol  = (ps.aclFormAction == 0) ? Color{34,197,94,255} : Color{239,68,68,255};
+    DrawRectangleRec(formAct, formActCol);
+    DrawRectangleLinesEx(formAct, 1.f, Color{71,85,105,255});
+    const char* fActLabel = (ps.aclFormAction == 0) ? "PERMIT" : "DENY";
+    { int tw3 = MeasureText(fActLabel, 12);
+      DrawText(fActLabel, (int)(formAct.x+(formAct.width-tw3)/2), (int)(formAct.y+7), 12, WHITE); }
+
+    // Src CIDR field
+    DrawText("Src:", CANVAS_W()+12, 392, 10, Color{100,116,139,255});
+    Rectangle srcR = PnlAclFormSrcRect();
+    bool srcActive = (ps.aclActiveField == 0);
+    DrawRectangleRec(srcR, srcActive ? Color{30,41,59,255} : Color{15,23,42,255});
+    DrawRectangleLinesEx(srcR, 1.f, srcActive ? Color{59,130,246,255} : Color{71,85,105,255});
+    const std::string& srcStr = srcActive ? ps.aclSrcBuf : (ps.aclSrcBuf.empty() ? std::string("any") : ps.aclSrcBuf);
+    DrawText(srcStr.c_str(), (int)(srcR.x+4), (int)(srcR.y+5), 10,
+             srcStr == "any" ? Color{71,85,105,255} : WHITE);
+
+    // Dst CIDR field
+    DrawText("Dst:", CANVAS_W()+12, 418, 10, Color{100,116,139,255});
+    Rectangle dstR = PnlAclFormDstRect();
+    bool dstActive = (ps.aclActiveField == 1);
+    DrawRectangleRec(dstR, dstActive ? Color{30,41,59,255} : Color{15,23,42,255});
+    DrawRectangleLinesEx(dstR, 1.f, dstActive ? Color{59,130,246,255} : Color{71,85,105,255});
+    const std::string& dstStr = dstActive ? ps.aclDstBuf : (ps.aclDstBuf.empty() ? std::string("any") : ps.aclDstBuf);
+    DrawText(dstStr.c_str(), (int)(dstR.x+4), (int)(dstR.y+5), 10,
+             dstStr == "any" ? Color{71,85,105,255} : WHITE);
+
+    // Dst Port field
+    DrawText("Port:", CANVAS_W()+12, 444, 10, Color{100,116,139,255});
+    Rectangle portR = PnlAclFormPortRect();
+    bool portActive = (ps.aclActiveField == 2);
+    DrawRectangleRec(portR, portActive ? Color{30,41,59,255} : Color{15,23,42,255});
+    DrawRectangleLinesEx(portR, 1.f, portActive ? Color{59,130,246,255} : Color{71,85,105,255});
+    const std::string& portStr = portActive ? ps.aclPortBuf
+                                 : (ps.aclPortBuf.empty() ? std::string("any") : ps.aclPortBuf);
+    DrawText(portStr.c_str(), (int)(portR.x+4), (int)(portR.y+5), 10,
+             portStr == "any" ? Color{71,85,105,255} : WHITE);
+
+    // Add button
+    Rectangle addR = PnlAclFormAddBtnRect();
+    DrawRectangleRec(addR, Color{30,64,175,255});
+    DrawRectangleLinesEx(addR, 1.f, Color{59,130,246,255});
+    { int tw4 = MeasureText("+ Add Rule", 11);
+      DrawText("+ Add Rule", (int)(addR.x+(addR.width-tw4)/2), (int)(addR.y+8), 11, WHITE); }
+}
+
+void DrawNatTab(const DeviceNode* n, const PanelState& ps) {
+    if (!n) { DrawText("No device selected", CANVAS_W()+20, 130, 11, Color{100,116,139,255}); return; }
+    if (n->type != ROUTER) { DrawText("NAT: routers only", CANVAS_W()+20, 130, 11, Color{100,116,139,255}); return; }
+
+    // Enable toggle
+    Rectangle togR = PnlNatToggleRect();
+    Color togCol   = n->natEnabled ? Color{234,179,8,255} : Color{51,65,85,255};
+    DrawRectangleRec(togR, togCol);
+    DrawRectangleLinesEx(togR, 1.f, Color{71,85,105,255});
+    const char* natLabel = n->natEnabled ? "NAT: Enabled" : "NAT: Disabled";
+    { int tw = MeasureText(natLabel, 12);
+      DrawText(natLabel, (int)(togR.x+(togR.width-tw)/2), (int)(togR.y+7), 12, WHITE); }
+
+    if (!n->natEnabled) return;
+
+    // Inside port
+    DrawText("Inside port:", CANVAS_W()+12, 142, 10, Color{100,116,139,255});
+    for (int p = 0; p < 4; ++p) {
+        Rectangle br = PnlNatInsidePortBtnRect(p);
+        bool active  = (n->natInsidePort == p);
+        DrawRectangleRec(br, active ? Color{34,197,94,255} : Color{30,41,59,255});
+        DrawRectangleLinesEx(br, 1.f, Color{71,85,105,255});
+        char pbuf[2] = {static_cast<char>('0'+p), 0};
+        int tw2 = MeasureText(pbuf, 10);
+        DrawText(pbuf, (int)(br.x+(br.width-tw2)/2), (int)(br.y+6), 10, WHITE);
+    }
+
+    // Outside port
+    DrawText("Outside port:", CANVAS_W()+12, 168, 10, Color{100,116,139,255});
+    for (int p = 0; p < 4; ++p) {
+        Rectangle br = PnlNatOutsidePortBtnRect(p);
+        bool active  = (n->natOutsidePort == p);
+        DrawRectangleRec(br, active ? Color{59,130,246,255} : Color{30,41,59,255});
+        DrawRectangleLinesEx(br, 1.f, Color{71,85,105,255});
+        char pbuf[2] = {static_cast<char>('0'+p), 0};
+        int tw2 = MeasureText(pbuf, 10);
+        DrawText(pbuf, (int)(br.x+(br.width-tw2)/2), (int)(br.y+6), 10, WHITE);
+    }
+
+    // Inside prefix field
+    DrawText("Inside prefix:", CANVAS_W()+12, 204, 10, Color{100,116,139,255});
+    Rectangle prefR = PnlNatInsidePrefixRect();
+    bool prefActive  = (ps.natField == 0);
+    DrawRectangleRec(prefR, prefActive ? Color{30,41,59,255} : Color{15,23,42,255});
+    DrawRectangleLinesEx(prefR, 1.f, prefActive ? Color{59,130,246,255} : Color{71,85,105,255});
+    const std::string& prefStr = prefActive ? ps.natInsideBuf
+                                  : (n->natInsidePrefix.empty() ? std::string("unset") : n->natInsidePrefix);
+    DrawText(prefStr.c_str(), (int)(prefR.x+4), (int)(prefR.y+5), 10,
+             (prefStr == "unset") ? Color{71,85,105,255} : WHITE);
+
+    // Outside IP (auto, display only)
+    DrawText("Outside IP (auto):", CANVAS_W()+12, 244, 10, Color{100,116,139,255});
+    if (n->natOutsidePort < 0 || n->natOutsidePort >= PORTS_PER_NODE) {
+        DrawText("Outside port not set", CANVAS_W()+12, 258, 10, Color{71,85,105,255});
+    } else {
+        const std::string& outsideCidr = n->portIp[n->natOutsidePort];
+        auto sl = outsideCidr.find('/');
+        std::string outsideIp = sl != std::string::npos ? outsideCidr.substr(0, sl) : outsideCidr;
+        DrawText(outsideIp.empty() ? "unset" : outsideIp.c_str(),
+                 CANVAS_W()+12, 258, 10,
+                 outsideIp.empty() ? Color{71,85,105,255} : Color{94,234,212,255});
+
+        // NAT summary
+        if (!n->natInsidePrefix.empty() && !outsideIp.empty()) {
+            char sumBuf[80];
+            std::snprintf(sumBuf, sizeof(sumBuf), "%s \xe2\x86\x92 %s (overload)",
+                          n->natInsidePrefix.c_str(), outsideIp.c_str());
+            DrawText(sumBuf, CANVAS_W()+12, 278, 10, Color{234,179,8,200});
+        }
+    }
+}
+
 void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
                const PanelState& ps)
 {
@@ -1201,6 +1414,36 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
                  vxlActive ? Color{20,184,166,255} : Color{100, 116, 139, 255});
     }
 
+        // ACL tab
+        Rectangle aclTab    = PnlAclTabRect();
+        bool      aclActive = (ps.activeTab == TAB_ACL);
+        DrawRectangleRec(aclTab, aclActive ? Color{30,41,59,255} : PANEL_BG);
+        if (aclActive)
+            DrawLineEx({aclTab.x, aclTab.y + aclTab.height},
+                       {aclTab.x + aclTab.width, aclTab.y + aclTab.height}, 2.0f,
+                       Color{59, 130, 246, 255});
+        {
+            int tw = MeasureText("ACL", 10);
+            DrawText("ACL", (int)(aclTab.x + (aclTab.width - tw) / 2),
+                     (int)(aclTab.y + 8), 10,
+                     aclActive ? Color{239,68,68,255} : Color{100,116,139,255});
+        }
+
+        // NAT tab
+        Rectangle natTab    = PnlNatTabRect();
+        bool      natActive = (ps.activeTab == TAB_NAT);
+        DrawRectangleRec(natTab, natActive ? Color{30,41,59,255} : PANEL_BG);
+        if (natActive)
+            DrawLineEx({natTab.x, natTab.y + natTab.height},
+                       {natTab.x + natTab.width, natTab.y + natTab.height}, 2.0f,
+                       Color{59, 130, 246, 255});
+        {
+            int tw = MeasureText("NAT", 10);
+            DrawText("NAT", (int)(natTab.x + (natTab.width - tw) / 2),
+                     (int)(natTab.y + 8), 10,
+                     natActive ? Color{234,179,8,255} : Color{100,116,139,255});
+        }
+
     DrawLineEx({(float)CANVAS_W(), 116.0f}, {(float)(CANVAS_W() + PANEL_W), 116.0f},
                1.0f, PANEL_BORDER);
 
@@ -1221,6 +1464,8 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
         DrawVlanTab(n, ps);
     else if (ps.activeTab == TAB_SUB) DrawSubIfaceTab(n, ps);
     else if (ps.activeTab == TAB_VXLAN) DrawVxlanTab(n, ps);
+    else if (ps.activeTab == TAB_ACL)  DrawAclTab(n, ps);
+    else if (ps.activeTab == TAB_NAT)  DrawNatTab(n, ps);
 }
 
 // ── Context menu draw ────────────────────────────────────────────────────

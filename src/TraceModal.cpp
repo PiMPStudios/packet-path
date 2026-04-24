@@ -115,7 +115,29 @@ void DrawTraceModal(const ForwardResult& trace) {
                          (int)(rowY + 31.f), 10, Color{253, 186, 116, 255});
             }
 
-            float rowStride = hasLabel ? 52.f : 44.f;
+            // ACL annotation badge
+            bool hasAcl = !h.aclResult.empty();
+            bool hasNat = !h.natResult.empty();
+            if (hasAcl) {
+                float annotY = rowY + 30.f + (hasLabel ? 16.f : 0.f);
+                bool permit  = (h.aclResult.rfind("PERMIT", 0) == 0);
+                Color ac     = permit ? Color{34,197,94,255} : Color{239,68,68,255};
+                float bw = (float)(MeasureText(h.aclResult.c_str(), 9) + 10);
+                DrawRectangleRounded({MX+40.f, annotY, bw, 13.f}, 0.4f, 4, ac);
+                DrawText(h.aclResult.c_str(), (int)(MX+45.f), (int)(annotY+2.f), 9, WHITE);
+            }
+            // NAT annotation badge
+            if (hasNat) {
+                float annotY = rowY + 30.f + (hasLabel ? 16.f : 0.f) + (hasAcl ? 16.f : 0.f);
+                char natBuf[64];
+                std::snprintf(natBuf, sizeof(natBuf), "NAT %s", h.natResult.c_str());
+                float bw = (float)(MeasureText(natBuf, 9) + 10);
+                DrawRectangleRounded({MX+40.f, annotY, bw, 13.f}, 0.4f, 4, Color{234,179,8,255});
+                DrawText(natBuf, (int)(MX+45.f), (int)(annotY+2.f), 9, WHITE);
+            }
+
+            int extras  = (hasLabel ? 1 : 0) + (hasAcl ? 1 : 0) + (hasNat ? 1 : 0);
+            float rowStride = 44.f + extras * 16.f;
             rowY += rowStride;
             if (i + 1 < (int)trace.hops.size())
                 DrawLineEx({MX + 8.f, rowY - 4.f}, {MX + MW - 8.f, rowY - 4.f},
