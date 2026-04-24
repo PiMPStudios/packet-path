@@ -31,7 +31,7 @@ void DrawLevelHUD(int levelId, const std::string& title,
 
     if (starsEarned > 0) {
         // Star dots: 3 circles at right side, spacing 12px, radius 4
-        int dotCx[3] = {220, 232, 244};
+        int dotCx[3] = {220, 232, 243};
         int dotCy    = 19;
         for (int i = 0; i < 3; ++i) {
             if (i < starsEarned)
