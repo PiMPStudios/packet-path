@@ -45,6 +45,12 @@
       "dst": "PC-B",
       "description": "PC-A can reach PC-B after link restoration",
       "requiresFix": true
+    },
+    {
+      "src": "PC-B",
+      "dst": "PC-A",
+      "description": "PC-B can reach PC-A after link restoration",
+      "requiresFix": true
     }
   ]
 }
