@@ -57,6 +57,14 @@ bool LoadLevel(const std::string& path, LevelDef& out) {
             }
         }
 
+        if (d.contains("subIfaces") && d["subIfaces"].is_array())
+            for (const auto& si : d["subIfaces"])
+                n.subIfaces.push_back({
+                    si.value("port", 0),
+                    si.value("vlan", 0),
+                    si.value("ip",   "")
+                });
+
         for (const auto& sr : d.value("staticRoutes", json::array())) {
             RouteEntry re;
             re.dest    = sr.value("dest",    "");
