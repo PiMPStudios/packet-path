@@ -545,7 +545,7 @@ void DrawMplsTab(const DeviceNode* n) {
         DrawText("MPLS: routers only", CANVAS_W + 20, 130, 12, Color{100,116,139,255});
         return;
     }
-    DrawText("(MPLS — enable in Task 5)", CANVAS_W + 20, 130, 10, Color{71,85,105,255});
+    DrawText("(MPLS - enable in Task 5)", CANVAS_W + 20, 130, 10, Color{71,85,105,255});
 }
 
 void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
