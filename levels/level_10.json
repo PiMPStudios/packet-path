@@ -1,7 +1,7 @@
 {
   "id": 10,
   "title": "Router-on-a-Stick",
-  "briefing": "PC-A (VLAN 10) and PC-B (VLAN 20) are on the same switch but different VLANs. A router-on-a-stick configuration can route between them. Set SW1 port 2 to trunk, then add subinterfaces on R1: port 0, VLAN 10, 10.10.0.1/24 and port 0, VLAN 20, 10.20.0.1/24.",
+  "briefing": "PC-A (VLAN 10) and PC-B (VLAN 20) are on the same switch but different VLANs. A router-on-a-stick configuration can route between them. PC-A and PC-B are already configured with default gateways pointing to R1. Set SW1 port 2 to trunk, then add two subinterfaces on R1 (port 0): VLAN 10 with IP 10.10.0.1/24, and VLAN 20 with IP 10.20.0.1/24.",
   "devices": [
     {
       "id": 1, "type": "PC", "label": "PC-A",
@@ -38,6 +38,11 @@
       "src": "PC-A",
       "dst": "PC-B",
       "description": "PC-A reaches PC-B (inter-VLAN via router-on-a-stick)"
+    },
+    {
+      "src": "PC-B",
+      "dst": "PC-A",
+      "description": "PC-B reaches PC-A (inter-VLAN routing is bidirectional)"
     }
   ]
 }
