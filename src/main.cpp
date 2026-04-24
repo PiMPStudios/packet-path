@@ -136,6 +136,10 @@ int main() {
             if (simState.srcId == selectedId) { simState.mode = SIM_IDLE; simState.srcId = -1; }
             selectedId = -1;
             dragging   = false;
+            ps.bgpAsnField = -1;
+            ps.bgpAsnBuf.clear();
+            ps.activePortAreaField = -1;
+            ps.portAreaBuf.clear();
         }
 
         // ── Camera pan (middle mouse) ──────────────────────────────────
@@ -604,7 +608,6 @@ int main() {
                             if (!selNode->bgpEnabled) {
                                 selNode->bgpNeighbors.clear();
                                 selNode->bgpRoutes.clear();
-                                selNode->localAsn = 0;
                             }
                             ps.bgpAsnField = -1;
                             ps.bgpAsnBuf.clear();
@@ -681,10 +684,6 @@ int main() {
                 ps.bgpAsnField = -1;
                 ps.bgpAsnBuf.clear();
             }
-            if (IsKeyPressed(KEY_ESCAPE)) {
-                ps.bgpAsnField = -1;
-                ps.bgpAsnBuf.clear();
-            }
         } else {
             while (GetCharPressed() > 0) {}  // flush char queue when no field active
         }
@@ -710,7 +709,7 @@ int main() {
         {
             auto ospfEvents = UpdateOspf(dt, nodes, cables);
             UpdateLdp(nodes, cables);   // recompute LFIB after each OSPF tick
-            UpdateBgp(nodes, cables);   // recompute BGP RIB after each OSPF tick
+            UpdateBgp(nodes, cables);   // recompute BGP RIB every frame
             auto pushLog = [&](LogEntry entry) {
                 if (logEntries.size() >= 50) logEntries.erase(logEntries.begin());
                 logEntries.push_back(entry);
