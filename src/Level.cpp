@@ -37,6 +37,7 @@ bool LoadLevel(const std::string& path, LevelDef& out) {
 
         n.ospfEnabled = d.value("ospfEnabled", false);
         n.ldpEnabled  = d.value("ldpEnabled",  false);
+        n.crashed     = d.value("crashed",     false);
         n.bgpEnabled       = d.value("bgpEnabled",       false);
         n.isRouteReflector = d.value("isRouteReflector", false);
         n.localAsn         = (uint32_t)d.value("localAsn",  0);
@@ -85,6 +86,7 @@ bool LoadLevel(const std::string& path, LevelDef& out) {
         cable.fromPort = c.value("fromPort", 0);
         cable.toId     = c.value("to",       0);
         cable.toPort   = c.value("toPort",   0);
+        cable.broken   = c.value("broken",   false);
         out.cables.push_back(cable);
     }
 
@@ -93,6 +95,7 @@ bool LoadLevel(const std::string& path, LevelDef& out) {
         w.srcLabel    = wc.value("src",         "");
         w.dstLabel    = wc.value("dst",         "");
         w.description = wc.value("description", "");
+        w.requiresFix = wc.value("requiresFix", false);
         out.winConditions.push_back(w);
     }
 

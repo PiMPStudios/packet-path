@@ -8,6 +8,7 @@ struct WinCondition {
     std::string srcLabel;
     std::string dstLabel;
     std::string description;
+    bool        requiresFix = false;   // true → win condition requires restoration after injected failure
 };
 
 struct LevelDef {
