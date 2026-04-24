@@ -3,7 +3,7 @@
 #include "raylib.h"
 #include <string>
 
-enum GameMode    { GAME_SANDBOX, GAME_PLAYING, GAME_WIN };
+enum GameMode    { GAME_SANDBOX, GAME_PLAYING, GAME_WIN, GAME_LEVEL_SELECT };
 enum FileOpState { FILEOP_NONE, FILEOP_SAVING, FILEOP_LOADING };
 
 Rectangle WinOverlayRect();
@@ -26,3 +26,19 @@ void DrawFileDialog(FileOpState        state,
                     const std::string& buf,
                     const std::string& msg,
                     float              msgTimer);
+
+// ── Sandbox mode HUD ──────────────────────────────────────────────────────
+// Teal "SANDBOX" badge {8,8,108,22} + MENU button at {120,8,52,22}.
+void DrawSandboxHUD();
+Rectangle SandboxMenuBtnRect();      // {120,8,52,22}
+
+// ── Level-play HUD additions ──────────────────────────────────────────────
+// Drawn to the right of the existing 240 px level badge.
+Rectangle LevelHudMenuBtnRect();     // {252,8,52,22}
+Rectangle LevelHudSandboxBtnRect();  // {308,8,72,22}
+
+// ── Level-select overlay ──────────────────────────────────────────────────
+// Full-screen overlay; levelTitles must be a 16-element array (indices 0–15).
+void DrawLevelSelectScreen(const std::string* levelTitles);
+Rectangle LevelSelectCardRect(int i);   // i=0..15 → level card for level i+1
+Rectangle LevelSelectSandboxBtnRect();  // Full-width sandbox card below the grid
