@@ -72,6 +72,7 @@ void DrawTraceModal(const ForwardResult& trace) {
             if      (h.routeType == "C")    rtCol = Color{34, 197, 94, 255};
             else if (h.routeType == "S")    rtCol = Color{234, 179, 8, 255};
             else if (h.routeType == "O")    rtCol = Color{59, 130, 246, 255};
+            else if (h.routeType == "B")    rtCol = Color{20, 184, 166, 255};   // teal
             else                            rtCol = Color{168, 85, 247, 255};
             DrawText(h.routeType.c_str(), (int)(MX + 40.f), (int)(rowY + 16.f), 10, rtCol);
 

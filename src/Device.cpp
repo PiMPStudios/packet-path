@@ -88,6 +88,8 @@ std::vector<RouteEntry> GetRoutingTable(const DeviceNode& n) {
         table.push_back(r);
     for (const auto& r : n.ospfRoutes)
         table.push_back(r);
+    for (const auto& r : n.bgpRoutes)
+        table.push_back({r.prefix, r.nextHop, -1, ROUTE_BGP});
     return table;
 }
 

@@ -104,6 +104,7 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
                 if      (route.src == ROUTE_STATIC)  hd.routeType = "S";
                 else if (route.src == ROUTE_OSPF)    hd.routeType = "O";
                 else if (route.src == ROUTE_OSPF_IA) hd.routeType = "O IA";
+                else if (route.src == ROUTE_BGP)     hd.routeType = "B";
                 else                                  hd.routeType = "?";
                 hd.destPrefix = route.dest;
                 hd.nextHopIp  = route.nextHop;
