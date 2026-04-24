@@ -13,7 +13,8 @@ Rectangle WinNextBtnRect();
 
 // Top-left badge showing current level, title, and win-condition progress.
 void DrawLevelHUD(int levelId, const std::string& title,
-                  int conditionsPassed, int conditionsTotal);
+                  int conditionsPassed, int conditionsTotal,
+                  int starsEarned = 0);
 
 // Semi-transparent win overlay with "LEVEL COMPLETE!", stars, checklist, and buttons.
 // hasNextLevel: if false, the Next Level button is greyed out.

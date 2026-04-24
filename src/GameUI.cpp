@@ -19,23 +19,36 @@ Rectangle WinNextBtnRect() {
 }
 
 void DrawLevelHUD(int levelId, const std::string& title,
-                  int conditionsPassed, int conditionsTotal) {
-    // Badge: top-left of canvas, 8px inset
-    DrawRectangle(8, 8, 224, 22, Color{10, 15, 28, 210});
-    DrawRectangleLinesEx({8, 8, 224, 22}, 1.0f, Color{51, 65, 85, 255});
+                  int conditionsPassed, int conditionsTotal,
+                  int starsEarned) {
+    // Badge: top-left of canvas, 8px inset — widened to 240px to hold star dots
+    DrawRectangle(8, 8, 240, 22, Color{10, 15, 28, 210});
+    DrawRectangleLinesEx({8, 8, 240, 22}, 1.0f, Color{51, 65, 85, 255});
 
     char buf[80];
     std::snprintf(buf, sizeof(buf), "LVL %d  %s", levelId, title.c_str());
     DrawText(buf, 14, 13, 10, Color{148, 163, 184, 255});
 
-    // Condition counter (right-aligned inside badge)
-    char prog[8];
-    std::snprintf(prog, sizeof(prog), "%d/%d", conditionsPassed, conditionsTotal);
-    Color progColor = (conditionsPassed == conditionsTotal && conditionsTotal > 0)
-                    ? Color{34, 197, 94, 255}
-                    : Color{234, 179, 8, 255};
-    int pw = MeasureText(prog, 10);
-    DrawText(prog, 8 + 224 - pw - 8, 13, 10, progColor);
+    if (starsEarned > 0) {
+        // Star dots: 3 circles at right side, spacing 12px, radius 4
+        int dotCx[3] = {220, 232, 244};
+        int dotCy    = 19;
+        for (int i = 0; i < 3; ++i) {
+            if (i < starsEarned)
+                DrawCircle(dotCx[i], dotCy, 4.0f, Color{234, 179, 8, 255});
+            else
+                DrawCircleLines(dotCx[i], dotCy, 4.0f, Color{71, 85, 105, 255});
+        }
+    } else {
+        // Condition counter (right-aligned inside badge)
+        char prog[8];
+        std::snprintf(prog, sizeof(prog), "%d/%d", conditionsPassed, conditionsTotal);
+        Color progColor = (conditionsPassed == conditionsTotal && conditionsTotal > 0)
+                        ? Color{34, 197, 94, 255}
+                        : Color{234, 179, 8, 255};
+        int pw = MeasureText(prog, 10);
+        DrawText(prog, 8 + 240 - pw - 8, 13, 10, progColor);
+    }
 }
 
 void DrawWinOverlay(const LevelDef& def, bool hasNextLevel, int starsEarned) {
