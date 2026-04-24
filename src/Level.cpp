@@ -244,5 +244,6 @@ bool SaveScene(const std::string& path,
     std::ofstream f(path);
     if (!f.is_open()) return false;
     f << j.dump(2);
-    return f.good();
+    f.close();
+    return !f.fail();
 }
