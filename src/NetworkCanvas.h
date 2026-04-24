@@ -13,17 +13,10 @@
 #include <vector>
 
 // ── Screen & layout constants ─────────────────────────────────────────────
-static const int   SCREEN_W       = 1280;
-static const int   SCREEN_H       = 720;
-static const Color BG_COLOR       = {15, 23, 42, 255};
-static const int   PANEL_W        = 280;
-static const int   CANVAS_W       = SCREEN_W - PANEL_W;
-static const int   LOG_H          = 90;
-static const int   CANVAS_H       = SCREEN_H - LOG_H;
-static const Color PANEL_BG       = {22, 33, 62, 255};
-static const Color PANEL_BORDER   = {51, 65, 85, 255};
-static const int   MENU_ITEM_H    = 28;
-static const int   CONTEXT_MENU_W = 160;
+#include "Layout.h"
+static const Color BG_COLOR     = {15, 23, 42, 255};
+static const Color PANEL_BG     = {22, 33, 62, 255};
+static const Color PANEL_BORDER = {51, 65, 85, 255};
 
 // ── Config tab layout ─────────────────────────────────────────────────────
 static const int CFG_HOSTNAME_Y   = 158;
