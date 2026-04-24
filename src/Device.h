@@ -17,6 +17,21 @@ struct LdpBinding {
     uint32_t outLabel   = 0;  // label expected by next-hop router (or IMPLICIT_NULL)
 };
 
+// ── BGP types ─────────────────────────────────────────────────────────────
+struct BgpNeighbor {
+    std::string neighborIp;        // peer's port IP on shared cable (no mask)
+    int         neighborNodeId = -1;
+    uint32_t    neighborAsn    = 0;
+    bool        established    = false;
+};
+
+struct BgpRoute {
+    std::string           prefix;           // CIDR e.g. "10.0.0.0/24"
+    std::string           nextHop;          // peer's facing IP (no mask)
+    std::vector<uint32_t> asPath;           // ASNs, closest first
+    int                   neighborNodeId = -1;  // node that sent this route
+};
+
 // ── Device geometry constants ─────────────────────────────────────────────
 static const int   PORTS_PER_NODE = 4;
 static const float NODE_W         = 120.0f;
@@ -25,7 +40,7 @@ static const int   NODE_FONT_SZ   =  14;
 static const float PORT_RADIUS    =   6.0f;
 
 // ── Routing types ─────────────────────────────────────────────────────────
-enum RouteSource { ROUTE_CONNECTED, ROUTE_STATIC, ROUTE_OSPF, ROUTE_OSPF_IA };
+enum RouteSource { ROUTE_CONNECTED, ROUTE_STATIC, ROUTE_OSPF, ROUTE_OSPF_IA, ROUTE_BGP };
 
 struct RouteEntry {
     std::string dest;
@@ -125,6 +140,12 @@ struct DeviceNode {
     // LDP / MPLS state (routers only)
     bool ldpEnabled = false;
     std::unordered_map<std::string, LdpBinding> lfib;  // key = CIDR prefix e.g. "10.0.1.0/24" (NetworkAddress() form)
+    // BGP state (routers only)
+    bool                     bgpEnabled  = false;
+    uint32_t                 localAsn    = 0;
+    std::vector<std::string> bgpNetworks;    // prefixes to advertise; empty = auto-advertise connected
+    std::vector<BgpNeighbor> bgpNeighbors;
+    std::vector<BgpRoute>    bgpRoutes;      // received BGP routes (RIB-in)
 };
 
 // ── Device geometry helpers (no draw calls) ───────────────────────────────

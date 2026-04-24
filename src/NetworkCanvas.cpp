@@ -615,6 +615,15 @@ void DrawMplsTab(const DeviceNode* n) {
     }
 }
 
+void DrawBgpTab(const DeviceNode* n, const PanelState& ps) {
+    (void)ps;
+    if (!n || n->type != ROUTER) {
+        DrawText("BGP: routers only", CANVAS_W + 20, 130, 12, Color{100,116,139,255});
+        return;
+    }
+    DrawText("(BGP - Task 4)", CANVAS_W + 20, 130, 10, Color{71,85,105,255});
+}
+
 void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
                const PanelState& ps)
 {
@@ -718,6 +727,20 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
                  mplsActive ? WHITE : Color{100, 116, 139, 255});
     }
 
+    Rectangle bgpTab    = PnlBgpTabRect();
+    bool      bgpActive = (ps.activeTab == TAB_BGP);
+    DrawRectangleRec(bgpTab, bgpActive ? Color{30,41,59,255} : PANEL_BG);
+    if (bgpActive)
+        DrawLineEx({bgpTab.x, bgpTab.y + bgpTab.height},
+                   {bgpTab.x + bgpTab.width, bgpTab.y + bgpTab.height}, 2.0f,
+                   Color{34, 197, 94, 255});
+    {
+        int twB = MeasureText("BGP", 11);
+        DrawText("BGP", (int)(bgpTab.x + (bgpTab.width - twB) / 2),
+                 (int)(bgpTab.y + 7), 11,
+                 bgpActive ? Color{34,197,94,255} : Color{100, 116, 139, 255});
+    }
+
     DrawLineEx({(float)CANVAS_W, 116.0f}, {(float)(CANVAS_W + PANEL_W), 116.0f},
                1.0f, PANEL_BORDER);
 
@@ -732,6 +755,7 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
         DrawOspfTab(n);
     else if (ps.activeTab == TAB_MPLS)
         DrawMplsTab(n);
+    else if (ps.activeTab == TAB_BGP)  DrawBgpTab(n, ps);
 }
 
 // ── Context menu draw ────────────────────────────────────────────────────

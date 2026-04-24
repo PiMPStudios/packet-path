@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-enum PanelTab { TAB_CONFIG, TAB_ROUTES, TAB_ARP, TAB_OSPF, TAB_MPLS };
+enum PanelTab { TAB_CONFIG, TAB_ROUTES, TAB_ARP, TAB_OSPF, TAB_MPLS, TAB_BGP };
 
 struct PanelState {
     int         activeField      = -1;
@@ -14,6 +14,8 @@ struct PanelState {
     int         activeRouteField = -1;
     int         activePortAreaField = -1;  // 0..3 = which port's area field is active
     std::string portAreaBuf;               // edit buffer for area number
+    int         bgpAsnField = -1;    // nodeId being edited (-1 = inactive)
+    std::string bgpAsnBuf;
 };
 
 // Layout rect helpers
@@ -28,6 +30,9 @@ Rectangle PnlOspfTabRect();
 Rectangle PnlOspfEnableRect();
 Rectangle PnlMplsTabRect();
 Rectangle PnlMplsToggleRect();
+Rectangle PnlBgpTabRect();
+Rectangle PnlBgpToggleRect();
+Rectangle PnlBgpAsnRect();
 Rectangle PnlRouteDeleteRect(int rowIdx);
 Rectangle PnlRouteDestRect();
 Rectangle PnlRouteNextRect();
