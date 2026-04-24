@@ -79,3 +79,5 @@ void DrawLogConsole(const std::vector<LogEntry>& entries);
 void DrawBrokenPath(const std::vector<DeviceNode>& nodes,
                     const std::vector<Cable>& cables,
                     const ForwardResult& result);
+void DrawTroubleshootOverlay(const std::vector<DeviceNode>& nodes,
+                              const std::vector<Cable>& cables);

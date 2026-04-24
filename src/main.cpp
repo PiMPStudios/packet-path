@@ -44,6 +44,7 @@ int main() {
     int         lastConditionsPassed = 0;
     int         failedAttempts       = 0;
     int         starsEarned          = 0;
+    bool          troubleshootMode = false;
     bool          traceModalOpen = false;
     ForwardResult activeTrace;
     float         failAnnotationTimer = 0.f;
@@ -63,6 +64,8 @@ int main() {
             if (IsKeyPressed(KEY_P)) nodes.push_back(SpawnNode(PC,     worldMouse));
             if (IsKeyPressed(KEY_R)) nodes.push_back(SpawnNode(ROUTER, worldMouse));
             if (IsKeyPressed(KEY_S)) nodes.push_back(SpawnNode(SWITCH, worldMouse));
+            if (IsKeyPressed(KEY_T))
+                troubleshootMode = !troubleshootMode;
             // Level shortcuts: 1–8 load JSON levels, 0 returns to sandbox
             if (ps.activePortAreaField == -1) {
                 for (int k = 1; k <= 10; ++k) {
@@ -440,19 +443,22 @@ int main() {
                     }
                 }
                 if (hitIdx != -1) {
-                    contextMenu.visible  = true;
-                    contextMenu.ctx      = CTX_NODE;
-                    contextMenu.targetId = nodes[hitIdx].id;
+                    contextMenu.visible      = true;
+                    contextMenu.ctx          = CTX_NODE;
+                    contextMenu.targetId     = nodes[hitIdx].id;
+                    contextMenu.targetBroken = nodes[hitIdx].crashed;
                 } else {
                     int ci = HitTestCable(cables, nodes, worldMouse, 6.0f);
                     if (ci != -1) {
-                        contextMenu.visible  = true;
-                        contextMenu.ctx      = CTX_CABLE;
-                        contextMenu.targetId = ci;
+                        contextMenu.visible      = true;
+                        contextMenu.ctx          = CTX_CABLE;
+                        contextMenu.targetId     = ci;
+                        contextMenu.targetBroken = cables[ci].broken;
                     } else {
-                        contextMenu.visible  = true;
-                        contextMenu.ctx      = CTX_CANVAS;
-                        contextMenu.targetId = -1;
+                        contextMenu.visible      = true;
+                        contextMenu.ctx          = CTX_CANVAS;
+                        contextMenu.targetId     = -1;
+                        contextMenu.targetBroken = false;
                     }
                 }
             }
@@ -908,6 +914,8 @@ int main() {
                 // Annotation first (background layer) — packet anim renders on top
                 if (failAnnotationTimer > 0.f)
                     DrawBrokenPath(nodes, cables, lastFailedTrace);
+                if (troubleshootMode)
+                    DrawTroubleshootOverlay(nodes, cables);
                 DrawPacketAnim(simState.anim, nodes, cables);
 
                 if (connecting) {
@@ -964,6 +972,11 @@ int main() {
                              lastConditionsPassed,
                              (int)activeLevelDef.winConditions.size(),
                              starsEarned);
+                if (troubleshootMode) {
+                    DrawRectangle(8, 34, 148, 18, Color{239, 68, 68, 200});
+                    DrawRectangleLinesEx({8, 34, 148, 18}, 1.0f, Color{239, 68, 68, 255});
+                    DrawText("TROUBLESHOOT [T]", 14, 38, 9, WHITE);
+                }
             }
             if (gameMode == GAME_WIN) {
                 DrawWinOverlay(activeLevelDef, currentLevel < 10, starsEarned);

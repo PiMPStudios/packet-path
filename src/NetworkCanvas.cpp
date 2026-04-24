@@ -400,6 +400,35 @@ void DrawBrokenPath(const std::vector<DeviceNode>& nodes,
     DrawText(xmark, (int)bx - xw / 2, (int)(by - 6.f), 11, WHITE);
 }
 
+void DrawTroubleshootOverlay(const std::vector<DeviceNode>& nodes,
+                              const std::vector<Cable>& cables)
+{
+    for (const auto& c : cables) {
+        if (!c.broken) continue;
+        const DeviceNode* from = FindNode(nodes, c.fromId);
+        const DeviceNode* to   = FindNode(nodes, c.toId);
+        if (!from || !to) continue;
+        Vector2 p0  = GetPortPosition(*from, c.fromPort);
+        Vector2 p3  = GetPortPosition(*to,   c.toPort);
+        Vector2 mid = {(p0.x + p3.x) / 2.0f, (p0.y + p3.y) / 2.0f};
+        const char* txt = "LINK DOWN";
+        int tw = MeasureText(txt, 9);
+        DrawRectangle((int)(mid.x - tw / 2 - 3), (int)(mid.y + 10), tw + 6, 14,
+                      Color{239, 68, 68, 200});
+        DrawText(txt, (int)(mid.x - tw / 2), (int)(mid.y + 12), 9, WHITE);
+    }
+
+    for (const auto& n : nodes) {
+        if (!n.crashed) continue;
+        const char* txt = "CRASHED";
+        int tw = MeasureText(txt, 9);
+        int bx = (int)n.position.x;
+        int by = (int)(n.position.y + NODE_H / 2.f + 4.f);
+        DrawRectangle(bx - tw / 2 - 3, by, tw + 6, 14, Color{239, 68, 68, 200});
+        DrawText(txt, bx - tw / 2, by + 2, 9, WHITE);
+    }
+}
+
 void DrawConfigTab(const DeviceNode* n, const PanelState& ps) {
     DrawText("GENERAL", CANVAS_W + 12, 124, 10, Color{100, 116, 139, 255});
     DrawTextField(PnlFieldRect(CFG_HOSTNAME_Y), "Hostname", nullptr,
