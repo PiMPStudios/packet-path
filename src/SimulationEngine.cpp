@@ -273,7 +273,9 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
             if (neighborId != -1)
                 l2nh = FindL2Path(currentId, neighborId, nodes, cables);
             if (neighborId == -1 || l2nh.empty()) {
-                result.reason = "ARP: who has " + route.nextHop + "? — no reply";
+                result.reason = l2nh.empty() && neighborId != -1
+                    ? "VLAN mismatch — no L2 path to " + route.nextHop
+                    : "ARP: who has " + route.nextHop + "? — no reply";
                 return result;
             }
 
