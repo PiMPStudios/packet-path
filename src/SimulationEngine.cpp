@@ -110,7 +110,7 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
                 hd.outPort    = route.outPort;
 
                 // MPLS: decorate with label operation if this router has an LFIB entry
-                if (cur->ldpEnabled && !cur->lfib.empty()) {
+                if (cur->ldpEnabled) {
                     auto it = cur->lfib.find(NetworkAddress(route.dest));
                     if (it != cur->lfib.end()) {
                         uint32_t nextOut = it->second.outLabel;
@@ -130,7 +130,13 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
                             hd.outLabel   = nextOut;
                             currentLabel  = nextOut;
                         }
+                    } else if (currentLabel != 0) {
+                        // LDP router with no LFIB binding — LSP terminates here
+                        currentLabel = 0;
                     }
+                } else if (currentLabel != 0) {
+                    // Non-LDP router — LSP terminates at this hop
+                    currentLabel = 0;
                 }
                 result.hops.push_back(hd);
             }

@@ -1,7 +1,7 @@
 {
   "id": 5,
   "title": "MPLS Label Switching",
-  "briefing": "OSPF is already converged. Enable MPLS on RTR-1, RTR-2, RTR-3, and RTR-4 by selecting each router and clicking MPLS: Disabled in the Labels tab. Then send a packet from PC-A to PC-B — watch labels PUSH at RTR-1, SWAP at RTR-2, and PHP-POP at RTR-3 before delivery.",
+  "briefing": "OSPF is already converged. Enable MPLS on RTR-1, RTR-2, RTR-3, and RTR-4 by selecting each router and clicking MPLS: Disabled in the MPLS tab. Then send a packet from PC-A to PC-B — watch labels PUSH at RTR-1, SWAP at RTR-2, and PHP-POP at RTR-3 before delivery.",
   "devices": [
     {
       "id": 1, "label": "PC-A", "type": "PC",
