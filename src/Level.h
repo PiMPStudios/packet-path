@@ -29,3 +29,7 @@ void ApplyLevel(const LevelDef& def,
 int CheckWinConditions(const LevelDef& def,
                        const std::vector<DeviceNode>& nodes,
                        const std::vector<Cable>& cables);
+
+// Returns 1-3 stars based on failed simulations before winning.
+// 0 failures → 3, 1-2 → 2, 3+ → 1.
+int ComputeStars(int failedAttempts);

@@ -131,3 +131,9 @@ int CheckWinConditions(const LevelDef& def,
     }
     return passed;
 }
+
+int ComputeStars(int failedAttempts) {
+    if (failedAttempts == 0) return 3;
+    if (failedAttempts <= 2) return 2;
+    return 1;
+}
