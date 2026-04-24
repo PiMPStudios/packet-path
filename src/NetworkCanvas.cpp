@@ -556,7 +556,63 @@ void DrawMplsTab(const DeviceNode* n) {
         DrawText("MPLS: routers only", CANVAS_W + 20, 130, 12, Color{100,116,139,255});
         return;
     }
-    DrawText("(MPLS - enable in Task 5)", CANVAS_W + 20, 130, 10, Color{71,85,105,255});
+    if (!n->ospfEnabled) {
+        DrawText("Requires OSPF enabled", CANVAS_W + 20, 130, 11, Color{100,116,139,255});
+        return;
+    }
+
+    // Enable / disable toggle button
+    Rectangle btn    = PnlMplsToggleRect();
+    Color     btnCol = n->ldpEnabled ? Color{249,115,22,255} : Color{51,65,85,255};
+    DrawRectangleRec(btn, btnCol);
+    DrawRectangleLinesEx(btn, 1.0f, Color{71,85,105,255});
+    const char* btnLabel = n->ldpEnabled ? "MPLS: Enabled" : "MPLS: Disabled";
+    int tw = MeasureText(btnLabel, 12);
+    DrawText(btnLabel, (int)(btn.x + (btn.width - tw) / 2), (int)(btn.y + 7), 12,
+             n->ldpEnabled ? Color{15,23,42,255} : Color{148,163,184,255});
+
+    if (!n->ldpEnabled) return;
+
+    // LFIB table
+    int y = 158;
+    DrawText("LFIB", CANVAS_W + 12, y, 11, Color{100,116,139,255});
+    y += 18;
+
+    if (n->lfib.empty()) {
+        DrawText("(no bindings - wait for OSPF)", CANVAS_W + 16, y, 10,
+                 Color{71,85,105,255});
+        return;
+    }
+
+    // Column headers
+    DrawText("PREFIX",  CANVAS_W + 12,  y, 10, Color{71,85,105,255});
+    DrawText("LOCAL",   CANVAS_W + 107, y, 10, Color{71,85,105,255});
+    DrawText("OUT",     CANVAS_W + 170, y, 10, Color{71,85,105,255});
+    DrawLineEx({(float)CANVAS_W, (float)(y + 13)},
+               {(float)(CANVAS_W + PANEL_W), (float)(y + 13)},
+               0.5f, PANEL_BORDER);
+    y += 16;
+
+    for (const auto& [prefix, binding] : n->lfib) {
+        if (y > CANVAS_H - 20) break;
+        DrawText(prefix.c_str(), CANVAS_W + 12, y, 10, WHITE);
+
+        char locBuf[16];
+        std::snprintf(locBuf, sizeof(locBuf), "%u", binding.localLabel);
+        DrawText(locBuf, CANVAS_W + 107, y, 10, Color{253,186,116,255});
+
+        if (binding.outLabel == MPLS_IMPLICIT_NULL) {
+            DrawRectangleRounded({(float)(CANVAS_W + 170), (float)y, 28.f, 13.f},
+                                 0.4f, 4, Color{168,85,247,255});
+            DrawText("PHP", CANVAS_W + 174, y + 2, 9, WHITE);
+        } else {
+            char outBuf[16];
+            std::snprintf(outBuf, sizeof(outBuf), "%u", binding.outLabel);
+            DrawText(outBuf, CANVAS_W + 170, y, 10, Color{253,186,116,255});
+        }
+
+        y += 16;
+    }
 }
 
 void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,

@@ -468,6 +468,13 @@ int main() {
                     ps.activePortAreaField = -1;
                     ps.portAreaBuf.clear();
                 }
+                if (CheckCollisionPointRec(screenMouse, PnlMplsTabRect())) {
+                    ps.activeTab           = TAB_MPLS;
+                    ps.activeField         = -1;
+                    ps.activeRouteField    = -1;
+                    ps.activePortAreaField = -1;
+                    ps.portAreaBuf.clear();
+                }
                 // Config tab field focus
                 if (ps.activeTab == TAB_CONFIG) {
                     ps.activeField         = -1;
@@ -546,6 +553,19 @@ int main() {
                                 selNode->helloTimer = 0.f;
                                 selNode->routerId.clear();
                             }
+                        }
+                    }
+                }
+
+                // MPLS tab: ldpEnabled toggle
+                if (ps.activeTab == TAB_MPLS) {
+                    DeviceNode* selNode = nullptr;
+                    for (auto& nd : nodes)
+                        if (nd.id == selectedId) { selNode = &nd; break; }
+                    if (selNode && selNode->type == ROUTER && selNode->ospfEnabled) {
+                        if (CheckCollisionPointRec(screenMouse, PnlMplsToggleRect())) {
+                            selNode->ldpEnabled = !selNode->ldpEnabled;
+                            if (!selNode->ldpEnabled) selNode->lfib.clear();
                         }
                     }
                 }
