@@ -276,7 +276,7 @@ int main() {
                     failAnnotationTimer  = 0.f;
                     lastFailedTrace      = {};
                 } else if (CheckCollisionPointRec(screenMouse, WinNextBtnRect()) &&
-                           currentLevel < 10) {
+                           currentLevel < 13) {
                     int nextLevel = currentLevel + 1;
                     char path[64];
                     std::snprintf(path, sizeof(path), "levels/level_%02d.json", nextLevel);
@@ -1064,7 +1064,7 @@ int main() {
                 }
             }
             if (gameMode == GAME_WIN) {
-                DrawWinOverlay(activeLevelDef, currentLevel < 10, starsEarned);
+                DrawWinOverlay(activeLevelDef, currentLevel < 13, starsEarned);
             }
 
             // HUD — screen space, outside camera
