@@ -1,5 +1,6 @@
 #include "NetworkCanvas.h"
 #include "OspfEngine.h"
+#include "LdpEngine.h"
 #include "Level.h"
 #include "GameUI.h"
 #include "TraceModal.h"
@@ -610,6 +611,7 @@ int main() {
         // ── OSPF engine tick ─────────────────────────────────────────────
         {
             auto ospfEvents = UpdateOspf(dt, nodes, cables);
+            UpdateLdp(nodes, cables);   // recompute LFIB after each OSPF tick
             auto pushLog = [&](LogEntry entry) {
                 if (logEntries.size() >= 50) logEntries.erase(logEntries.begin());
                 logEntries.push_back(entry);
