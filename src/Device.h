@@ -59,6 +59,17 @@ static const float PORT_RADIUS    =   6.0f;
 // ── Routing types ─────────────────────────────────────────────────────────
 enum RouteSource { ROUTE_CONNECTED, ROUTE_STATIC, ROUTE_OSPF, ROUTE_OSPF_IA, ROUTE_BGP, ROUTE_EVPN };
 
+// ── ACL types ─────────────────────────────────────────────────────────────
+enum AclAction { ACL_PERMIT, ACL_DENY };
+
+struct AclRule {
+    int         seq     = 10;          // sequence number (10, 20, 30...)
+    AclAction   action  = ACL_PERMIT;
+    std::string srcCidr = "any";       // "any" or "x.x.x.x/n"
+    std::string dstCidr = "any";
+    int         dstPort = 0;           // 0 = any port
+};
+
 struct RouteEntry {
     std::string dest;
     std::string nextHop;
@@ -118,6 +129,8 @@ struct HopDecision {
     uint32_t outLabel = 0;   // label leaving this router (0 = unlabeled after POP)
     int      vlanTag  = 0;   // 802.1Q VLAN on the cable leaving this hop (0 = untagged)
     uint32_t vxlanVni = 0;   // non-zero = hop is inside a VXLAN tunnel
+    std::string aclResult;   // non-empty = ACL matched this hop, e.g. "PERMIT seq:10"
+    std::string natResult;   // non-empty = NAT translated this hop, e.g. "192.168.1.2 → 10.0.0.1"
 };
 
 struct ForwardResult {
@@ -179,6 +192,15 @@ struct DeviceNode {
     uint32_t    vni          = 0;        // VNI (1-16777215)
     std::string vtepIp;                  // must equal one of this node's portIpN values
     std::vector<RouteEntry> evpnRoutes;  // populated by EvpnEngine each frame
+    // ACL (routers only)
+    std::vector<AclRule> aclRules;
+    int                  aclInPort  = -1;  // port ACL applied inbound  (-1 = not applied)
+    int                  aclOutPort = -1;  // port ACL applied outbound (-1 = not applied)
+    // NAT — source overload / PAT (routers only)
+    bool        natEnabled      = false;
+    int         natInsidePort   = 0;           // port facing inside network
+    int         natOutsidePort  = 1;           // port facing outside / ISP
+    std::string natInsidePrefix;               // CIDR of inside subnet, e.g. "192.168.1.0/24"
 };
 
 // ── Device geometry helpers (no draw calls) ───────────────────────────────

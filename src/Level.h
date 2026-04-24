@@ -9,6 +9,7 @@ struct WinCondition {
     std::string dstLabel;
     std::string description;
     bool        requiresFix = false;
+    std::string requiresNatOnDevice;  // if non-empty, win also requires this device's natEnabled=true
 };
 
 struct LevelDef {
