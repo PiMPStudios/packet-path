@@ -31,7 +31,7 @@
       "type": "SWITCH",
       "x": -100,
       "y": 0,
-      "vlanPort0": { "mode": "trunk", "vlan": 1 },
+      "vlanPort0": { "mode": "trunk" },
       "vlanPort1": { "mode": "access", "vlan": 10 },
       "vlanPort2": { "mode": "access", "vlan": 20 }
     },
