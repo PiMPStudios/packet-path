@@ -48,6 +48,15 @@ bool LoadLevel(const std::string& path, LevelDef& out) {
             n.ospfPortArea[i] = (uint32_t)d.value(key, 0);
         }
 
+        for (int i = 0; i < PORTS_PER_NODE; ++i) {
+            std::string key = "vlanPort" + std::to_string(i);
+            if (d.contains(key) && d[key].is_object()) {
+                std::string modeStr = d[key].value("mode", "access");
+                n.vlanPorts[i].mode       = (modeStr == "trunk") ? VLAN_TRUNK : VLAN_ACCESS;
+                n.vlanPorts[i].accessVlan = d[key].value("vlan", 1);
+            }
+        }
+
         for (const auto& sr : d.value("staticRoutes", json::array())) {
             RouteEntry re;
             re.dest    = sr.value("dest",    "");

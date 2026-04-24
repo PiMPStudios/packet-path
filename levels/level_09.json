@@ -1,0 +1,57 @@
+{
+  "id": 9,
+  "title": "VLAN Trunking",
+  "briefing": "Two switches, four PCs. VLAN 10 hosts need to reach each other across the trunk. Configure port modes and VLAN IDs on both switches to make it work.",
+  "devices": [
+    {
+      "id": 1, "type": "PC", "label": "PC-A",
+      "x": 120, "y": 200,
+      "portIp0": "10.10.0.2/24"
+    },
+    {
+      "id": 2, "type": "PC", "label": "PC-B",
+      "x": 120, "y": 500,
+      "portIp0": "10.20.0.2/24"
+    },
+    {
+      "id": 3, "type": "SWITCH", "label": "SW1",
+      "x": 380, "y": 350,
+      "vlanPort0": {"mode": "access", "vlan": 1},
+      "vlanPort1": {"mode": "access", "vlan": 1},
+      "vlanPort2": {"mode": "access", "vlan": 1},
+      "vlanPort3": {"mode": "access", "vlan": 1}
+    },
+    {
+      "id": 4, "type": "SWITCH", "label": "SW2",
+      "x": 620, "y": 350,
+      "vlanPort0": {"mode": "access", "vlan": 1},
+      "vlanPort1": {"mode": "access", "vlan": 1},
+      "vlanPort2": {"mode": "access", "vlan": 1},
+      "vlanPort3": {"mode": "access", "vlan": 1}
+    },
+    {
+      "id": 5, "type": "PC", "label": "PC-C",
+      "x": 880, "y": 200,
+      "portIp0": "10.10.0.3/24"
+    },
+    {
+      "id": 6, "type": "PC", "label": "PC-D",
+      "x": 880, "y": 500,
+      "portIp0": "10.20.0.3/24"
+    }
+  ],
+  "cables": [
+    {"from": 1, "fromPort": 0, "to": 3, "toPort": 0},
+    {"from": 2, "fromPort": 0, "to": 3, "toPort": 1},
+    {"from": 3, "fromPort": 2, "to": 4, "toPort": 2},
+    {"from": 4, "fromPort": 0, "to": 5, "toPort": 0},
+    {"from": 4, "fromPort": 1, "to": 6, "toPort": 0}
+  ],
+  "winConditions": [
+    {
+      "src": "PC-A",
+      "dst": "PC-C",
+      "description": "PC-A reaches PC-C (VLAN 10 across trunk)"
+    }
+  ]
+}
