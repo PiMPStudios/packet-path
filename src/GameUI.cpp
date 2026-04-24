@@ -55,6 +55,56 @@ void DrawSandboxHUD() {
              10, Color{148, 163, 184, 255});
 }
 
+void DrawLevelSelectScreen(const std::string* levelTitles) {
+    // Dim the entire canvas + panel area
+    DrawRectangle(0, 0, CANVAS_W(), SCREEN_H(), Color{0, 0, 0, 200});
+
+    // Title
+    const char* hdr = "SELECT A LEVEL";
+    int hdw = MeasureText(hdr, 18);
+    DrawText(hdr, (CANVAS_W() - hdw) / 2, 50, 18, WHITE);
+
+    Vector2 mouse = GetMousePosition();
+
+    // 4x4 grid of level cards  (i = 0..15 → level i+1)
+    for (int i = 0; i < 16; ++i) {
+        Rectangle r  = LevelSelectCardRect(i);
+        bool hovered = CheckCollisionPointRec(mouse, r);
+
+        Color bg  = hovered ? Color{30,  58, 138, 255} : Color{22, 33,  62, 255};
+        Color brd = hovered ? Color{59, 130, 246, 255} : Color{51, 65,  85, 255};
+        DrawRectangleRounded(r, 0.1f, 4, bg);
+        DrawRectangleRoundedLinesEx(r, 0.1f, 4, 1.5f, brd);
+
+        // "LVL N" number
+        char lvlBuf[8];
+        std::snprintf(lvlBuf, sizeof(lvlBuf), "LVL %d", i + 1);
+        DrawText(lvlBuf, (int)(r.x + 10), (int)(r.y + 12), 11,
+                 Color{148, 163, 184, 255});
+
+        // Level title — truncate at 22 chars to fit 180 px card
+        std::string title = levelTitles[i];
+        if ((int)title.size() > 22) title = title.substr(0, 19) + "...";
+        DrawText(title.c_str(), (int)(r.x + 10), (int)(r.y + 32), 10,
+                 Color{203, 213, 225, 255});
+    }
+
+    // Full-width sandbox card below the grid
+    Rectangle sr   = LevelSelectSandboxBtnRect();
+    bool sandHover = CheckCollisionPointRec(mouse, sr);
+    Color sbg  = sandHover ? Color{15, 118, 110, 255} : Color{13,  94,  88, 255};
+    Color sbrd = sandHover ? Color{20, 184, 166, 255} : Color{13, 148, 136, 255};
+    DrawRectangleRounded(sr, 0.12f, 4, sbg);
+    DrawRectangleRoundedLinesEx(sr, 0.12f, 4, 1.5f, sbrd);
+
+    const char* sandTxt = "SANDBOX \xe2\x80\x94 Free Build Mode";
+    int stw = MeasureText(sandTxt, 13);
+    DrawText(sandTxt,
+             (int)(sr.x + (sr.width  - stw) / 2.f),
+             (int)(sr.y + (sr.height - 13)  / 2.f),
+             13, Color{204, 251, 241, 255});
+}
+
 void DrawLevelHUD(int levelId, const std::string& title,
                   int conditionsPassed, int conditionsTotal,
                   int starsEarned) {
