@@ -109,8 +109,8 @@ void DrawSandboxHUD() {
     DrawRectangle((int)mb.x, (int)mb.y, (int)mb.width, (int)mb.height,
                   Color{30, 41, 59, 210});
     DrawRectangleLinesEx(mb, 1.0f, Color{51, 65, 85, 255});
-    int tw = MeasureText("MENU", 10);
-    DrawText("MENU", (int)(mb.x + (mb.width - tw) / 2.f), (int)(mb.y + 6),
+    int tw = MeasureText("LEVELS", 10);
+    DrawText("LEVELS", (int)(mb.x + (mb.width - tw) / 2.f), (int)(mb.y + 6),
              10, Color{148, 163, 184, 255});
 }
 
@@ -483,11 +483,9 @@ void DrawHelpOverlay() {
     row(kx, dx, ly, "Right-click","Context menu");
     ly += 4;
     sec(kx, ly, "LEVELS");
-    row(kx, dx, ly, "M",          "Level select");
-    row(kx, dx, ly, "0",          "Sandbox mode");
-    row(kx, dx, ly, "1 \xe2\x80\x93 9", "Load level directly");
-    row(kx, dx, ly, "Ctrl+S",     "Save scene");
-    row(kx, dx, ly, "Ctrl+O",     "Open scene");
+    row(kx, dx, ly, "M",      "Open level select");
+    row(kx, dx, ly, "Ctrl+S", "Save scene");
+    row(kx, dx, ly, "Ctrl+O", "Open scene");
 
     // Right column
     int ry = (int)(r.y + 40);

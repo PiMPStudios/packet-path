@@ -195,38 +195,7 @@ int main() {
             if (IsKeyPressed(KEY_T))
                 troubleshootMode = !troubleshootMode;
             if (ps.activePortAreaField == -1) {
-                for (int k = 1; k <= 9; ++k) {
-                    if (IsKeyPressed(KEY_ONE + (k - 1))) {
-                        char path[64];
-                        std::snprintf(path, sizeof(path), "levels/level_%02d.json", k);
-                        LevelDef def;
-                        if (LoadLevel(path, def)) {
-                            currentLevel         = k;
-                            activeLevelDef       = def;
-                            ApplyLevel(def, nodes, cables, selectedId);
-                            ps                   = PanelState{};
-                            simState             = SimState{};
-                            logEntries.clear();
-                            lastConditionsPassed = 0;
-                            failedAttempts       = 0;
-                            starsEarned          = 0;
-                            gameMode             = GAME_PLAYING;
-                            dragging             = false;
-                            connecting           = false;
-                            hoverNodeId          = -1;
-                            hoverPort            = -1;
-                            contextMenu.visible  = false;
-                            troubleshootMode     = false;
-                            traceModalOpen       = false;
-                            failAnnotationTimer  = 0.f;
-                            lastFailedTrace      = {};
-                            briefingVisible      = true;
-                            helpVisible          = false;
-                        }
-                    }
-                }
-                if (IsKeyPressed(KEY_ZERO)) goSandbox();
-                if (IsKeyPressed(KEY_M))    gameMode = GAME_LEVEL_SELECT;
+                if (IsKeyPressed(KEY_M)) gameMode = GAME_LEVEL_SELECT;
             }
         }
 
@@ -1411,8 +1380,8 @@ int main() {
                         DrawRectangle((int)mb.x,(int)mb.y,(int)mb.width,(int)mb.height,
                                       Color{30,41,59,210});
                         DrawRectangleLinesEx(mb, 1.0f, Color{51,65,85,255});
-                        int tw = MeasureText("MENU",10);
-                        DrawText("MENU",(int)(mb.x+(mb.width-tw)/2.f),(int)(mb.y+6),
+                        int tw = MeasureText("LEVELS",10);
+                        DrawText("LEVELS",(int)(mb.x+(mb.width-tw)/2.f),(int)(mb.y+6),
                                  10, Color{148,163,184,255});
                     }
                     // SANDBOX shortcut button
