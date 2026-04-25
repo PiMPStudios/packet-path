@@ -25,7 +25,7 @@ int LogConsoleHitTest(Vector2 mouse, const std::vector<LogEntry>& entries) {
     return -1;
 }
 
-void DrawTraceModal(const ForwardResult& trace) {
+void DrawTraceModal(const ForwardResult& trace, int activeHop) {
     // Dim entire screen behind modal
     DrawRectangle(0, 0, SCREEN_W(), SCREEN_H(), Color{0, 0, 0, 140});
 
@@ -55,6 +55,18 @@ void DrawTraceModal(const ForwardResult& trace) {
         for (int i = 0; i < (int)trace.hops.size() && rowY < MY + MH - 36.f; ++i) {
             const HopDecision& h = trace.hops[i];
 
+            // Pre-compute so highlight rect uses the correct row height
+            bool hasLabel = (h.labelOp != LABEL_NONE);
+            bool hasAcl   = !h.aclResult.empty();
+            bool hasNat   = !h.natResult.empty();
+            int  extras   = (hasLabel ? 1 : 0) + (hasAcl ? 1 : 0) + (hasNat ? 1 : 0);
+            float rowStride = 44.f + extras * 16.f;
+
+            // Active-hop highlight — subtle blue background behind the entire row
+            if (i == activeHop)
+                DrawRectangleRounded({MX + 4.f, rowY - 2.f, MW - 8.f, rowStride - 4.f},
+                                     0.06f, 4, Color{30, 58, 138, 80});
+
             // Hop index circle
             DrawCircle((int)(MX + 22.f), (int)(rowY + 10.f), 10.f,
                        Color{30, 64, 175, 255});
@@ -72,7 +84,7 @@ void DrawTraceModal(const ForwardResult& trace) {
             if      (h.routeType == "C")    rtCol = Color{34, 197, 94, 255};
             else if (h.routeType == "S")    rtCol = Color{234, 179, 8, 255};
             else if (h.routeType == "O")    rtCol = Color{59, 130, 246, 255};
-            else if (h.routeType == "B")    rtCol = Color{20, 184, 166, 255};   // teal
+            else if (h.routeType == "B")    rtCol = Color{20, 184, 166, 255};
             else                            rtCol = Color{168, 85, 247, 255};
             DrawText(h.routeType.c_str(), (int)(MX + 40.f), (int)(rowY + 16.f), 10, rtCol);
 
@@ -84,7 +96,6 @@ void DrawTraceModal(const ForwardResult& trace) {
                      Color{100, 116, 139, 255});
 
             // MPLS label op annotation
-            bool hasLabel = (h.labelOp != LABEL_NONE);
             if (hasLabel) {
                 const char* opStr = "";
                 Color        opCol = WHITE;
@@ -107,7 +118,7 @@ void DrawTraceModal(const ForwardResult& trace) {
 
                 float bw = (float)(MeasureText(opStr, 9) + 10);
                 DrawRectangleRounded({MX + 40.f, rowY + 30.f, bw, 13.f},
-                                     0.4f, 4, opCol);
+                                      0.4f, 4, opCol);
                 int tw5 = MeasureText(opStr, 9);
                 DrawText(opStr, (int)(MX + 40.f + (bw - tw5) / 2.f),
                          (int)(rowY + 32.f), 9, WHITE);
@@ -116,8 +127,6 @@ void DrawTraceModal(const ForwardResult& trace) {
             }
 
             // ACL annotation badge
-            bool hasAcl = !h.aclResult.empty();
-            bool hasNat = !h.natResult.empty();
             if (hasAcl) {
                 float annotY = rowY + 30.f + (hasLabel ? 16.f : 0.f);
                 bool permit  = (h.aclResult.rfind("PERMIT", 0) == 0);
@@ -136,8 +145,6 @@ void DrawTraceModal(const ForwardResult& trace) {
                 DrawText(natBuf, (int)(MX+45.f), (int)(annotY+2.f), 9, WHITE);
             }
 
-            int extras  = (hasLabel ? 1 : 0) + (hasAcl ? 1 : 0) + (hasNat ? 1 : 0);
-            float rowStride = 44.f + extras * 16.f;
             rowY += rowStride;
             if (i + 1 < (int)trace.hops.size())
                 DrawLineEx({MX + 8.f, rowY - 4.f}, {MX + MW - 8.f, rowY - 4.f},
