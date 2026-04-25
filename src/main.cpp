@@ -14,9 +14,9 @@ int main() {
     InitWindow(1280, 720, "Packet Path");
     SetWindowState(FLAG_WINDOW_RESIZABLE);
     SetExitKey(0);
-    InitGameFont();
     SetWindowMinSize(MIN_W, MIN_H);
     ChangeDirectory(GetApplicationDirectory());   // make relative paths work from any launch dir
+    InitGameFont();                               // must come after ChangeDirectory
     SetTargetFPS(60);
     InitAudioDevice();
     InitSounds();
