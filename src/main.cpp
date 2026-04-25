@@ -61,12 +61,14 @@ int main() {
 
     // Preload level titles for the level-select screen
     std::string levelTitles[16];
+    bool        levelExists[16];
     for (int i = 0; i < 16; ++i) {
         char lpath[64];
         std::snprintf(lpath, sizeof(lpath), "levels/level_%02d.json", i + 1);
         LevelDef tmpDef;
-        levelTitles[i] = LoadLevel(lpath, tmpDef) ? tmpDef.title
-                       : std::string("Level ") + std::to_string(i + 1);
+        levelExists[i]  = LoadLevel(lpath, tmpDef);
+        levelTitles[i]  = levelExists[i] ? tmpDef.title
+                        : std::string("Level ") + std::to_string(i + 1);
     }
 
     // Clears all canvas state and enters GAME_SANDBOX
@@ -372,7 +374,7 @@ int main() {
                 // all clicks consumed while modal is open
             } else if (gameMode == GAME_LEVEL_SELECT) {
                 for (int i = 0; i < 16; ++i) {
-                    if (CheckCollisionPointRec(screenMouse, LevelSelectCardRect(i))) {
+                    if (levelExists[i] && CheckCollisionPointRec(screenMouse, LevelSelectCardRect(i))) {
                         int lvlNum = i + 1;
                         char path[64];
                         std::snprintf(path, sizeof(path), "levels/level_%02d.json", lvlNum);
@@ -578,6 +580,7 @@ int main() {
                 for (auto& n : nodes) n.selected = false;
                 if (hitIdx != -1) {
                     nodes[hitIdx].selected = true;
+                    if (nodes[hitIdx].id != selectedId) ps.activeTab = TAB_CONFIG;
                     selectedId = nodes[hitIdx].id;
                     dragging   = true;
                     dragOffset = {worldMouse.x - nodes[hitIdx].position.x,
@@ -682,142 +685,29 @@ int main() {
         if (gameMode != GAME_WIN && !traceModalOpen && !inCanvas && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             if (selectedId != -1) {
                 // Tab clicks
-                if (CheckCollisionPointRec(screenMouse, PnlConfigTabRect())) {
-                    ps.activeTab           = TAB_CONFIG;
-                    ps.activeField         = -1;
-                    ps.activeRouteField    = -1;
-                    ps.activePortAreaField = -1;
-                    ps.portAreaBuf.clear();
-                    ps.bgpAsnField         = -1;
-                    ps.bgpAsnBuf.clear();
-                    ps.subActiveField      = -1;
-                    ps.vxlanField          = -1;
-                    ps.aclActiveField      = -1;
-                    ps.natField            = -1;
-                }
-                if (CheckCollisionPointRec(screenMouse, PnlRoutesTabRect())) {
-                    ps.activeTab           = TAB_ROUTES;
-                    ps.activeField         = -1;
-                    ps.activeRouteField    = -1;
-                    ps.activePortAreaField = -1;
-                    ps.portAreaBuf.clear();
-                    ps.bgpAsnField         = -1;
-                    ps.bgpAsnBuf.clear();
-                    ps.subActiveField      = -1;
-                    ps.vxlanField          = -1;
-                    ps.aclActiveField      = -1;
-                    ps.natField            = -1;
-                }
-                if (CheckCollisionPointRec(screenMouse, PnlArpTabRect())) {
-                    ps.activeTab           = TAB_ARP;
-                    ps.activeField         = -1;
-                    ps.activeRouteField    = -1;
-                    ps.activePortAreaField = -1;
-                    ps.portAreaBuf.clear();
-                    ps.bgpAsnField         = -1;
-                    ps.bgpAsnBuf.clear();
-                    ps.subActiveField      = -1;
-                    ps.vxlanField          = -1;
-                    ps.aclActiveField      = -1;
-                    ps.natField            = -1;
-                }
-                if (CheckCollisionPointRec(screenMouse, PnlOspfTabRect())) {
-                    ps.activeTab           = TAB_OSPF;
-                    ps.activeField         = -1;
-                    ps.activeRouteField    = -1;
-                    ps.activePortAreaField = -1;
-                    ps.portAreaBuf.clear();
-                    ps.bgpAsnField         = -1;
-                    ps.bgpAsnBuf.clear();
-                    ps.subActiveField      = -1;
-                    ps.vxlanField          = -1;
-                    ps.aclActiveField      = -1;
-                    ps.natField            = -1;
-                }
-                if (CheckCollisionPointRec(screenMouse, PnlMplsTabRect())) {
-                    ps.activeTab           = TAB_MPLS;
-                    ps.activeField         = -1;
-                    ps.activeRouteField    = -1;
-                    ps.activePortAreaField = -1;
-                    ps.portAreaBuf.clear();
-                    ps.bgpAsnField         = -1;
-                    ps.bgpAsnBuf.clear();
-                    ps.subActiveField      = -1;
-                    ps.vxlanField          = -1;
-                    ps.aclActiveField      = -1;
-                    ps.natField            = -1;
-                }
-                if (CheckCollisionPointRec(screenMouse, PnlBgpTabRect())) {
-                    ps.activeTab           = TAB_BGP;
-                    ps.activeField         = -1;
-                    ps.activeRouteField    = -1;
-                    ps.activePortAreaField = -1;
-                    ps.portAreaBuf.clear();
-                    ps.bgpAsnField         = -1;
-                    ps.bgpAsnBuf.clear();
-                    ps.subActiveField      = -1;
-                    ps.vxlanField          = -1;
-                    ps.aclActiveField      = -1;
-                    ps.natField            = -1;
-                }
-                if (CheckCollisionPointRec(screenMouse, PnlVlanTabRect())) {
-                    ps.activeTab           = TAB_VLAN;
-                    ps.activeField         = -1;
-                    ps.activeRouteField    = -1;
-                    ps.activePortAreaField = -1;
-                    ps.portAreaBuf.clear();
-                    ps.bgpAsnField         = -1;
-                    ps.bgpAsnBuf.clear();
-                    ps.vlanPortField       = -1;
-                    ps.vlanPortBuf.clear();
-                    ps.subActiveField      = -1;
-                    ps.aclActiveField      = -1;
-                    ps.natField            = -1;
-                }
-                else if (CheckCollisionPointRec(screenMouse, PnlSubTabRect())) {
-                    ps.activeTab           = TAB_SUB;
-                    ps.activeField         = -1;
-                    ps.activeRouteField    = -1;
-                    ps.activePortAreaField = -1;
-                    ps.bgpAsnField         = -1;
-                    ps.vlanPortField       = -1;
-                    ps.subActiveField      = -1;
-                    ps.aclActiveField      = -1;
-                    ps.natField            = -1;
-                }
-                if (CheckCollisionPointRec(screenMouse, PnlVxlanTabRect())) {
-                    ps.activeTab           = TAB_VXLAN;
-                    ps.activeField         = -1;
-                    ps.activeRouteField    = -1;
-                    ps.activePortAreaField = -1;
-                    ps.bgpAsnField         = -1;
-                    ps.vlanPortField       = -1;
-                    ps.subActiveField      = -1;
-                    ps.vxlanField          = -1;
-                    ps.aclActiveField      = -1;
-                    ps.natField            = -1;
-                }
-                if (CheckCollisionPointRec(screenMouse, PnlAclTabRect())) {
-                    ps.activeTab      = TAB_ACL;
-                    ps.activeField    = -1;
-                    ps.activeRouteField = -1;
-                    ps.activePortAreaField = -1;
-                    ps.bgpAsnField    = -1;
-                    ps.vlanPortField  = -1;
-                    ps.subActiveField = -1;
-                    ps.vxlanField     = -1;
-                    ps.natField       = -1;
-                }
-                if (CheckCollisionPointRec(screenMouse, PnlNatTabRect())) {
-                    ps.activeTab      = TAB_NAT;
-                    ps.activeField    = -1;
-                    ps.activeRouteField = -1;
-                    ps.activePortAreaField = -1;
-                    ps.bgpAsnField    = -1;
-                    ps.vlanPortField  = -1;
-                    ps.subActiveField = -1;
-                    ps.vxlanField     = -1;
-                    ps.aclActiveField = -1;
+                {
+                    const DeviceNode* selNode = FindNode(nodes, selectedId);
+                    if (selNode) {
+                        const TabInfo* tabs     = PnlTabList(selNode->type);
+                        int            tabCount = PnlTabCount(selNode->type);
+                        for (int ti = 0; ti < tabCount; ++ti) {
+                            if (CheckCollisionPointRec(screenMouse, PnlTabRect(selNode->type, ti))) {
+                                ps.activeTab           = tabs[ti].tab;
+                                ps.activeField         = -1;
+                                ps.activeRouteField    = -1;
+                                ps.activePortAreaField = -1;
+                                ps.portAreaBuf.clear();
+                                ps.bgpAsnField         = -1;
+                                ps.bgpAsnBuf.clear();
+                                ps.vlanPortField       = -1;
+                                ps.vlanPortBuf.clear();
+                                ps.subActiveField      = -1;
+                                ps.vxlanField          = -1;
+                                ps.aclActiveField      = -1;
+                                ps.natField            = -1;
+                            }
+                        }
+                    }
                 }
                 // Config tab field focus
                 if (ps.activeTab == TAB_CONFIG) {
@@ -1520,7 +1410,7 @@ int main() {
 
             // Level-select overlay (drawn last so it sits above everything)
             if (gameMode == GAME_LEVEL_SELECT)
-                DrawLevelSelectScreen(levelTitles);
+                DrawLevelSelectScreen(levelTitles, levelExists);
 
             // HUD — screen space, outside camera
             DrawFPS(CANVAS_W() - 80, 10);

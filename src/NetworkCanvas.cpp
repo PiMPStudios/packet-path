@@ -1285,162 +1285,24 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
     DrawLineEx({(float)CANVAS_W(), 84.0f}, {(float)(CANVAS_W() + PANEL_W), 84.0f},
                1.0f, PANEL_BORDER);
 
-    // Tab header
-    Rectangle cfgTab = PnlConfigTabRect();
-    Rectangle rteTab = PnlRoutesTabRect();
-
-    bool cfgActive = (ps.activeTab == TAB_CONFIG);
-    DrawRectangleRec(cfgTab, cfgActive ? Color{30,41,59,255} : PANEL_BG);
-    if (cfgActive)
-        DrawLineEx({cfgTab.x, cfgTab.y + cfgTab.height},
-                   {cfgTab.x + cfgTab.width, cfgTab.y + cfgTab.height}, 2.0f,
-                   Color{59, 130, 246, 255});
+    // Tab header — device-type-aware
     {
-        int tw2 = MeasureText("Cfg", 10);
-        DrawText("Cfg", (int)(cfgTab.x + (cfgTab.width - tw2) / 2),
-                 (int)(cfgTab.y + 8), 10,
-                 cfgActive ? WHITE : Color{100, 116, 139, 255});
-    }
-
-    bool rteActive = (ps.activeTab == TAB_ROUTES);
-    DrawRectangleRec(rteTab, rteActive ? Color{30,41,59,255} : PANEL_BG);
-    if (rteActive)
-        DrawLineEx({rteTab.x, rteTab.y + rteTab.height},
-                   {rteTab.x + rteTab.width, rteTab.y + rteTab.height}, 2.0f,
-                   Color{59, 130, 246, 255});
-    {
-        int tw3 = MeasureText("Rte", 10);
-        DrawText("Rte", (int)(rteTab.x + (rteTab.width - tw3) / 2),
-                 (int)(rteTab.y + 8), 10,
-                 rteActive ? WHITE : Color{100, 116, 139, 255});
-    }
-
-    Rectangle arpTab    = PnlArpTabRect();
-    bool      arpActive = (ps.activeTab == TAB_ARP);
-    DrawRectangleRec(arpTab, arpActive ? Color{30,41,59,255} : PANEL_BG);
-    if (arpActive)
-        DrawLineEx({arpTab.x, arpTab.y + arpTab.height},
-                   {arpTab.x + arpTab.width, arpTab.y + arpTab.height}, 2.0f,
-                   Color{59, 130, 246, 255});
-    {
-        int tw4 = MeasureText("ARP", 12);
-        DrawText("ARP", (int)(arpTab.x + (arpTab.width - tw4) / 2),
-                 (int)(arpTab.y + 7), 12,
-                 arpActive ? WHITE : Color{100, 116, 139, 255});
-    }
-
-    Rectangle ospfTab    = PnlOspfTabRect();
-    bool      ospfActive = (ps.activeTab == TAB_OSPF);
-    DrawRectangleRec(ospfTab, ospfActive ? Color{30,41,59,255} : PANEL_BG);
-    if (ospfActive)
-        DrawLineEx({ospfTab.x, ospfTab.y + ospfTab.height},
-                   {ospfTab.x + ospfTab.width, ospfTab.y + ospfTab.height}, 2.0f,
-                   Color{59, 130, 246, 255});
-    {
-        int twO = MeasureText("OSPF", 12);
-        DrawText("OSPF", (int)(ospfTab.x + (ospfTab.width - twO) / 2),
-                 (int)(ospfTab.y + 7), 12,
-                 ospfActive ? WHITE : Color{100, 116, 139, 255});
-    }
-
-    Rectangle mplsTab    = PnlMplsTabRect();
-    bool      mplsActive = (ps.activeTab == TAB_MPLS);
-    DrawRectangleRec(mplsTab, mplsActive ? Color{30,41,59,255} : PANEL_BG);
-    if (mplsActive)
-        DrawLineEx({mplsTab.x, mplsTab.y + mplsTab.height},
-                   {mplsTab.x + mplsTab.width, mplsTab.y + mplsTab.height}, 2.0f,
-                   Color{59, 130, 246, 255});
-    {
-        int twM = MeasureText("MPLS", 12);
-        DrawText("MPLS", (int)(mplsTab.x + (mplsTab.width - twM) / 2),
-                 (int)(mplsTab.y + 7), 12,
-                 mplsActive ? WHITE : Color{100, 116, 139, 255});
-    }
-
-    Rectangle bgpTab    = PnlBgpTabRect();
-    bool      bgpActive = (ps.activeTab == TAB_BGP);
-    DrawRectangleRec(bgpTab, bgpActive ? Color{30,41,59,255} : PANEL_BG);
-    if (bgpActive)
-        DrawLineEx({bgpTab.x, bgpTab.y + bgpTab.height},
-                   {bgpTab.x + bgpTab.width, bgpTab.y + bgpTab.height}, 2.0f,
-                   Color{34, 197, 94, 255});
-    {
-        int twB = MeasureText("BGP", 11);
-        DrawText("BGP", (int)(bgpTab.x + (bgpTab.width - twB) / 2),
-                 (int)(bgpTab.y + 7), 11,
-                 bgpActive ? Color{34,197,94,255} : Color{100, 116, 139, 255});
-    }
-
-    Rectangle vlanTab    = PnlVlanTabRect();
-    bool      vlanActive = (ps.activeTab == TAB_VLAN);
-    DrawRectangleRec(vlanTab, vlanActive ? Color{30,41,59,255} : PANEL_BG);
-    if (vlanActive)
-        DrawLineEx({vlanTab.x, vlanTab.y + vlanTab.height},
-                   {vlanTab.x + vlanTab.width, vlanTab.y + vlanTab.height}, 2.0f,
-                   Color{245, 158, 11, 255});
-    {
-        int twV = MeasureText("VLN", 10);
-        DrawText("VLN", (int)(vlanTab.x + (vlanTab.width - twV) / 2),
-                 (int)(vlanTab.y + 8), 10,
-                 vlanActive ? Color{245,158,11,255} : Color{100, 116, 139, 255});
-    }
-
-    Rectangle subTab    = PnlSubTabRect();
-    bool      subActive = (ps.activeTab == TAB_SUB);
-    DrawRectangleRec(subTab, subActive ? Color{30,41,59,255} : PANEL_BG);
-    if (subActive)
-        DrawLineEx({subTab.x, subTab.y + subTab.height},
-                   {subTab.x + subTab.width, subTab.y + subTab.height}, 2.0f,
-                   Color{234, 88, 12, 255});
-    {
-        int twS = MeasureText("Sub", 10);
-        DrawText("Sub", (int)(subTab.x + (subTab.width - twS) / 2),
-                 (int)(subTab.y + 8), 10,
-                 subActive ? Color{234, 88, 12, 255} : Color{100, 116, 139, 255});
-    }
-
-    Rectangle vxlTab    = PnlVxlanTabRect();
-    bool      vxlActive = (ps.activeTab == TAB_VXLAN);
-    DrawRectangleRec(vxlTab, vxlActive ? Color{30,41,59,255} : PANEL_BG);
-    if (vxlActive)
-        DrawLineEx({vxlTab.x, vxlTab.y + vxlTab.height},
-                   {vxlTab.x + vxlTab.width, vxlTab.y + vxlTab.height}, 2.0f,
-                   Color{20, 184, 166, 255});
-    {
-        int twX = MeasureText("VXL", 10);
-        DrawText("VXL", (int)(vxlTab.x + (vxlTab.width - twX) / 2),
-                 (int)(vxlTab.y + 8), 10,
-                 vxlActive ? Color{20,184,166,255} : Color{100, 116, 139, 255});
-    }
-
-    // ACL tab
-    Rectangle aclTab    = PnlAclTabRect();
-    bool      aclActive = (ps.activeTab == TAB_ACL);
-    DrawRectangleRec(aclTab, aclActive ? Color{30,41,59,255} : PANEL_BG);
-    if (aclActive)
-        DrawLineEx({aclTab.x, aclTab.y + aclTab.height},
-                   {aclTab.x + aclTab.width, aclTab.y + aclTab.height}, 2.0f,
-                   Color{59, 130, 246, 255});
-    {
-        int tw = MeasureText("ACL", 10);
-        DrawText("ACL", (int)(aclTab.x + (aclTab.width - tw) / 2),
-                 (int)(aclTab.y + 8), 10,
-                 aclActive ? Color{239,68,68,255} : Color{100,116,139,255});
-    }
-
-    // NAT tab
-    Rectangle natTab    = PnlNatTabRect();
-    bool      natActive = (ps.activeTab == TAB_NAT);
-    DrawRectangleRec(natTab, natActive ? Color{30,41,59,255} : PANEL_BG);
-    if (natActive)
-        DrawLineEx({natTab.x, natTab.y + natTab.height},
-                   {natTab.x + natTab.width, natTab.y + natTab.height}, 2.0f,
-                   Color{59, 130, 246, 255});
-    {
-        int tw = MeasureText("NAT", 10);
-        DrawText("NAT", (int)(natTab.x + (natTab.width - tw) / 2),
-                 (int)(natTab.y + 8), 10,
-                 natActive ? Color{234,179,8,255} : Color{100,116,139,255});
+        const TabInfo* tabs     = PnlTabList(n->type);
+        int            tabCount = PnlTabCount(n->type);
+        for (int ti = 0; ti < tabCount; ++ti) {
+            Rectangle tr  = PnlTabRect(n->type, ti);
+            bool      act = (ps.activeTab == tabs[ti].tab);
+            DrawRectangleRec(tr, act ? Color{30,41,59,255} : PANEL_BG);
+            if (act)
+                DrawLineEx({tr.x, tr.y + tr.height},
+                           {tr.x + tr.width, tr.y + tr.height},
+                           2.0f, tabs[ti].activeUnder);
+            int tw = MeasureText(tabs[ti].label, 9);
+            DrawText(tabs[ti].label,
+                     (int)(tr.x + (tr.width - tw) / 2.f),
+                     (int)(tr.y + 9), 9,
+                     act ? tabs[ti].activeTxt : Color{100,116,139,255});
+        }
     }
 
     DrawLineEx({(float)CANVAS_W(), 116.0f}, {(float)(CANVAS_W() + PANEL_W), 116.0f},

@@ -7,6 +7,17 @@
 enum PanelTab { TAB_CONFIG, TAB_ROUTES, TAB_ARP, TAB_OSPF, TAB_MPLS, TAB_BGP,
                 TAB_VLAN, TAB_SUB, TAB_VXLAN, TAB_ACL, TAB_NAT };
 
+struct TabInfo {
+    PanelTab    tab;
+    const char* label;
+    Color       activeUnder;
+    Color       activeTxt;
+};
+int            PnlTabCount(DeviceType t);
+float          PnlTabWFor(DeviceType t);
+const TabInfo* PnlTabList(DeviceType t);
+Rectangle      PnlTabRect(DeviceType t, int visIdx);
+
 struct PanelState {
     int         activeField      = -1;
     PanelTab    activeTab        = TAB_CONFIG;

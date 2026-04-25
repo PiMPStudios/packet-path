@@ -179,3 +179,48 @@ void UpdateRoutesTab(DeviceNode* n, PanelState& ps) {
         }
     }
 }
+
+// ── Device-type-aware tab layout ─────────────────────────────────────────────
+
+static const TabInfo kPcTabs[] = {
+    {TAB_CONFIG, "Cfg",  Color{59,130,246,255}, WHITE},
+    {TAB_ROUTES, "Rte",  Color{59,130,246,255}, WHITE},
+    {TAB_ARP,    "ARP",  Color{59,130,246,255}, WHITE},
+};
+static const TabInfo kSwTabs[] = {
+    {TAB_CONFIG, "Cfg",  Color{59,130,246,255}, WHITE},
+    {TAB_VLAN,   "VLAN", Color{245,158,11,255}, Color{245,158,11,255}},
+    {TAB_ACL,    "ACL",  Color{59,130,246,255}, Color{239,68,68,255}},
+};
+// Router: 10 tabs (VLAN omitted — routers use Sub-ifaces for inter-VLAN)
+static const TabInfo kRtTabs[] = {
+    {TAB_CONFIG, "Cfg",  Color{59,130,246,255}, WHITE},
+    {TAB_ROUTES, "Rte",  Color{59,130,246,255}, WHITE},
+    {TAB_ARP,    "ARP",  Color{59,130,246,255}, WHITE},
+    {TAB_OSPF,   "OSP",  Color{59,130,246,255}, WHITE},
+    {TAB_MPLS,   "MLS",  Color{59,130,246,255}, WHITE},
+    {TAB_BGP,    "BGP",  Color{34,197,94,255},  Color{34,197,94,255}},
+    {TAB_SUB,    "Sub",  Color{234,88,12,255},  Color{234,88,12,255}},
+    {TAB_VXLAN,  "VXL",  Color{20,184,166,255}, Color{20,184,166,255}},
+    {TAB_ACL,    "ACL",  Color{59,130,246,255}, Color{239,68,68,255}},
+    {TAB_NAT,    "NAT",  Color{59,130,246,255}, Color{234,179,8,255}},
+};
+
+int PnlTabCount(DeviceType t) {
+    if (t == PC)     return 3;
+    if (t == SWITCH) return 3;
+    return 10;
+}
+float PnlTabWFor(DeviceType t) {
+    int n = PnlTabCount(t);
+    return (PANEL_W - 24.0f - (float)(n - 1) * 4.0f) / (float)n;
+}
+const TabInfo* PnlTabList(DeviceType t) {
+    if (t == PC)     return kPcTabs;
+    if (t == SWITCH) return kSwTabs;
+    return kRtTabs;
+}
+Rectangle PnlTabRect(DeviceType t, int visIdx) {
+    float w = PnlTabWFor(t);
+    return {(float)(CANVAS_W() + 12) + (float)visIdx * (w + 4.0f), 88.0f, w, 26.0f};
+}

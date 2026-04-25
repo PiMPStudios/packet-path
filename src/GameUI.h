@@ -38,8 +38,8 @@ Rectangle LevelHudMenuBtnRect();     // {252,8,52,22}
 Rectangle LevelHudSandboxBtnRect();  // {308,8,72,22}
 
 // ── Level-select overlay ──────────────────────────────────────────────────
-// Full-screen overlay; levelTitles must be a 16-element array (indices 0–15).
-void DrawLevelSelectScreen(const std::string* levelTitles);
+// Full-screen overlay; levelTitles and levelExists must be 16-element arrays (indices 0–15).
+void DrawLevelSelectScreen(const std::string* levelTitles, const bool* levelExists);
 Rectangle LevelSelectCardRect(int i);   // i=0..15 → level card for level i+1
 Rectangle LevelSelectSandboxBtnRect();  // Full-width sandbox card below the grid
 

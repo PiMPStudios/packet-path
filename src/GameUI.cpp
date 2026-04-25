@@ -86,10 +86,10 @@ void DrawSandboxHUD() {
              10, Color{148, 163, 184, 255});
 }
 
-void DrawLevelSelectScreen(const std::string* levelTitles) {
-    if (!levelTitles) return;
-    // Dim the entire canvas + panel area
-    DrawRectangle(0, 0, CANVAS_W(), SCREEN_H(), Color{0, 0, 0, 200});
+void DrawLevelSelectScreen(const std::string* levelTitles, const bool* levelExists) {
+    if (!levelTitles || !levelExists) return;
+    // Dim the entire screen (canvas + panel)
+    DrawRectangle(0, 0, SCREEN_W(), SCREEN_H(), Color{0, 0, 0, 225});
 
     // Title
     const char* hdr = "SELECT A LEVEL";
@@ -100,11 +100,14 @@ void DrawLevelSelectScreen(const std::string* levelTitles) {
 
     // 4x4 grid of level cards  (i = 0..15 → level i+1)
     for (int i = 0; i < 16; ++i) {
-        Rectangle r  = LevelSelectCardRect(i);
-        bool hovered = CheckCollisionPointRec(mouse, r);
+        Rectangle r       = LevelSelectCardRect(i);
+        bool exists       = levelExists[i];
+        bool hovered      = exists && CheckCollisionPointRec(mouse, r);
 
-        Color bg  = hovered ? Color{30,  58, 138, 255} : Color{22, 33,  62, 255};
-        Color brd = hovered ? Color{59, 130, 246, 255} : Color{51, 65,  85, 255};
+        Color bg  = exists ? (hovered ? Color{30,  58, 138, 255} : Color{22, 33, 62, 255})
+                           : Color{15, 20, 35, 255};
+        Color brd = exists ? (hovered ? Color{59, 130, 246, 255} : Color{51, 65, 85, 255})
+                           : Color{30, 36, 48, 255};
         DrawRectangleRounded(r, 0.1f, 4, bg);
         DrawRectangleRoundedLinesEx(r, 0.1f, 4, 1.5f, brd);
 
@@ -112,13 +115,18 @@ void DrawLevelSelectScreen(const std::string* levelTitles) {
         char lvlBuf[8];
         std::snprintf(lvlBuf, sizeof(lvlBuf), "LVL %d", i + 1);
         DrawText(lvlBuf, (int)(r.x + 10), (int)(r.y + 12), 11,
-                 Color{148, 163, 184, 255});
+                 exists ? Color{148, 163, 184, 255} : Color{51, 65, 85, 255});
 
-        // Level title — truncate at 22 chars to fit 180 px card
-        std::string title = levelTitles[i];
-        if ((int)title.size() > 22) title = title.substr(0, 19) + "...";
-        DrawText(title.c_str(), (int)(r.x + 10), (int)(r.y + 32), 10,
-                 Color{203, 213, 225, 255});
+        if (exists) {
+            // Level title — truncate at 22 chars to fit 180 px card
+            std::string title = levelTitles[i];
+            if ((int)title.size() > 22) title = title.substr(0, 19) + "...";
+            DrawText(title.c_str(), (int)(r.x + 10), (int)(r.y + 32), 10,
+                     Color{203, 213, 225, 255});
+        } else {
+            DrawText("Coming Soon", (int)(r.x + 10), (int)(r.y + 32), 10,
+                     Color{51, 65, 85, 255});
+        }
     }
 
     // Full-width sandbox card below the grid
