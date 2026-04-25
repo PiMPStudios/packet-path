@@ -281,6 +281,18 @@ int main() {
             ps.portAreaBuf.clear();
         }
 
+        // Replay controls — Space toggles pause; Right steps one hop when paused
+        if (simState.mode == SIM_ANIMATING && fileOp == FILEOP_NONE &&
+            ps.activeField == -1 && ps.activeRouteField == -1 &&
+            ps.activePortAreaField == -1 && ps.bgpAsnField == -1 &&
+            ps.vlanPortField == -1 && ps.subActiveField == -1 &&
+            ps.aclActiveField == -1 && ps.natField == -1) {
+            if (IsKeyPressed(KEY_SPACE))
+                simState.anim.paused = !simState.anim.paused;
+            if (simState.anim.paused && IsKeyPressed(KEY_RIGHT))
+                StepForwardAnim(simState.anim);
+        }
+
         // ── Camera pan (middle mouse) ──────────────────────────────────
         if (inCanvas && IsMouseButtonDown(MOUSE_BUTTON_MIDDLE)) {
             Vector2 delta    = GetMouseDelta();
@@ -402,6 +414,15 @@ int main() {
             } else if (gameMode == GAME_PLAYING &&
                        CheckCollisionPointRec(screenMouse, LevelHudSandboxBtnRect())) {
                 goSandbox();
+            } else if (simState.mode == SIM_ANIMATING &&
+                       CheckCollisionPointRec(screenMouse, {88.f, 58.f, 164.f, 18.f})) {
+                static const float speeds[4] = {0.25f, 0.5f, 1.f, 2.f};
+                for (int i = 0; i < 4; ++i) {
+                    if (CheckCollisionPointRec(screenMouse, ReplaySpeedBtnRect(i))) {
+                        simState.anim.speedMult = speeds[i];
+                        break;
+                    }
+                }
             } else if (contextMenu.visible) {
                 if (contextMenu.hoverItem != -1)
                     ExecuteMenuAction(contextMenu, nodes, cables, selectedId, ps, camera, simState, logEntries);
@@ -527,6 +548,19 @@ int main() {
                     traceModalOpen = true;
                 }
             } else if (inCanvas) {
+            bool handled = false;
+            if (simState.mode == SIM_ANIMATING && !simState.anim.done) {
+                Vector2 wpos = GetPacketWorldPos(simState.anim, nodes, cables);
+                Vector2 spos = GetWorldToScreen2D(wpos, camera);
+                float dx = screenMouse.x - spos.x;
+                float dy = screenMouse.y - spos.y;
+                if (dx * dx + dy * dy <= 144.f) {   // 12 px radius
+                    activeTrace    = simState.anim.result;
+                    traceModalOpen = true;
+                    handled        = true;
+                }
+            }
+            if (!handled) {
             int pNode = -1, pPort = -1;
             if (HitTestPort(nodes, worldMouse, -1, pNode, pPort)) {
                 connecting      = true;
@@ -553,6 +587,7 @@ int main() {
                     dragging   = false;
                 }
             }
+            }  // closes if (!handled)
             }  // closes else if (inCanvas)
             }  // closes else (gameMode != GAME_WIN)
         }
@@ -1436,7 +1471,8 @@ int main() {
             DrawContextMenu(contextMenu, screenMouse);
             DrawLogConsole(logEntries);
             if (traceModalOpen)
-                DrawTraceModal(activeTrace);
+                DrawTraceModal(activeTrace,
+                               (simState.mode == SIM_ANIMATING) ? simState.anim.hop : -1);
 
             // Sandbox badge (only in sandbox mode)
             if (gameMode == GAME_SANDBOX)
@@ -1476,6 +1512,9 @@ int main() {
                     }
                 }
             }
+            // Replay controls HUD — speed buttons + PAUSED badge
+            if (simState.mode == SIM_ANIMATING)
+                DrawReplayHUD(simState.anim.paused, simState.anim.speedMult);
             if (gameMode == GAME_WIN)
                 DrawWinOverlay(activeLevelDef, currentLevel < 16, starsEarned);
 
