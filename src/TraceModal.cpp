@@ -1,5 +1,6 @@
 #include "TraceModal.h"
 #include "NetworkCanvas.h"   // CANVAS_H, CANVAS_W, SCREEN_W, SCREEN_H
+#include "Font.h"
 #include <algorithm>
 #include <cstdio>
 
@@ -38,18 +39,18 @@ void DrawTraceModal(const ForwardResult& trace, int activeHop) {
     DrawRectangleRoundedLinesEx(modal, 0.08f, 8, 1.5f, Color{59, 130, 246, 255});
 
     // Header
-    DrawText("Packet Trace", (int)(MX + 16), (int)(MY + 14), 13,
-             Color{226, 232, 240, 255});
+    DrawTextEx(GFont(), "Packet Trace", {MX + 16, MY + 14}, FS(13), Sp(FS(13)),
+               Color{226, 232, 240, 255});
     const char* icon  = trace.success ? "\xe2\x9c\x93" : "\xe2\x9c\x97";
     Color       icCol = trace.success ? Color{34, 197, 94, 255}
                                       : Color{239, 68, 68, 255};
-    DrawText(icon, (int)(MX + MW - 28), (int)(MY + 14), 13, icCol);
+    DrawTextEx(GFont(), icon, {MX + MW - 28, MY + 14}, FS(13), Sp(FS(13)), icCol);
     DrawLineEx({MX, MY + 36.f}, {MX + MW, MY + 36.f}, 1.f,
                Color{51, 65, 85, 255});
 
     if (trace.hops.empty()) {
-        DrawText("No hop detail available", (int)(MX + 16), (int)(MY + 52), 11,
-                 Color{100, 116, 139, 255});
+        DrawTextEx(GFont(), "No hop detail available", {MX + 16, MY + 52}, FS(11), Sp(FS(11)),
+                   Color{100, 116, 139, 255});
     } else {
         float rowY = MY + 44.f;
         for (int i = 0; i < (int)trace.hops.size() && rowY < MY + MH - 36.f; ++i) {
@@ -72,12 +73,12 @@ void DrawTraceModal(const ForwardResult& trace, int activeHop) {
                        Color{30, 64, 175, 255});
             char num[4];
             std::snprintf(num, sizeof(num), "%d", i + 1);
-            int nw = MeasureText(num, 10);
-            DrawText(num, (int)(MX + 22.f) - nw / 2, (int)(rowY + 5.f), 10, WHITE);
+            int nw = (int)TW(num, 10);
+            DrawTextEx(GFont(), num, {MX + 22.f - nw / 2.f, rowY + 5.f}, FS(10), Sp(FS(10)), WHITE);
 
             // Node label
-            DrawText(h.nodeLabel.c_str(), (int)(MX + 40.f), (int)rowY, 12,
-                     Color{226, 232, 240, 255});
+            DrawTextEx(GFont(), h.nodeLabel.c_str(), {MX + 40.f, rowY}, FS(12), Sp(FS(12)),
+                       Color{226, 232, 240, 255});
 
             // Route type badge
             Color rtCol;
@@ -86,14 +87,14 @@ void DrawTraceModal(const ForwardResult& trace, int activeHop) {
             else if (h.routeType == "O")    rtCol = Color{59, 130, 246, 255};
             else if (h.routeType == "B")    rtCol = Color{20, 184, 166, 255};
             else                            rtCol = Color{168, 85, 247, 255};
-            DrawText(h.routeType.c_str(), (int)(MX + 40.f), (int)(rowY + 16.f), 10, rtCol);
+            DrawTextEx(GFont(), h.routeType.c_str(), {MX + 40.f, rowY + 16.f}, FS(10), Sp(FS(10)), rtCol);
 
             // Matched prefix → next hop
             char detail[256];
             std::snprintf(detail, sizeof(detail), "%s \xe2\x86\x92 %s",
                           h.destPrefix.c_str(), h.nextHopIp.c_str());
-            DrawText(detail, (int)(MX + 72.f), (int)(rowY + 16.f), 10,
-                     Color{100, 116, 139, 255});
+            DrawTextEx(GFont(), detail, {MX + 72.f, rowY + 16.f}, FS(10), Sp(FS(10)),
+                       Color{100, 116, 139, 255});
 
             // MPLS label op annotation
             if (hasLabel) {
@@ -116,14 +117,14 @@ void DrawTraceModal(const ForwardResult& trace, int activeHop) {
                     std::snprintf(lblBuf, sizeof(lblBuf), "%u", h.inLabel);
                 }
 
-                float bw = (float)(MeasureText(opStr, 9) + 10);
+                float bw = TW(opStr, 9) + 10.f;
                 DrawRectangleRounded({MX + 40.f, rowY + 30.f, bw, 13.f},
                                       0.4f, 4, opCol);
-                int tw5 = MeasureText(opStr, 9);
-                DrawText(opStr, (int)(MX + 40.f + (bw - tw5) / 2.f),
-                         (int)(rowY + 32.f), 9, WHITE);
-                DrawText(lblBuf, (int)(MX + 40.f + bw + 6.f),
-                         (int)(rowY + 31.f), 10, Color{253, 186, 116, 255});
+                float tw5 = TW(opStr, 9);
+                DrawTextEx(GFont(), opStr, {MX + 40.f + (bw - tw5) / 2.f, rowY + 32.f},
+                           FS(9), Sp(FS(9)), WHITE);
+                DrawTextEx(GFont(), lblBuf, {MX + 40.f + bw + 6.f, rowY + 31.f},
+                           FS(10), Sp(FS(10)), Color{253, 186, 116, 255});
             }
 
             // ACL annotation badge
@@ -131,18 +132,18 @@ void DrawTraceModal(const ForwardResult& trace, int activeHop) {
                 float annotY = rowY + 30.f + (hasLabel ? 16.f : 0.f);
                 bool permit  = (h.aclResult.rfind("PERMIT", 0) == 0);
                 Color ac     = permit ? Color{34,197,94,255} : Color{239,68,68,255};
-                float bw = (float)(MeasureText(h.aclResult.c_str(), 9) + 10);
+                float bw = TW(h.aclResult.c_str(), 9) + 10.f;
                 DrawRectangleRounded({MX+40.f, annotY, bw, 13.f}, 0.4f, 4, ac);
-                DrawText(h.aclResult.c_str(), (int)(MX+45.f), (int)(annotY+2.f), 9, WHITE);
+                DrawTextEx(GFont(), h.aclResult.c_str(), {MX+45.f, annotY+2.f}, FS(9), Sp(FS(9)), WHITE);
             }
             // NAT annotation badge
             if (hasNat) {
                 float annotY = rowY + 30.f + (hasLabel ? 16.f : 0.f) + (hasAcl ? 16.f : 0.f);
                 char natBuf[64];
                 std::snprintf(natBuf, sizeof(natBuf), "NAT %s", h.natResult.c_str());
-                float bw = (float)(MeasureText(natBuf, 9) + 10);
+                float bw = TW(natBuf, 9) + 10.f;
                 DrawRectangleRounded({MX+40.f, annotY, bw, 13.f}, 0.4f, 4, Color{234,179,8,255});
-                DrawText(natBuf, (int)(MX+45.f), (int)(annotY+2.f), 9, WHITE);
+                DrawTextEx(GFont(), natBuf, {MX+45.f, annotY+2.f}, FS(9), Sp(FS(9)), WHITE);
             }
 
             rowY += rowStride;
@@ -152,6 +153,6 @@ void DrawTraceModal(const ForwardResult& trace, int activeHop) {
         }
     }
 
-    DrawText("ESC or click outside to close",
-             (int)(MX + 16), (int)(MY + MH - 24), 10, Color{71, 85, 105, 255});
+    DrawTextEx(GFont(), "ESC or click outside to close",
+               {MX + 16, MY + MH - 24}, FS(10), Sp(FS(10)), Color{71, 85, 105, 255});
 }
