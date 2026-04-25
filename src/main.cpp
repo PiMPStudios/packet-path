@@ -57,6 +57,7 @@ int main() {
     float         failAnnotationTimer = 0.f;
     ForwardResult lastFailedTrace;
     bool          briefingVisible = false;
+    BriefingCardState briefingCard;
     bool          helpVisible     = false;
     bool          menuVisible     = false;
     bool          shouldQuit      = false;
@@ -127,6 +128,8 @@ int main() {
         failAnnotationTimer  = 0.f;
         lastFailedTrace      = {};
         activeTrace          = {};
+        briefingVisible = false;
+        briefingCard    = BriefingCardState{};
     };
 
     while (!WindowShouldClose() && !shouldQuit) {
@@ -236,6 +239,18 @@ int main() {
             if (helpVisible) briefingVisible = false;
         }
 
+        if (fileOp == FILEOP_NONE && !menuVisible && IsKeyPressed(KEY_B) &&
+            gameMode == GAME_PLAYING && ps.activeField == -1 &&
+            ps.activeRouteField == -1 && ps.aclActiveField == -1 && ps.natField == -1) {
+            if (!briefingVisible) {
+                briefingVisible        = true;
+                briefingCard.collapsed = false;
+                briefingCard.pos       = BriefingDefaultPos();
+            } else {
+                briefingCard.collapsed = !briefingCard.collapsed;
+            }
+        }
+
         if (IsKeyPressed(KEY_ESCAPE)) {
             if (helpVisible) {
                 helpVisible = false;
@@ -343,11 +358,6 @@ int main() {
                 if (CheckCollisionPointRec(screenMouse, HelpCloseBtnRect()))
                     helpVisible = false;
                 // all other clicks consumed
-            } else if (briefingVisible) {
-                if (CheckCollisionPointRec(screenMouse, BriefingCloseBtnRect()) ||
-                    CheckCollisionPointRec(screenMouse, BriefingGotItBtnRect()))
-                    briefingVisible = false;
-                // all other clicks consumed while briefing open
             } else if (menuVisible) {
                 bool hasRestart = (gameMode == GAME_PLAYING || gameMode == GAME_WIN);
                 GameMenuLayout ML = ComputeGameMenuLayout(gameSettings, hasRestart);
@@ -408,6 +418,9 @@ int main() {
                     failAnnotationTimer  = 0.f;
                     lastFailedTrace      = {};
                     briefingVisible      = true;
+                    briefingCard.pos       = BriefingDefaultPos();
+                    briefingCard.collapsed = false;
+                    briefingCard.dragging  = false;
                     helpVisible          = false;
                 } else if (CheckCollisionPointRec(screenMouse, ML.quit)) {
                     shouldQuit = true;
@@ -482,6 +495,9 @@ int main() {
                         failAnnotationTimer  = 0.f;
                         lastFailedTrace      = {};
                         briefingVisible      = true;
+                        briefingCard.pos       = BriefingDefaultPos();
+                        briefingCard.collapsed = false;
+                        briefingCard.dragging  = false;
                         helpVisible          = false;
                     }
                 }
@@ -520,6 +536,9 @@ int main() {
                             failAnnotationTimer  = 0.f;
                             lastFailedTrace      = {};
                             briefingVisible      = true;
+                            briefingCard.pos       = BriefingDefaultPos();
+                            briefingCard.collapsed = false;
+                            briefingCard.dragging  = false;
                             helpVisible          = false;
                             break;
                         }
@@ -528,6 +547,33 @@ int main() {
                 if (CheckCollisionPointRec(screenMouse, LevelSelectSandboxBtnRect()))
                     goSandbox();
             } else {
+            // ── Briefing card interactions (non-consuming) ─────────────────
+            bool cardConsumedClick = false;
+            if (briefingVisible && gameMode == GAME_PLAYING) {
+                Rectangle cardBounds = BriefingCardBounds(briefingCard.pos, briefingCard.collapsed);
+                if (CheckCollisionPointRec(screenMouse, cardBounds)) {
+                    cardConsumedClick = true;
+                    Rectangle closeBtn = BriefingCloseBtnRect(briefingCard.pos);
+                    Rectangle colBtn   = BriefingCollapseBtnRect(briefingCard.pos);
+                    if (CheckCollisionPointRec(screenMouse, closeBtn)) {
+                        briefingVisible = false;
+                    } else if (CheckCollisionPointRec(screenMouse, colBtn)) {
+                        briefingCard.collapsed = !briefingCard.collapsed;
+                    } else if (!briefingCard.collapsed &&
+                               CheckCollisionPointRec(screenMouse, BriefingGotItBtnRect(briefingCard.pos))) {
+                        briefingCard.collapsed = true;
+                    } else if (CheckCollisionPointRec(screenMouse, BriefingTitleBarRect(briefingCard.pos))) {
+                        if (briefingCard.collapsed) {
+                            briefingCard.collapsed = false;  // click collapsed bar → expand
+                        } else {
+                            briefingCard.dragging = true;
+                            briefingCard.dragOff  = {screenMouse.x - briefingCard.pos.x,
+                                                     screenMouse.y - briefingCard.pos.y};
+                        }
+                    }
+                }
+            }
+            if (!cardConsumedClick) {
             // HUD navigation buttons — take priority over canvas interactions
             if (gameMode == GAME_SANDBOX &&
                 CheckCollisionPointRec(screenMouse, SandboxMenuBtnRect())) {
@@ -718,7 +764,18 @@ int main() {
             }
             }  // closes if (!handled)
             }  // closes else if (inCanvas)
+            }  // closes if (!cardConsumedClick)
             }  // closes else (gameMode != GAME_WIN)
+        }
+
+        // ── Briefing card drag ────────────────────────────────────────
+        if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && briefingVisible && briefingCard.dragging) {
+            // constants match BC_W/BC_TH/BC_H in GameUI.cpp; use BriefingCardBounds for dimensions
+            Rectangle b = BriefingCardBounds(briefingCard.pos, briefingCard.collapsed);
+            briefingCard.pos.x = std::clamp(screenMouse.x - briefingCard.dragOff.x,
+                                            0.f, (float)CANVAS_W() - b.width);
+            briefingCard.pos.y = std::clamp(screenMouse.y - briefingCard.dragOff.y,
+                                            0.f, (float)CANVAS_H() - b.height);
         }
 
         // ── LMB held ──────────────────────────────────────────────────
@@ -739,6 +796,7 @@ int main() {
 
         // ── LMB released ──────────────────────────────────────────────
         if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+            briefingCard.dragging = false;
             if (connecting && hoverNodeId != -1) {
                 bool portOccupied = false;
                 for (const auto& c : cables) {
@@ -1551,15 +1609,19 @@ int main() {
                            {(float)(CANVAS_W()) - fpsW - 8.f, 8.f},
                            FS(10), Sp(FS(10)), LIME);
             }
-            if (gameMode != GAME_LEVEL_SELECT)
-                DrawTextEx(GFont(), "H = Help  \xe2\x80\xa2  M = Menu",
+            if (gameMode != GAME_LEVEL_SELECT) {
+                const char* hint = (gameMode == GAME_PLAYING)
+                    ? "B = Briefing  \xe2\x80\xa2  H = Help  \xe2\x80\xa2  M = Menu"
+                    : "H = Help  \xe2\x80\xa2  M = Menu";
+                DrawTextEx(GFont(), hint,
                            {10.f, (float)(CANVAS_H() - 20)},
                            FS(9), Sp(FS(9)), Color{71, 85, 105, 255});
+            }
             DrawFileDialog(fileOp, fileNameBuf, fileOpMsg, fileOpTimer);
 
             // Overlays drawn on top of everything else (menu above briefing/help)
             if (briefingVisible && gameMode == GAME_PLAYING)
-                DrawBriefingCard(activeLevelDef);
+                DrawBriefingCard(activeLevelDef, briefingCard);
             if (helpVisible)
                 DrawHelpOverlay();
             if (menuVisible) {
