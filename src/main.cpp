@@ -1495,8 +1495,8 @@ int main() {
                         DrawRectangle((int)mb.x,(int)mb.y,(int)mb.width,(int)mb.height,
                                       Color{30,41,59,210});
                         DrawRectangleLinesEx(mb, 1.0f, Color{51,65,85,255});
-                        int tw = MeasureText("LEVELS",10);
-                        DrawText("LEVELS",(int)(mb.x+(mb.width-tw)/2.f),(int)(mb.y+6),
+                        int tw = MeasureText("MENU",10);
+                        DrawText("MENU",(int)(mb.x+(mb.width-tw)/2.f),(int)(mb.y+6),
                                  10, Color{148,163,184,255});
                     }
                     // SANDBOX shortcut button
