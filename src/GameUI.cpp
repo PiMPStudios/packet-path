@@ -23,6 +23,37 @@ Rectangle SandboxMenuBtnRect()     { return {120.f, 8.f,  52.f, 22.f}; }
 Rectangle LevelHudMenuBtnRect()    { return {252.f, 8.f,  52.f, 22.f}; }
 Rectangle LevelHudSandboxBtnRect() { return {308.f, 8.f,  72.f, 22.f}; }
 
+Rectangle ReplaySpeedBtnRect(int idx) {
+    return {88.f + idx * 42.f, 58.f, 38.f, 18.f};
+}
+
+void DrawReplayHUD(bool paused, float speedMult) {
+    // PAUSED badge — amber, shown only when paused
+    if (paused) {
+        DrawRectangle(8, 58, 76, 18, Color{217, 119, 6, 210});
+        DrawRectangleLinesEx({8.f, 58.f, 76.f, 18.f}, 1.f, Color{251, 191, 36, 255});
+        DrawText("PAUSED", 14, 62, 10, Color{254, 243, 199, 255});
+    }
+
+    // Four speed buttons
+    static const float  speeds[4] = {0.25f, 0.5f, 1.f, 2.f};
+    static const char*  labels[4] = {"0.25x", "0.5x", "1x", "2x"};
+    for (int i = 0; i < 4; ++i) {
+        Rectangle r  = ReplaySpeedBtnRect(i);
+        bool      active = (speedMult == speeds[i]);
+        Color bg   = active ? Color{30, 58, 138, 255} : Color{30, 41, 59, 210};
+        Color brd  = active ? Color{59, 130, 246, 255} : Color{51, 65, 85, 255};
+        Color txtC = active ? WHITE : Color{148, 163, 184, 255};
+        DrawRectangle((int)r.x, (int)r.y, (int)r.width, (int)r.height, bg);
+        DrawRectangleLinesEx(r, 1.f, brd);
+        int tw = MeasureText(labels[i], 9);
+        DrawText(labels[i],
+                 (int)(r.x + (r.width - tw) / 2.f),
+                 (int)(r.y + 4),
+                 9, txtC);
+    }
+}
+
 Rectangle LevelSelectCardRect(int i) {
     // 4-column grid, 180x80 cards, 10px gaps, centered in canvas
     const float cardW = 180.f, cardH = 80.f, gapX = 10.f, gapY = 10.f;

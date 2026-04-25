@@ -42,3 +42,8 @@ Rectangle LevelHudSandboxBtnRect();  // {308,8,72,22}
 void DrawLevelSelectScreen(const std::string* levelTitles);
 Rectangle LevelSelectCardRect(int i);   // i=0..15 → level card for level i+1
 Rectangle LevelSelectSandboxBtnRect();  // Full-width sandbox card below the grid
+
+// ── Replay controls HUD ───────────────────────────────────────────────────
+// Shown at y=58 when SIM_ANIMATING. PAUSED badge + four speed buttons.
+void DrawReplayHUD(bool paused, float speedMult);
+Rectangle ReplaySpeedBtnRect(int idx);  // idx=0..3 → 0.25x/0.5x/1x/2x
