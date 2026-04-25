@@ -242,6 +242,7 @@ int main() {
         if (fileOp == FILEOP_NONE && !menuVisible && IsKeyPressed(KEY_B) &&
             gameMode == GAME_PLAYING && ps.activeField == -1 &&
             ps.activeRouteField == -1 && ps.aclActiveField == -1 && ps.natField == -1) {
+            // B shows/expands; [×] or ESC fully hides — B alone never dismisses
             if (!briefingVisible) {
                 briefingVisible        = true;
                 briefingCard.collapsed = false;

@@ -409,14 +409,9 @@ void DrawBriefingCard(const LevelDef& def, const BriefingCardState& state) {
     }
 
     // Title bar
-    Color titleBg = Color{23, 47, 110, 240};
-    if (col) {
-        DrawRectangleRounded(titleBar, 0.07f, 6, titleBg);
+    DrawRectangleRounded(titleBar, 0.07f, 6, Color{23, 47, 110, 240});
+    if (col)
         DrawRectangleRoundedLinesEx(titleBar, 0.07f, 6, 1.5f, Color{59, 130, 246, 180});
-    } else {
-        DrawRectangleRounded(titleBar, 0.07f, 6, titleBg);
-        DrawRectangleRoundedLinesEx(titleBar, 0.07f, 6, 1.5f, Color{59, 130, 246, 180});
-    }
 
     // Drag indicator (three bullets on the left)
     DrawTextEx(GFont(), "\xe2\x80\xa2 \xe2\x80\xa2 \xe2\x80\xa2",
