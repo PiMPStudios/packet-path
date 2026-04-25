@@ -13,6 +13,7 @@ int main() {
     InitWindow(1280, 720, "Packet Path");
     SetWindowState(FLAG_WINDOW_RESIZABLE);
     SetWindowMinSize(MIN_W, MIN_H);
+    ChangeDirectory(GetApplicationDirectory());   // make relative paths work from any launch dir
     SetTargetFPS(60);
     InitAudioDevice();
     InitSounds();
