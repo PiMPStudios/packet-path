@@ -72,6 +72,7 @@ struct GameMenuState {
     bool  showFps    = true;
     bool  soundOn    = true;
     float volume     = 1.0f;
+    float uiScale    = 1.0f;
 };
 
 struct GameMenuLayout {
@@ -82,6 +83,8 @@ struct GameMenuLayout {
     int       numRes = 0;
     Rectangle fullscreen;
     Rectangle showFps;
+    Rectangle uiScaleBtns[4];
+    float     uiScaleLabelY;
     Rectangle mute;
     Rectangle volDown;
     Rectangle volUp;

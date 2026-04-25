@@ -1,6 +1,7 @@
 #include "GameUI.h"
 #include "Layout.h"   // CANVAS_W, CANVAS_H
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <string>
 #include <vector>
@@ -535,6 +536,8 @@ GameMenuLayout ComputeGameMenuLayout(const GameMenuState& s, bool hasRestart) {
     h += 12.f + 7.f;                                        // Display label + gap
     if (numRes > 0)
         h += numResRows * (RBH + 4.f) - 4.f + 8.f;         // resolution grid
+    h += 12.f + 7.f;                                        // UI Scale label + gap
+    h += RBH  + 8.f;                                        // 4 scale buttons row + gap
     h += BH   + 8.f;                                        // Fullscreen
     h += BH   + 14.f;                                       // Show FPS
     h += 12.f + 7.f;                                        // Audio label + gap
@@ -567,6 +570,14 @@ GameMenuLayout ComputeGameMenuLayout(const GameMenuState& s, bool hasRestart) {
     }
     if (numRes > 0)
         y += numResRows * (RBH + 4.f) - 4.f + 8.f;
+
+    L.uiScaleLabelY = y;
+    y += 19.f;
+
+    float sbw = (IW - 3.f * 4.f) / 4.f;
+    for (int i = 0; i < 4; ++i)
+        L.uiScaleBtns[i] = {x0 + i * (sbw + 4.f), y, sbw, RBH};
+    y += RBH + 8.f;
 
     L.fullscreen = {x0, y, IW, BH};  y += BH + 8.f;
     L.showFps    = {x0, y, IW, BH};  y += BH + 14.f;
@@ -666,6 +677,16 @@ void DrawGameMenu(const GameMenuState& s, bool hasRestart) {
         std::snprintf(label, sizeof(label), "%dx%d",
                       s.resolutions[i].first, s.resolutions[i].second);
         drawToggle(L.resBtns[i], label, active,
+                   Color{30,58,138,255}, Color{59,130,246,255});
+    }
+
+    // UI Scale
+    drawSecLabel(C.x + 12.f, L.uiScaleLabelY, "UI SCALE");
+    const float scaleVals[4]   = {1.0f, 1.25f, 1.5f, 2.0f};
+    const char* scaleLabels[4] = {"1x", "1.25x", "1.5x", "2x"};
+    for (int i = 0; i < 4; ++i) {
+        bool active = (std::fabs(s.uiScale - scaleVals[i]) < 0.01f);
+        drawToggle(L.uiScaleBtns[i], scaleLabels[i], active,
                    Color{30,58,138,255}, Color{59,130,246,255});
     }
 
