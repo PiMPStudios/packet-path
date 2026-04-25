@@ -396,7 +396,6 @@ Rectangle BriefingGotItBtnRect(Vector2 pos) {
 void DrawBriefingCard(const LevelDef& def, const BriefingCardState& state) {
     Vector2   pos      = state.pos;
     bool      col      = state.collapsed;
-    Rectangle bounds   = BriefingCardBounds(pos, col);
     Rectangle titleBar = BriefingTitleBarRect(pos);
     Rectangle colBtn   = BriefingCollapseBtnRect(pos);
     Rectangle closeBtn = BriefingCloseBtnRect(pos);
@@ -404,6 +403,7 @@ void DrawBriefingCard(const LevelDef& def, const BriefingCardState& state) {
 
     // Expanded card body
     if (!col) {
+        Rectangle bounds = BriefingCardBounds(pos, col);
         DrawRectangleRounded(bounds, 0.07f, 6, Color{10, 17, 35, 245});
         DrawRectangleRoundedLinesEx(bounds, 0.07f, 6, 1.5f, Color{59, 130, 246, 180});
     }
@@ -415,6 +415,7 @@ void DrawBriefingCard(const LevelDef& def, const BriefingCardState& state) {
         DrawRectangleRoundedLinesEx(titleBar, 0.07f, 6, 1.5f, Color{59, 130, 246, 180});
     } else {
         DrawRectangleRounded(titleBar, 0.07f, 6, titleBg);
+        DrawRectangleRoundedLinesEx(titleBar, 0.07f, 6, 1.5f, Color{59, 130, 246, 180});
     }
 
     // Drag indicator (three bullets on the left)

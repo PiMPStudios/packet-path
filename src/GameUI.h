@@ -64,7 +64,7 @@ Rectangle BriefingCardBounds(Vector2 pos, bool collapsed);  // full card rect
 Rectangle BriefingTitleBarRect(Vector2 pos);                // drag zone (full-width × 30 px)
 Rectangle BriefingCollapseBtnRect(Vector2 pos);             // [−]/[+] toggle button
 Rectangle BriefingCloseBtnRect(Vector2 pos);                // [×] hide-entirely button
-Rectangle BriefingGotItBtnRect(Vector2 pos);                // "Got it" → collapses card
+Rectangle BriefingGotItBtnRect(Vector2 pos);                // "Got it" → collapses card (only valid when !collapsed)
 void      DrawBriefingCard(const LevelDef& def, const BriefingCardState& state);
 
 // ── Help overlay ──────────────────────────────────────────────────────────
