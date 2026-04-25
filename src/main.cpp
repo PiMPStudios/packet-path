@@ -422,6 +422,7 @@ int main() {
                     briefingCard.pos       = BriefingDefaultPos();
                     briefingCard.collapsed = false;
                     briefingCard.dragging  = false;
+                    briefingCard.cardHeight = BriefingComputeHeight(activeLevelDef);
                     helpVisible          = false;
                 } else if (CheckCollisionPointRec(screenMouse, ML.quit)) {
                     shouldQuit = true;
@@ -473,6 +474,7 @@ int main() {
                     briefingCard.pos       = BriefingDefaultPos();
                     briefingCard.collapsed = false;
                     briefingCard.dragging  = false;
+                    briefingCard.cardHeight = BriefingComputeHeight(activeLevelDef);
                     helpVisible          = false;
                 } else if (CheckCollisionPointRec(screenMouse, WinNextBtnRect()) &&
                            currentLevel < 16) {
@@ -504,6 +506,7 @@ int main() {
                         briefingCard.pos       = BriefingDefaultPos();
                         briefingCard.collapsed = false;
                         briefingCard.dragging  = false;
+                        briefingCard.cardHeight = BriefingComputeHeight(activeLevelDef);
                         helpVisible          = false;
                     }
                 }
@@ -545,6 +548,7 @@ int main() {
                             briefingCard.pos       = BriefingDefaultPos();
                             briefingCard.collapsed = false;
                             briefingCard.dragging  = false;
+                            briefingCard.cardHeight = BriefingComputeHeight(activeLevelDef);
                             helpVisible          = false;
                             break;
                         }
@@ -556,7 +560,7 @@ int main() {
             // ── Briefing card interactions (non-consuming) ─────────────────
             bool cardConsumedClick = false;
             if (briefingVisible && gameMode == GAME_PLAYING) {
-                Rectangle cardBounds = BriefingCardBounds(briefingCard.pos, briefingCard.collapsed);
+                Rectangle cardBounds = BriefingCardBounds(briefingCard.pos, briefingCard.collapsed, briefingCard.cardHeight);
                 if (CheckCollisionPointRec(screenMouse, cardBounds)) {
                     cardConsumedClick = true;
                     Rectangle closeBtn = BriefingCloseBtnRect(briefingCard.pos);
@@ -566,7 +570,7 @@ int main() {
                     } else if (CheckCollisionPointRec(screenMouse, colBtn)) {
                         briefingCard.collapsed = !briefingCard.collapsed;
                     } else if (!briefingCard.collapsed &&
-                               CheckCollisionPointRec(screenMouse, BriefingGotItBtnRect(briefingCard.pos))) {
+                               CheckCollisionPointRec(screenMouse, BriefingGotItBtnRect(briefingCard.pos, briefingCard.cardHeight))) {
                         briefingCard.collapsed = true;
                     } else if (CheckCollisionPointRec(screenMouse, BriefingTitleBarRect(briefingCard.pos))) {
                         if (briefingCard.collapsed) {
@@ -777,7 +781,7 @@ int main() {
         // ── Briefing card drag ────────────────────────────────────────
         if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && briefingVisible && briefingCard.dragging) {
             // BriefingCardBounds accounts for collapsed height so clamp uses the live card size
-            Rectangle b = BriefingCardBounds(briefingCard.pos, briefingCard.collapsed);
+            Rectangle b = BriefingCardBounds(briefingCard.pos, briefingCard.collapsed, briefingCard.cardHeight);
             briefingCard.pos.x = std::clamp(screenMouse.x - briefingCard.dragOff.x,
                                             0.f, (float)CANVAS_W() - b.width);
             briefingCard.pos.y = std::clamp(screenMouse.y - briefingCard.dragOff.y,

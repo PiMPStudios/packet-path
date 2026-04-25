@@ -53,18 +53,20 @@ Rectangle ReplaySpeedBtnRect(int idx);  // idx=0..3 → 0.25x/0.5x/1x/2x
 // ── Mission briefing card ─────────────────────────────────────────────────
 // Floating, draggable, collapsible. Only shown during GAME_PLAYING.
 struct BriefingCardState {
-    Vector2 pos       = {0.f, 82.f};   // top-left corner; init via BriefingDefaultPos()
-    bool    collapsed = false;          // true = only title bar visible
-    bool    dragging  = false;          // true while LMB held on title bar
-    Vector2 dragOff   = {};             // mouse offset from pos when drag began
+    Vector2 pos        = {0.f, 82.f};  // top-left corner; init via BriefingDefaultPos()
+    bool    collapsed  = false;         // true = only title bar visible
+    bool    dragging   = false;         // true while LMB held on title bar
+    Vector2 dragOff    = {};            // mouse offset from pos when drag began
+    float   cardHeight = 210.f;        // computed by BriefingComputeHeight; fallback default
 };
 
-Vector2   BriefingDefaultPos();                              // canvas-centered starting pos
-Rectangle BriefingCardBounds(Vector2 pos, bool collapsed);  // full card rect
-Rectangle BriefingTitleBarRect(Vector2 pos);                // drag zone (full-width × 30 px)
-Rectangle BriefingCollapseBtnRect(Vector2 pos);             // [−]/[+] toggle button
-Rectangle BriefingCloseBtnRect(Vector2 pos);                // [×] hide-entirely button
-Rectangle BriefingGotItBtnRect(Vector2 pos);                // "Got it" → collapses card (only valid when !collapsed)
+float     BriefingComputeHeight(const LevelDef& def);                        // dry-run content height (max 500px)
+Vector2   BriefingDefaultPos();                                               // canvas-centered starting pos
+Rectangle BriefingCardBounds(Vector2 pos, bool collapsed, float cardHeight); // full card rect
+Rectangle BriefingTitleBarRect(Vector2 pos);                                 // drag zone (full-width × 30 px)
+Rectangle BriefingCollapseBtnRect(Vector2 pos);                              // [−]/[+] toggle button
+Rectangle BriefingCloseBtnRect(Vector2 pos);                                 // [×] hide-entirely button
+Rectangle BriefingGotItBtnRect(Vector2 pos, float cardHeight);               // "Got it" → collapses card (only valid when !collapsed)
 void      DrawBriefingCard(const LevelDef& def, const BriefingCardState& state);
 
 // ── Help overlay ──────────────────────────────────────────────────────────
