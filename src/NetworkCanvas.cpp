@@ -16,8 +16,8 @@ void DrawDeviceNode(const DeviceNode& n) {
         float by = n.position.y - NODE_H / 2.f - 18.f;
         DrawCircle((int)bx, (int)by, 12.f, Color{239, 68, 68, 255});
         const char* xmark = "\xe2\x9c\x97";
-        int xw = (int)TW(xmark, 11);
-        DrawTextEx(GFont(), xmark, {(float)((int)bx - xw / 2), (float)(int)(by - 6.f)}, FS(11), Sp(FS(11)), WHITE);
+        float xw = TW(xmark, 11);
+        DrawTextEx(GFont(), xmark, {(float)(int)bx - xw * 0.5f, (float)(int)(by - 6.f)}, FS(11), Sp(FS(11)), WHITE);
     }
     int tw = (int)TW(n.label.c_str(), NODE_FONT_SZ);
     DrawTextEx(GFont(), n.label.c_str(),
@@ -89,8 +89,8 @@ void DrawAllCables(const std::vector<Cable>& cables,
             Vector2 mid = {(p0.x + p3.x) / 2.0f, (p0.y + p3.y) / 2.0f};
             DrawCircle((int)mid.x, (int)mid.y, 7.f, Color{239, 68, 68, 255});
             const char* xmark = "\xe2\x9c\x97";
-            int xw = (int)TW(xmark, 9);
-            DrawTextEx(GFont(), xmark, {(float)((int)mid.x - xw / 2), (float)(int)(mid.y - 5.f)}, FS(9), Sp(FS(9)), WHITE);
+            float xw = TW(xmark, 9);
+            DrawTextEx(GFont(), xmark, {(float)(int)mid.x - xw * 0.5f, (float)(int)(mid.y - 5.f)}, FS(9), Sp(FS(9)), WHITE);
             continue;   // skip normal color/OSPF/trunk logic for this cable
         }
 
@@ -410,8 +410,8 @@ void DrawBrokenPath(const std::vector<DeviceNode>& nodes,
     float by  = breakNode->position.y - NODE_H / 2.f - 18.f;
     DrawCircle((int)bx, (int)by, 12.f, Color{239, 68, 68, 255});
     const char* xmark = "\xe2\x9c\x97";
-    int xw = (int)TW(xmark, 11);
-    DrawTextEx(GFont(), xmark, {(float)((int)bx - xw / 2), (float)(int)(by - 6.f)}, FS(11), Sp(FS(11)), WHITE);
+    float xw = TW(xmark, 11);
+    DrawTextEx(GFont(), xmark, {(float)(int)bx - xw * 0.5f, (float)(int)(by - 6.f)}, FS(11), Sp(FS(11)), WHITE);
 }
 
 void DrawTroubleshootOverlay(const std::vector<DeviceNode>& nodes,
@@ -426,20 +426,20 @@ void DrawTroubleshootOverlay(const std::vector<DeviceNode>& nodes,
         Vector2 p3  = GetPortPosition(*to,   c.toPort);
         Vector2 mid = {(p0.x + p3.x) / 2.0f, (p0.y + p3.y) / 2.0f};
         const char* txt = "LINK DOWN";
-        int tw = (int)TW(txt, 9);
-        DrawRectangle((int)mid.x - tw / 2 - 3, (int)(mid.y + 10), tw + 6, 14,
+        float tw = TW(txt, 9);
+        DrawRectangle((int)((float)mid.x - tw * 0.5f - 3.f), (int)(mid.y + 10), (int)(tw + 6.f), 14,
                       Color{239, 68, 68, 200});
-        DrawTextEx(GFont(), txt, {(float)((int)mid.x - tw / 2), (float)(int)(mid.y + 12)}, FS(9), Sp(FS(9)), WHITE);
+        DrawTextEx(GFont(), txt, {(float)mid.x - tw * 0.5f, (float)(int)(mid.y + 12)}, FS(9), Sp(FS(9)), WHITE);
     }
 
     for (const auto& n : nodes) {
         if (!n.crashed) continue;
         const char* txt = "CRASHED";
-        int tw = (int)TW(txt, 9);
-        int bx = (int)n.position.x;
+        float tw = TW(txt, 9);
+        float bx = n.position.x;
         int by = (int)(n.position.y + NODE_H / 2.f + 4.f);
-        DrawRectangle(bx - tw / 2 - 3, by, tw + 6, 14, Color{239, 68, 68, 200});
-        DrawTextEx(GFont(), txt, {(float)(bx - tw / 2), (float)(by + 2)}, FS(9), Sp(FS(9)), WHITE);
+        DrawRectangle((int)(bx - tw * 0.5f - 3.f), by, (int)(tw + 6.f), 14, Color{239, 68, 68, 200});
+        DrawTextEx(GFont(), txt, {bx - tw * 0.5f, (float)(by + 2)}, FS(9), Sp(FS(9)), WHITE);
     }
 }
 
@@ -902,9 +902,9 @@ void DrawVlanTab(const DeviceNode* n, const PanelState& ps) {
 
 void DrawSubIfaceTab(const DeviceNode* n, const PanelState& ps) {
     if (!n || n->type != ROUTER) {
-        int tw = (int)TW("Select a router to configure subinterfaces.", 10);
+        float tw = TW("Select a router to configure subinterfaces.", 10);
         DrawTextEx(GFont(), "Select a router to configure subinterfaces.",
-                   {(float)(CANVAS_W() + (PANEL_W - tw) / 2), (float)200}, FS(10), Sp(FS(10)), Color{100, 116, 139, 255});
+                   {(float)CANVAS_W() + (PANEL_W - tw) * 0.5f, 200.f}, FS(10), Sp(FS(10)), Color{100, 116, 139, 255});
         return;
     }
 
@@ -1104,8 +1104,8 @@ void DrawAclTab(const DeviceNode* n, const PanelState& ps) {
         Rectangle badgeR = {(float)(CANVAS_W()+12), ry, 46.f, 20.f};
         DrawRectangleRounded(badgeR, 0.4f, 4, badgeCol);
         const char* aLabel = permit ? "PERMIT" : "DENY";
-        int aw = (int)TW(aLabel, 9);
-        DrawTextEx(GFont(), aLabel, {(float)(int)(badgeR.x+(46-aw)/2), (float)(int)(ry+5)}, FS(9), Sp(FS(9)), WHITE);
+        float aw = TW(aLabel, 9);
+        DrawTextEx(GFont(), aLabel, {badgeR.x + (46.f - aw) * 0.5f, (float)(int)(ry+5)}, FS(9), Sp(FS(9)), WHITE);
 
         // Rule description
         char rdesc[96];
@@ -1268,8 +1268,8 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
 
     if (selectedId == -1) {
         const char* msg = "<- Select a device";
-        int tw = (int)TW(msg, 13);
-        DrawTextEx(GFont(), msg, {(float)(CANVAS_W() + (PANEL_W - tw) / 2), (float)(SCREEN_H() / 2 - 8)}, FS(13), Sp(FS(13)),
+        float tw = TW(msg, 13);
+        DrawTextEx(GFont(), msg, {(float)CANVAS_W() + (PANEL_W - tw) * 0.5f, (float)SCREEN_H() * 0.5f - 8.f}, FS(13), Sp(FS(13)),
                    Color{100, 116, 139, 255});
         return;
     }

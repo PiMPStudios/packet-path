@@ -316,11 +316,11 @@ void DrawFileDialog(FileOpState        state,
         if (msgTimer <= 0.f || msg.empty()) return;
         bool  ok  = (msg.rfind("Error", 0) != 0);
         Color tc  = ok ? Color{34, 197, 94, 255} : Color{239, 68, 68, 255};
-        int   tw  = (int)TW(msg.c_str(), 11);
-        DrawRectangle((CANVAS_W() - tw) / 2 - 8, 6, tw + 16, 20,
+        float tw  = TW(msg.c_str(), 11);
+        DrawRectangle((int)((float)CANVAS_W() * 0.5f - tw * 0.5f - 8.f), 6, (int)(tw + 16.f), 20,
                       Color{15, 23, 42, 220});
         DrawTextEx(GFont(), msg.c_str(),
-                   {(float)((CANVAS_W() - tw) / 2), 10.f},
+                   {(float)CANVAS_W() * 0.5f - tw * 0.5f, 10.f},
                    FS(11), Sp(FS(11)), tc);
         return;
     }

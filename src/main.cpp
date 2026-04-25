@@ -7,12 +7,14 @@
 #include "GameUI.h"
 #include "TraceModal.h"
 #include "SoundEngine.h"
+#include "Font.h"
 
 // ── Main ──────────────────────────────────────────────────────────────────
 int main() {
     InitWindow(1280, 720, "Packet Path");
     SetWindowState(FLAG_WINDOW_RESIZABLE);
     SetExitKey(0);
+    InitGameFont();
     SetWindowMinSize(MIN_W, MIN_H);
     ChangeDirectory(GetApplicationDirectory());   // make relative paths work from any launch dir
     SetTargetFPS(60);
@@ -419,6 +421,15 @@ int main() {
                                 int rh = gameSettings.resolutions[i].second;
                                 SetWindowSize(rw, rh);
                             }
+                            break;
+                        }
+                    }
+                    // UI Scale buttons
+                    const float scaleVals[4] = {1.0f, 1.25f, 1.5f, 2.0f};
+                    for (int i = 0; i < 4; ++i) {
+                        if (CheckCollisionPointRec(screenMouse, ML.uiScaleBtns[i])) {
+                            gameSettings.uiScale = scaleVals[i];
+                            SetUiScale(scaleVals[i]);
                             break;
                         }
                     }
@@ -1467,9 +1478,10 @@ int main() {
 
             if (simState.mode == SIM_SELECTING_DST) {
                 const char* hint = "Click destination node  \xe2\x80\x94  ESC to cancel";
-                int tw = MeasureText(hint, 12);
-                DrawText(hint, (CANVAS_W() - tw) / 2, 12, 12,
-                         Color{148, 163, 184, 255});
+                float htw = TW(hint, 12);
+                DrawTextEx(GFont(), hint,
+                           {((float)CANVAS_W() - htw) * 0.5f, 12.f},
+                           FS(12), Sp(FS(12)), Color{148, 163, 184, 255});
             }
 
             DrawPanel(selectedId, nodes, ps);
@@ -1496,9 +1508,10 @@ int main() {
                         DrawRectangle((int)mb.x,(int)mb.y,(int)mb.width,(int)mb.height,
                                       Color{30,41,59,210});
                         DrawRectangleLinesEx(mb, 1.0f, Color{51,65,85,255});
-                        int tw = MeasureText("MENU",10);
-                        DrawText("MENU",(int)(mb.x+(mb.width-tw)/2.f),(int)(mb.y+6),
-                                 10, Color{148,163,184,255});
+                        float tw = TW("MENU", 10);
+                        DrawTextEx(GFont(), "MENU",
+                                   {mb.x + (mb.width - tw) * 0.5f, mb.y + 6.f},
+                                   FS(10), Sp(FS(10)), Color{148,163,184,255});
                     }
                     // SANDBOX shortcut button
                     {
@@ -1506,14 +1519,16 @@ int main() {
                         DrawRectangle((int)sb.x,(int)sb.y,(int)sb.width,(int)sb.height,
                                       Color{13,94,88,180});
                         DrawRectangleLinesEx(sb, 1.0f, Color{13,148,136,255});
-                        int tw = MeasureText("SANDBOX",10);
-                        DrawText("SANDBOX",(int)(sb.x+(sb.width-tw)/2.f),(int)(sb.y+6),
-                                 10, Color{204,251,241,255});
+                        float tw = TW("SANDBOX", 10);
+                        DrawTextEx(GFont(), "SANDBOX",
+                                   {sb.x + (sb.width - tw) * 0.5f, sb.y + 6.f},
+                                   FS(10), Sp(FS(10)), Color{204,251,241,255});
                     }
                     if (troubleshootMode) {
                         DrawRectangle(8, 34, 148, 18, Color{239, 68, 68, 200});
                         DrawRectangleLinesEx({8, 34, 148, 18}, 1.0f, Color{239, 68, 68, 255});
-                        DrawText("TROUBLESHOOT [T]", 14, 38, 9, WHITE);
+                        DrawTextEx(GFont(), "TROUBLESHOOT [T]",
+                                   {14.f, 38.f}, FS(9), Sp(FS(9)), WHITE);
                     }
                 }
             }
@@ -1528,10 +1543,18 @@ int main() {
                 DrawLevelSelectScreen(levelTitles, levelExists);
 
             // HUD — screen space, outside camera
-            if (gameSettings.showFps) DrawFPS(CANVAS_W() - 80, 10);
+            if (gameSettings.showFps) {
+                char fpsBuf[16];
+                std::snprintf(fpsBuf, sizeof(fpsBuf), "FPS: %d", GetFPS());
+                float fpsW = TW(fpsBuf, 10);
+                DrawTextEx(GFont(), fpsBuf,
+                           {(float)(CANVAS_W()) - fpsW - 8.f, 8.f},
+                           FS(10), Sp(FS(10)), LIME);
+            }
             if (gameMode != GAME_LEVEL_SELECT)
-                DrawText("H = Help  \xe2\x80\xa2  M = Menu",
-                         10, CANVAS_H() - 20, 9, Color{71, 85, 105, 255});
+                DrawTextEx(GFont(), "H = Help  \xe2\x80\xa2  M = Menu",
+                           {10.f, (float)(CANVAS_H() - 20)},
+                           FS(9), Sp(FS(9)), Color{71, 85, 105, 255});
             DrawFileDialog(fileOp, fileNameBuf, fileOpMsg, fileOpTimer);
 
             // Overlays drawn on top of everything else (menu above briefing/help)
@@ -1548,6 +1571,7 @@ int main() {
 
     UnloadSounds();
     CloseAudioDevice();
+    UnloadGameFont();
     CloseWindow();
     return 0;
 }
