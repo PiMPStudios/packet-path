@@ -51,11 +51,21 @@ void DrawReplayHUD(bool paused, float speedMult);
 Rectangle ReplaySpeedBtnRect(int idx);  // idx=0..3 → 0.25x/0.5x/1x/2x
 
 // ── Mission briefing card ─────────────────────────────────────────────────
-// Auto-shown when a level loads. Dismiss via [×] or [Got it].
-void      DrawBriefingCard(const LevelDef& def);
-Rectangle BriefingCardRect();
-Rectangle BriefingCloseBtnRect();
-Rectangle BriefingGotItBtnRect();
+// Floating, draggable, collapsible. Only shown during GAME_PLAYING.
+struct BriefingCardState {
+    Vector2 pos       = {0.f, 82.f};   // top-left corner; init via BriefingDefaultPos()
+    bool    collapsed = false;          // true = only title bar visible
+    bool    dragging  = false;          // true while LMB held on title bar
+    Vector2 dragOff   = {};             // mouse offset from pos when drag began
+};
+
+Vector2   BriefingDefaultPos();                              // canvas-centered starting pos
+Rectangle BriefingCardBounds(Vector2 pos, bool collapsed);  // full card rect
+Rectangle BriefingTitleBarRect(Vector2 pos);                // drag zone (full-width × 30 px)
+Rectangle BriefingCollapseBtnRect(Vector2 pos);             // [−]/[+] toggle button
+Rectangle BriefingCloseBtnRect(Vector2 pos);                // [×] hide-entirely button
+Rectangle BriefingGotItBtnRect(Vector2 pos);                // "Got it" → collapses card
+void      DrawBriefingCard(const LevelDef& def, const BriefingCardState& state);
 
 // ── Help overlay ──────────────────────────────────────────────────────────
 // Full-screen keyboard reference. Toggle with H key.

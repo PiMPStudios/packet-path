@@ -365,61 +365,105 @@ void DrawFileDialog(FileOpState        state,
 }
 
 // ── Mission briefing card ─────────────────────────────────────────────────
+static const float BC_W  = 520.f;   // card width
+static const float BC_H  = 210.f;   // card height (expanded)
+static const float BC_TH = 30.f;    // title bar height
 
-Rectangle BriefingCardRect() {
-    const float W = std::min(520.f, (float)CANVAS_W() - 40.f);
-    return {((float)CANVAS_W() - W) / 2.f, 82.f, W, 210.f};
-}
-Rectangle BriefingCloseBtnRect() {
-    Rectangle r = BriefingCardRect();
-    return {r.x + r.width - 26.f, r.y + 6.f, 20.f, 20.f};
-}
-Rectangle BriefingGotItBtnRect() {
-    Rectangle r = BriefingCardRect();
-    return {r.x + r.width - 92.f, r.y + r.height - 34.f, 82.f, 26.f};
+Vector2 BriefingDefaultPos() {
+    return {std::max(8.f, ((float)CANVAS_W() - BC_W) / 2.f), 82.f};
 }
 
-void DrawBriefingCard(const LevelDef& def) {
-    Rectangle r     = BriefingCardRect();
-    Rectangle close = BriefingCloseBtnRect();
-    Rectangle gotit = BriefingGotItBtnRect();
-    Vector2   mouse = GetMousePosition();
+Rectangle BriefingCardBounds(Vector2 pos, bool collapsed) {
+    return {pos.x, pos.y, BC_W, collapsed ? BC_TH : BC_H};
+}
 
-    // Card body
-    DrawRectangleRounded(r, 0.07f, 6, Color{10, 17, 35, 245});
-    DrawRectangleRoundedLinesEx(r, 0.07f, 6, 1.5f, Color{59, 130, 246, 180});
+Rectangle BriefingTitleBarRect(Vector2 pos) {
+    return {pos.x, pos.y, BC_W, BC_TH};
+}
+
+Rectangle BriefingCollapseBtnRect(Vector2 pos) {
+    return {pos.x + BC_W - 50.f, pos.y + 5.f, 20.f, 20.f};
+}
+
+Rectangle BriefingCloseBtnRect(Vector2 pos) {
+    return {pos.x + BC_W - 26.f, pos.y + 5.f, 20.f, 20.f};
+}
+
+Rectangle BriefingGotItBtnRect(Vector2 pos) {
+    return {pos.x + BC_W - 92.f, pos.y + BC_H - 34.f, 82.f, 26.f};
+}
+
+void DrawBriefingCard(const LevelDef& def, const BriefingCardState& state) {
+    Vector2   pos      = state.pos;
+    bool      col      = state.collapsed;
+    Rectangle bounds   = BriefingCardBounds(pos, col);
+    Rectangle titleBar = BriefingTitleBarRect(pos);
+    Rectangle colBtn   = BriefingCollapseBtnRect(pos);
+    Rectangle closeBtn = BriefingCloseBtnRect(pos);
+    Vector2   mouse    = GetMousePosition();
+
+    // Expanded card body
+    if (!col) {
+        DrawRectangleRounded(bounds, 0.07f, 6, Color{10, 17, 35, 245});
+        DrawRectangleRoundedLinesEx(bounds, 0.07f, 6, 1.5f, Color{59, 130, 246, 180});
+    }
 
     // Title bar
-    DrawRectangleRounded({r.x, r.y, r.width, 30.f}, 0.07f, 6, Color{23, 47, 110, 240});
-    const char* hdr = "MISSION BRIEFING";
-    int hw = (int)TW(hdr, 11);
-    DrawTextEx(GFont(), hdr,
-               {r.x + (r.width - hw) / 2.f, r.y + 9.f},
-               FS(11), Sp(FS(11)), Color{147, 197, 253, 255});
+    Color titleBg = Color{23, 47, 110, 240};
+    if (col) {
+        DrawRectangleRounded(titleBar, 0.07f, 6, titleBg);
+        DrawRectangleRoundedLinesEx(titleBar, 0.07f, 6, 1.5f, Color{59, 130, 246, 180});
+    } else {
+        DrawRectangleRounded(titleBar, 0.07f, 6, titleBg);
+    }
 
-    // [×] close button
-    bool closeHov = CheckCollisionPointRec(mouse, close);
-    DrawRectangleRounded(close, 0.35f, 4,
-                         closeHov ? Color{239,68,68,220} : Color{51,65,85,180});
+    // Drag indicator (three bullets on the left)
+    DrawTextEx(GFont(), "\xe2\x80\xa2 \xe2\x80\xa2 \xe2\x80\xa2",
+               {pos.x + 8.f, pos.y + 9.f},
+               FS(8), Sp(FS(8)), Color{71, 85, 105, 200});
+
+    // Title text
+    const char* hdr = "MISSION BRIEFING";
+    float hw = TW(hdr, 10);
+    DrawTextEx(GFont(), hdr,
+               {pos.x + (BC_W - hw) * 0.5f, pos.y + 9.f},
+               FS(10), Sp(FS(10)), Color{147, 197, 253, 255});
+
+    // [−]/[+] collapse toggle
+    bool colHov = CheckCollisionPointRec(mouse, colBtn);
+    DrawRectangleRounded(colBtn, 0.35f, 4,
+                         colHov ? Color{51, 65, 85, 255} : Color{30, 41, 59, 180});
+    const char* colSym = col ? "+" : "-";
+    float csw = TW(colSym, 11);
+    DrawTextEx(GFont(), colSym,
+               {colBtn.x + (colBtn.width - csw) * 0.5f, colBtn.y + 4.f},
+               FS(11), Sp(FS(11)), WHITE);
+
+    // [×] close
+    bool closeHov = CheckCollisionPointRec(mouse, closeBtn);
+    DrawRectangleRounded(closeBtn, 0.35f, 4,
+                         closeHov ? Color{239, 68, 68, 220} : Color{51, 65, 85, 180});
+    float xw = TW("x", 10);
     DrawTextEx(GFont(), "x",
-               {close.x + (close.width - (int)TW("x", 10)) / 2.f, close.y + 5.f},
+               {closeBtn.x + (closeBtn.width - xw) * 0.5f, closeBtn.y + 5.f},
                FS(10), Sp(FS(10)), WHITE);
 
-    // Briefing text (word-wrapped)
-    int px   = (int)(r.x + 14);
-    int py   = (int)(r.y + 38);
-    int maxW = (int)(r.width - 28);
+    if (col) return;   // title bar only when collapsed
+
+    // ── Expanded body ──────────────────────────────────────────────────────
+    int px   = (int)(pos.x + 14);
+    int py   = (int)(pos.y + BC_TH + 8);
+    int maxW = (int)(BC_W - 28);
 
     auto lines = WordWrap(def.briefing, maxW, 11);
     for (const auto& ln : lines) {
-        if (py > (int)(r.y + r.height - 60)) break;   // stop before button row
+        if (py > (int)(pos.y + BC_H - 60)) break;
         DrawTextEx(GFont(), ln.c_str(),
                    {(float)px, (float)py},
                    FS(11), Sp(FS(11)), Color{203, 213, 225, 255});
         py += 16;
     }
 
-    // Win conditions
     if (!def.winConditions.empty()) {
         py += 6;
         DrawTextEx(GFont(), "OBJECTIVE",
@@ -427,7 +471,7 @@ void DrawBriefingCard(const LevelDef& def) {
                    FS(9), Sp(FS(9)), Color{147, 197, 253, 255});
         py += 14;
         for (const auto& wc : def.winConditions) {
-            if (py > (int)(r.y + r.height - 44)) break;
+            if (py > (int)(pos.y + BC_H - 44)) break;
             std::string bullet = "\xE2\x96\xB8 " + wc.description;
             DrawTextEx(GFont(), bullet.c_str(),
                        {(float)(px + 4), (float)py},
@@ -436,14 +480,16 @@ void DrawBriefingCard(const LevelDef& def) {
         }
     }
 
-    // [Got it] button
-    bool gotHov = CheckCollisionPointRec(mouse, gotit);
+    // [Got it] collapses the card
+    Rectangle gotit  = BriefingGotItBtnRect(pos);
+    bool      gotHov = CheckCollisionPointRec(mouse, gotit);
     DrawRectangleRounded(gotit, 0.35f, 4,
-                         gotHov ? Color{37,99,235,255} : Color{30,58,138,220});
-    DrawRectangleRoundedLinesEx(gotit, 0.35f, 4, 1.f, Color{59,130,246,160});
+                         gotHov ? Color{37, 99, 235, 255} : Color{30, 58, 138, 220});
+    DrawRectangleRoundedLinesEx(gotit, 0.35f, 4, 1.f, Color{59, 130, 246, 160});
     const char* gtxt = "Got it";
+    float gtw = TW(gtxt, 10);
     DrawTextEx(GFont(), gtxt,
-               {gotit.x + (gotit.width - (int)TW(gtxt, 10)) / 2.f, gotit.y + 8.f},
+               {gotit.x + (gotit.width - gtw) * 0.5f, gotit.y + 8.f},
                FS(10), Sp(FS(10)), WHITE);
 }
 
