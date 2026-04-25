@@ -308,11 +308,21 @@ void DrawPacketAnim(const PacketAnim& anim,
 }
 
 // ── Log console (drawn outside BeginMode2D, full-width bottom strip) ─────
-void DrawLogConsole(const std::vector<LogEntry>& entries) {
+void DrawLogConsole(const std::vector<LogEntry>& entries, int scrollOffset) {
     DrawRectangle(0, CANVAS_H(), SCREEN_W(), LOG_H, Color{10, 15, 28, 255});
     DrawLineEx({0.f, (float)CANVAS_H()}, {(float)SCREEN_W(), (float)CANVAS_H()},
                1.f, Color{51, 65, 85, 255});
     DrawTextEx(GFont(), "LOG", {(float)12, (float)(CANVAS_H() + 8)}, FS(9), Sp(FS(9)), Color{71, 85, 105, 255});
+
+    // Scroll-back indicator: shown when not at the newest entries
+    if (scrollOffset > 0) {
+        char ibuf[32];
+        std::snprintf(ibuf, sizeof(ibuf), "^ %d newer", scrollOffset);
+        float iw = TW(ibuf, 9);
+        DrawTextEx(GFont(), ibuf,
+                   {(float)CANVAS_W() - iw - 12.f, (float)(CANVAS_H() + 6)},
+                   FS(9), Sp(FS(9)), Color{148, 163, 184, 200});
+    }
 
     if (entries.empty()) {
         DrawTextEx(GFont(), "No simulations run yet", {(float)36, (float)(CANVAS_H() + 36)}, FS(10), Sp(FS(10)),
@@ -320,9 +330,10 @@ void DrawLogConsole(const std::vector<LogEntry>& entries) {
         return;
     }
 
-    int maxLines = 3;
-    int startIdx = std::max(0, (int)entries.size() - maxLines);
-    int shown    = std::min(maxLines, (int)entries.size());
+    int startIdx = std::max(0, (int)entries.size() - LOG_MAX_LINES - scrollOffset);
+    int shown    = std::min(LOG_MAX_LINES, std::max(0, (int)entries.size() - scrollOffset));
+    if (shown <= 0) return;
+
     for (int i = 0; i < shown; ++i) {
         const auto& e = entries[startIdx + i];
         int lineY = CANVAS_H() + 8 + (shown - 1 - i) * 24;  // newest at top

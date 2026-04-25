@@ -1,19 +1,19 @@
 #include "TraceModal.h"
-#include "NetworkCanvas.h"   // CANVAS_H, CANVAS_W, SCREEN_W, SCREEN_H
+#include "Layout.h"           // CANVAS_H, CANVAS_W, SCREEN_W, SCREEN_H
 #include "Font.h"
 #include <algorithm>
 #include <cstdio>
 
 // Geometry mirrors DrawLogConsole:
 //   lineY = CANVAS_H + 8 + (shown - 1 - i) * 24   (newest at top, 24px stride)
-int LogConsoleHitTest(Vector2 mouse, const std::vector<LogEntry>& entries) {
+int LogConsoleHitTest(Vector2 mouse, const std::vector<LogEntry>& entries, int scrollOffset) {
     if (entries.empty()) return -1;
     if (mouse.y < (float)CANVAS_H() || mouse.y >= (float)SCREEN_H()) return -1;
     if (mouse.x >= (float)CANVAS_W()) return -1;   // ignore panel-side clicks
 
-    int maxLines = 3;
-    int startIdx = std::max(0, (int)entries.size() - maxLines);
-    int shown    = std::min(maxLines, (int)entries.size());
+    int startIdx = std::max(0, (int)entries.size() - LOG_MAX_LINES - scrollOffset);
+    int shown    = std::min(LOG_MAX_LINES, std::max(0, (int)entries.size() - scrollOffset));
+    if (shown <= 0) return -1;
 
     for (int i = 0; i < shown; ++i) {
         int       lineY = CANVAS_H() + 8 + (shown - 1 - i) * 24;

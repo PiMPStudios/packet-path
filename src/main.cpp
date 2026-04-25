@@ -61,6 +61,8 @@ int main() {
     bool          helpVisible     = false;
     bool          menuVisible     = false;
     bool          shouldQuit      = false;
+    int           logScrollOffset = 0;
+    int           prevLogSize     = 0;
     GameMenuState gameSettings;
 
     // ── Save / Load dialog state ───────────────────────────────
@@ -348,6 +350,18 @@ int main() {
             Vector2 afterZoom  = GetScreenToWorld2D(screenMouse, camera);
             camera.target.x   += beforeZoom.x - afterZoom.x;
             camera.target.y   += beforeZoom.y - afterZoom.y;
+        }
+
+        // Log console scroll — wheel up = older entries, wheel down = newer
+        bool inLog = (screenMouse.y >= (float)CANVAS_H() &&
+                      screenMouse.x  < (float)CANVAS_W());
+        if (inLog) {
+            float logWheel = GetMouseWheelMove();
+            if (logWheel != 0.f) {
+                int maxScroll = std::max(0, (int)logEntries.size() - LOG_MAX_LINES);
+                logScrollOffset = std::clamp(logScrollOffset + (int)std::round(logWheel),
+                                             0, maxScroll);
+            }
         }
 
         UpdateContextMenuHover(contextMenu, screenMouse);
@@ -726,7 +740,7 @@ int main() {
                        screenMouse.y <  (float)SCREEN_H()  &&
                        screenMouse.x <  (float)CANVAS_W()) {
                 // Log console click — open trace modal for LOG_FORWARD entries
-                int hitIdx = LogConsoleHitTest(screenMouse, logEntries);
+                int hitIdx = LogConsoleHitTest(screenMouse, logEntries, logScrollOffset);
                 if (hitIdx >= 0) {
                     activeTrace    = logEntries[hitIdx].traceResult;
                     traceModalOpen = true;
@@ -1485,6 +1499,12 @@ int main() {
             }
         }
 
+        // Auto-reset log scroll when new entries arrive so latest is always visible
+        if ((int)logEntries.size() != prevLogSize) {
+            logScrollOffset = 0;
+            prevLogSize     = (int)logEntries.size();
+        }
+
         // ── Packet animation update ───────────────────────────────────────
         if (simState.mode == SIM_ANIMATING) {
             UpdatePacketAnim(simState.anim, dt, nodes, cables);
@@ -1554,7 +1574,7 @@ int main() {
 
             DrawPanel(selectedId, nodes, ps);
             DrawContextMenu(contextMenu, screenMouse);
-            DrawLogConsole(logEntries);
+            DrawLogConsole(logEntries, logScrollOffset);
             if (traceModalOpen)
                 DrawTraceModal(activeTrace,
                                (simState.mode == SIM_ANIMATING) ? simState.anim.hop : -1);

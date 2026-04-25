@@ -4,6 +4,7 @@
 // Fixed layout constants — these never change with window size
 inline constexpr int PANEL_W        = 280;
 inline constexpr int LOG_H          = 90;
+inline constexpr int LOG_MAX_LINES  = 3;
 inline constexpr int MENU_ITEM_H    = 28;
 inline constexpr int CONTEXT_MENU_W = 160;
 inline constexpr int MIN_W          = 1024;

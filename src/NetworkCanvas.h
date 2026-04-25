@@ -71,7 +71,7 @@ void DrawNatTab(const DeviceNode* n, const PanelState& ps);
 void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
                const PanelState& ps);
 void DrawContextMenu(const ContextMenu& menu, Vector2 screenMouse);
-void DrawLogConsole(const std::vector<LogEntry>& entries);
+void DrawLogConsole(const std::vector<LogEntry>& entries, int scrollOffset = 0);
 void DrawBrokenPath(const std::vector<DeviceNode>& nodes,
                     const std::vector<Cable>& cables,
                     const ForwardResult& result);
