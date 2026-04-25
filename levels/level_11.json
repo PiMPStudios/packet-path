@@ -1,6 +1,6 @@
 {
   "id": 11,
-  "title": "Level 11 — Link Down",
+  "title": "Link Down",
   "briefing": "PC-A can't reach PC-B — a cable has been cut. Press T for Troubleshoot Mode to see the broken link highlighted in red. Right-click the broken cable and choose Restore Link, then verify connectivity with a ping.",
   "devices": [
     {

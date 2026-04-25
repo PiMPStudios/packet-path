@@ -1,6 +1,6 @@
 {
   "id": 3,
-  "title": "OSPF — Single Area",
+  "title": "OSPF: Single Area",
   "briefing": "OSPF is enabled on both routers (all ports in Area 0). Wait a moment for adjacencies to form, then send a packet from PC-A to PC-B.",
   "devices": [
     {

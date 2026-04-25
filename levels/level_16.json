@@ -1,6 +1,6 @@
 {
   "id": 16,
-  "title": "Level 16 — NAT: Internet Access",
+  "title": "NAT: Internet Access",
   "briefing": "PC-LAN (192.168.1.2) needs to reach the Internet Server (203.0.113.2), but the ISP does not route private 192.168.x.x addresses. Open the NAT tab on RTR-NAT, set inside port to 0, outside port to 1, enter inside prefix 192.168.1.0/24, then enable NAT. The teal badge on the packet will show the address translation.",
   "devices": [
     {

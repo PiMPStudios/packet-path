@@ -1,6 +1,6 @@
 {
   "id": 12,
-  "title": "Level 12 — Dual Failure",
+  "title": "Dual Failure",
   "briefing": "OSPF was protecting this network — but RTR-2 has crashed AND the backup link is broken. Press T for Troubleshoot Mode. Fix either the crashed router (right-click → Restore Device) or the broken backup link (right-click → Restore Link). OSPF will reconverge automatically.",
   "devices": [
     {

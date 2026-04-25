@@ -1,6 +1,6 @@
 {
   "id": 14,
-  "title": "Level 14 — VXLAN Overlay",
+  "title": "VXLAN Overlay",
   "briefing": "PC-A and PC-B live on the same VXLAN segment (VNI 100) but across different racks. The underlay links are pre-cabled with /30 addresses — connected routes handle transit between the leaves. Open the VXLAN tab on Leaf-1 and enable EVPN, then do the same on Leaf-2 — BGP EVPN will distribute the overlay routes automatically. Send a ping and watch the teal VNI:100 badge travel through the fabric.",
   "devices": [
     {

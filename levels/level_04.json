@@ -1,6 +1,6 @@
 {
   "id": 4,
-  "title": "Multi-Area OSPF — ABR",
+  "title": "Multi-Area OSPF: ABR",
   "briefing": "RTR-2 bridges Area 0 (left) and Area 1 (right). After OSPF converges, O IA routes appear on RTR-1 and RTR-3. Send a packet from PC-A to PC-B.",
   "devices": [
     {

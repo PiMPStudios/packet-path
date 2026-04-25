@@ -1,6 +1,6 @@
 {
   "id": 13,
-  "title": "Level 13 — VLAN Gateway Down",
+  "title": "VLAN Gateway Down",
   "briefing": "PC-Sales and PC-Eng are on separate VLANs — inter-VLAN routing was working, but RTR-1 has crashed. Press T for Troubleshoot Mode, right-click RTR-1 and choose Restore Device. Once both VLANs can reach each other, try saving your fixed topology with Ctrl+S.",
   "devices": [
     {

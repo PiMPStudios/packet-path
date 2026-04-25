@@ -165,7 +165,7 @@ void DrawLevelSelectScreen(const std::string* levelTitles, const bool* levelExis
     DrawRectangleRounded(sr, 0.12f, 4, sbg);
     DrawRectangleRoundedLinesEx(sr, 0.12f, 4, 1.5f, sbrd);
 
-    const char* sandTxt = "SANDBOX \xe2\x80\x94 Free Build Mode";
+    const char* sandTxt = "SANDBOX: Free Build Mode";
     int stw = MeasureText(sandTxt, 13);
     DrawText(sandTxt,
              (int)(sr.x + (sr.width  - stw) / 2.f),

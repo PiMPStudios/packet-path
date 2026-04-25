@@ -1,6 +1,6 @@
 {
   "id": 15,
-  "title": "Level 15 — ACL Firewall",
+  "title": "ACL Firewall",
   "briefing": "PC-A cannot reach PC-B. RTR-1 has an Access Control List blocking all traffic from the 10.0.1.0/24 subnet. Open the ACL tab on RTR-1 and delete the deny rule to restore connectivity.",
   "devices": [
     {
