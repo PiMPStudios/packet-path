@@ -53,6 +53,8 @@ int main() {
     ForwardResult activeTrace;
     float         failAnnotationTimer = 0.f;
     ForwardResult lastFailedTrace;
+    bool          briefingVisible = false;
+    bool          helpVisible     = false;
 
     // ── Save / Load dialog state ───────────────────────────────
     FileOpState fileOp      = FILEOP_NONE;
@@ -218,6 +220,8 @@ int main() {
                             traceModalOpen       = false;
                             failAnnotationTimer  = 0.f;
                             lastFailedTrace      = {};
+                            briefingVisible      = true;
+                            helpVisible          = false;
                         }
                     }
                 }
@@ -226,8 +230,19 @@ int main() {
             }
         }
 
+        if (fileOp == FILEOP_NONE && IsKeyPressed(KEY_H) &&
+            gameMode != GAME_LEVEL_SELECT && ps.activeField == -1 &&
+            ps.activeRouteField == -1 && ps.aclActiveField == -1 && ps.natField == -1) {
+            helpVisible = !helpVisible;
+            if (helpVisible) briefingVisible = false;
+        }
+
         if (IsKeyPressed(KEY_ESCAPE)) {
-            if (gameMode == GAME_LEVEL_SELECT) {
+            if (helpVisible) {
+                helpVisible = false;
+            } else if (briefingVisible) {
+                briefingVisible = false;
+            } else if (gameMode == GAME_LEVEL_SELECT) {
                 gameMode = (currentLevel > 0) ? GAME_PLAYING : GAME_SANDBOX;
             } else if (traceModalOpen) {
                 traceModalOpen = false;
@@ -318,7 +333,17 @@ int main() {
 
         // ── LMB pressed ───────────────────────────────────────────────
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-            if (gameMode == GAME_WIN) {
+            // Help overlay consumes all clicks while open
+            if (helpVisible) {
+                if (CheckCollisionPointRec(screenMouse, HelpCloseBtnRect()))
+                    helpVisible = false;
+                // all other clicks consumed
+            } else if (briefingVisible) {
+                if (CheckCollisionPointRec(screenMouse, BriefingCloseBtnRect()) ||
+                    CheckCollisionPointRec(screenMouse, BriefingGotItBtnRect()))
+                    briefingVisible = false;
+                // all other clicks consumed while briefing open
+            } else if (gameMode == GAME_WIN) {
                 // Win overlay clicks — consume event; don't fall through to canvas
                 if (CheckCollisionPointRec(screenMouse, WinRetryBtnRect())) {
                     ApplyLevel(activeLevelDef, nodes, cables, selectedId);
@@ -364,6 +389,8 @@ int main() {
                         traceModalOpen       = false;
                         failAnnotationTimer  = 0.f;
                         lastFailedTrace      = {};
+                        briefingVisible      = true;
+                        helpVisible          = false;
                     }
                 }
                 // any other click on the WIN screen is silently consumed
@@ -400,6 +427,8 @@ int main() {
                             traceModalOpen       = false;
                             failAnnotationTimer  = 0.f;
                             lastFailedTrace      = {};
+                            briefingVisible      = true;
+                            helpVisible          = false;
                             break;
                         }
                     }
@@ -1416,10 +1445,15 @@ int main() {
             // HUD — screen space, outside camera
             DrawFPS(CANVAS_W() - 80, 10);
             if (gameMode != GAME_LEVEL_SELECT)
-                DrawText("P=PC  R=Router  S=Switch  Del=Delete  MMB=Pan  Scroll=Zoom  "
-                         "Drag-port=Cable  Esc=Cancel  1-9=Level  0=Sandbox  M=Menu",
-                         10, CANVAS_H() - 24, 10, Color{100, 116, 139, 255});
+                DrawText("H = Help",
+                         10, CANVAS_H() - 20, 9, Color{71, 85, 105, 255});
             DrawFileDialog(fileOp, fileNameBuf, fileOpMsg, fileOpTimer);
+
+            // Briefing card and help overlay (drawn on top of everything else)
+            if (briefingVisible && gameMode == GAME_PLAYING)
+                DrawBriefingCard(activeLevelDef);
+            if (helpVisible)
+                DrawHelpOverlay();
         EndDrawing();
     }
 

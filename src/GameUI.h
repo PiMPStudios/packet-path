@@ -47,3 +47,16 @@ Rectangle LevelSelectSandboxBtnRect();  // Full-width sandbox card below the gri
 // Shown at y=58 when SIM_ANIMATING. PAUSED badge + four speed buttons.
 void DrawReplayHUD(bool paused, float speedMult);
 Rectangle ReplaySpeedBtnRect(int idx);  // idx=0..3 → 0.25x/0.5x/1x/2x
+
+// ── Mission briefing card ─────────────────────────────────────────────────
+// Auto-shown when a level loads. Dismiss via [×] or [Got it].
+void      DrawBriefingCard(const LevelDef& def);
+Rectangle BriefingCardRect();
+Rectangle BriefingCloseBtnRect();
+Rectangle BriefingGotItBtnRect();
+
+// ── Help overlay ──────────────────────────────────────────────────────────
+// Full-screen keyboard reference. Toggle with H key.
+void      DrawHelpOverlay();
+Rectangle HelpOverlayRect();
+Rectangle HelpCloseBtnRect();

@@ -2,6 +2,34 @@
 #include "Layout.h"   // CANVAS_W, CANVAS_H
 #include <algorithm>
 #include <cstdio>
+#include <string>
+#include <vector>
+
+// ── Word-wrap helper ──────────────────────────────────────────────────────
+static std::vector<std::string> WordWrap(const std::string& text, int maxW, int fontSize) {
+    std::vector<std::string> lines;
+    std::string word, line;
+    for (size_t i = 0; i <= text.size(); ++i) {
+        char c = (i < text.size()) ? text[i] : ' ';
+        if (c == ' ' || c == '\n') {
+            if (!word.empty()) {
+                std::string cand = line.empty() ? word : line + " " + word;
+                if (MeasureText(cand.c_str(), fontSize) <= maxW) {
+                    line = cand;
+                } else {
+                    if (!line.empty()) lines.push_back(line);
+                    line = word;
+                }
+                word.clear();
+            }
+            if (c == '\n') { lines.push_back(line); line.clear(); }
+        } else {
+            word += c;
+        }
+    }
+    if (!line.empty()) lines.push_back(line);
+    return lines;
+}
 
 Rectangle WinOverlayRect() {
     return {(float)(CANVAS_W() - 320) / 2.0f,
@@ -310,4 +338,175 @@ void DrawFileDialog(FileOpState        state,
         Color ec = ok ? Color{34, 197, 94, 255} : Color{239, 68, 68, 255};
         DrawText(msg.c_str(), (int)(BX + 20), (int)(BY + 120), 10, ec);
     }
+}
+
+// ── Mission briefing card ─────────────────────────────────────────────────
+
+Rectangle BriefingCardRect() {
+    const float W = std::min(520.f, (float)CANVAS_W() - 40.f);
+    return {((float)CANVAS_W() - W) / 2.f, 82.f, W, 210.f};
+}
+Rectangle BriefingCloseBtnRect() {
+    Rectangle r = BriefingCardRect();
+    return {r.x + r.width - 26.f, r.y + 6.f, 20.f, 20.f};
+}
+Rectangle BriefingGotItBtnRect() {
+    Rectangle r = BriefingCardRect();
+    return {r.x + r.width - 92.f, r.y + r.height - 34.f, 82.f, 26.f};
+}
+
+void DrawBriefingCard(const LevelDef& def) {
+    Rectangle r     = BriefingCardRect();
+    Rectangle close = BriefingCloseBtnRect();
+    Rectangle gotit = BriefingGotItBtnRect();
+    Vector2   mouse = GetMousePosition();
+
+    // Card body
+    DrawRectangleRounded(r, 0.07f, 6, Color{10, 17, 35, 245});
+    DrawRectangleRoundedLinesEx(r, 0.07f, 6, 1.5f, Color{59, 130, 246, 180});
+
+    // Title bar
+    DrawRectangleRounded({r.x, r.y, r.width, 30.f}, 0.07f, 6, Color{23, 47, 110, 240});
+    const char* hdr = "MISSION BRIEFING";
+    int hw = MeasureText(hdr, 11);
+    DrawText(hdr, (int)(r.x + (r.width - hw) / 2.f), (int)(r.y + 9), 11,
+             Color{147, 197, 253, 255});
+
+    // [×] close button
+    bool closeHov = CheckCollisionPointRec(mouse, close);
+    DrawRectangleRounded(close, 0.35f, 4,
+                         closeHov ? Color{239,68,68,220} : Color{51,65,85,180});
+    DrawText("x", (int)(close.x + (close.width  - MeasureText("x", 10)) / 2.f),
+                  (int)(close.y + 5), 10, WHITE);
+
+    // Briefing text (word-wrapped)
+    int px   = (int)(r.x + 14);
+    int py   = (int)(r.y + 38);
+    int maxW = (int)(r.width - 28);
+
+    auto lines = WordWrap(def.briefing, maxW, 11);
+    for (const auto& ln : lines) {
+        if (py > (int)(r.y + r.height - 60)) break;   // stop before button row
+        DrawText(ln.c_str(), px, py, 11, Color{203, 213, 225, 255});
+        py += 16;
+    }
+
+    // Win conditions
+    if (!def.winConditions.empty()) {
+        py += 6;
+        DrawText("OBJECTIVE", px, py, 9, Color{147, 197, 253, 255});
+        py += 14;
+        for (const auto& wc : def.winConditions) {
+            if (py > (int)(r.y + r.height - 44)) break;
+            std::string bullet = "\xE2\x96\xB8 " + wc.description;
+            DrawText(bullet.c_str(), px + 4, py, 10, Color{167, 243, 208, 255});
+            py += 14;
+        }
+    }
+
+    // [Got it] button
+    bool gotHov = CheckCollisionPointRec(mouse, gotit);
+    DrawRectangleRounded(gotit, 0.35f, 4,
+                         gotHov ? Color{37,99,235,255} : Color{30,58,138,220});
+    DrawRectangleRoundedLinesEx(gotit, 0.35f, 4, 1.f, Color{59,130,246,160});
+    const char* gtxt = "Got it";
+    DrawText(gtxt, (int)(gotit.x + (gotit.width - MeasureText(gtxt,10))/2.f),
+                   (int)(gotit.y + 8), 10, WHITE);
+}
+
+// ── Help overlay ──────────────────────────────────────────────────────────
+
+Rectangle HelpOverlayRect() {
+    const float W = std::min(640.f, (float)SCREEN_W() - 40.f);
+    const float H = std::min(400.f, (float)SCREEN_H() - 40.f);
+    return {((float)SCREEN_W() - W) / 2.f, ((float)SCREEN_H() - H) / 2.f, W, H};
+}
+Rectangle HelpCloseBtnRect() {
+    Rectangle r = HelpOverlayRect();
+    return {r.x + r.width - 26.f, r.y + 6.f, 20.f, 20.f};
+}
+
+void DrawHelpOverlay() {
+    // Dim
+    DrawRectangle(0, 0, SCREEN_W(), SCREEN_H(), Color{0, 0, 0, 150});
+
+    Rectangle r     = HelpOverlayRect();
+    Rectangle close = HelpCloseBtnRect();
+    Vector2   mouse = GetMousePosition();
+
+    DrawRectangleRounded(r, 0.05f, 8, Color{10, 17, 35, 252});
+    DrawRectangleRoundedLinesEx(r, 0.05f, 8, 1.5f, Color{59, 130, 246, 180});
+
+    // Title bar
+    DrawRectangleRounded({r.x, r.y, r.width, 30.f}, 0.05f, 8, Color{23, 47, 110, 240});
+    const char* hdr = "KEYBOARD REFERENCE";
+    DrawText(hdr, (int)(r.x + (r.width - MeasureText(hdr,12))/2.f),
+                  (int)(r.y + 9), 12, WHITE);
+
+    // [×] close
+    bool closeHov = CheckCollisionPointRec(mouse, close);
+    DrawRectangleRounded(close, 0.35f, 4,
+                         closeHov ? Color{239,68,68,220} : Color{51,65,85,180});
+    DrawText("x", (int)(close.x + (close.width - MeasureText("x",10))/2.f),
+                  (int)(close.y + 5), 10, WHITE);
+
+    float kx  = r.x + 18.f;     // key column x
+    float dx  = kx + 130.f;     // desc column x (left pane)
+    float kx2 = r.x + r.width / 2.f + 8.f;
+    float dx2 = kx2 + 130.f;    // desc column x (right pane)
+
+    const Color secClr  = Color{147, 197, 253, 255};
+    const Color keyClr  = Color{234, 179,   8, 255};
+    const Color descClr = Color{203, 213, 225, 255};
+
+    auto sec = [&](float x, int& y, const char* label) {
+        DrawText(label, (int)x, y, 9, secClr);
+        y += 15;
+    };
+    auto row = [&](float kCol, float dCol, int& y, const char* key, const char* desc) {
+        DrawText(key,  (int)kCol, y, 10, keyClr);
+        DrawText(desc, (int)dCol, y, 10, descClr);
+        y += 15;
+    };
+
+    // Left column
+    int ly = (int)(r.y + 40);
+    sec(kx, ly, "CANVAS / EDIT");
+    row(kx, dx, ly, "P",          "Add PC at cursor");
+    row(kx, dx, ly, "R",          "Add Router");
+    row(kx, dx, ly, "S",          "Add Switch");
+    row(kx, dx, ly, "Del",        "Delete selected");
+    row(kx, dx, ly, "T",          "Troubleshoot mode");
+    row(kx, dx, ly, "Drag port",  "Draw cable");
+    row(kx, dx, ly, "MMB drag",   "Pan camera");
+    row(kx, dx, ly, "Scroll",     "Zoom in / out");
+    row(kx, dx, ly, "Right-click","Context menu");
+    ly += 4;
+    sec(kx, ly, "LEVELS");
+    row(kx, dx, ly, "M",          "Level select");
+    row(kx, dx, ly, "0",          "Sandbox mode");
+    row(kx, dx, ly, "1 \xe2\x80\x93 9", "Load level directly");
+    row(kx, dx, ly, "Ctrl+S",     "Save scene");
+    row(kx, dx, ly, "Ctrl+O",     "Open scene");
+
+    // Right column
+    int ry = (int)(r.y + 40);
+    sec(kx2, ry, "SIMULATION");
+    row(kx2, dx2, ry, "Right-click", "Open context menu");
+    row(kx2, dx2, ry, "  \xe2\x86\x92 Send Packet", "Start packet trace");
+    row(kx2, dx2, ry, "Esc",         "Cancel selection");
+    ry += 4;
+    sec(kx2, ry, "REPLAY");
+    row(kx2, dx2, ry, "Space",        "Pause / resume");
+    row(kx2, dx2, ry, "\xe2\x86\x92 arrow",      "Step one hop (paused)");
+    row(kx2, dx2, ry, "Speed buttons","0.25\xc3\xb7 / 0.5\xc3\xb7 / 1\xc3\xb7 / 2\xc3\xb7");
+    ry += 4;
+    sec(kx2, ry, "GENERAL");
+    row(kx2, dx2, ry, "H",  "Toggle this help");
+    row(kx2, dx2, ry, "Esc","Cancel / close dialogs");
+
+    // Footer hint
+    DrawText("Press H or click \xc3\x97 to close",
+             (int)(r.x + 14), (int)(r.y + r.height - 20), 9,
+             Color{71, 85, 105, 255});
 }
