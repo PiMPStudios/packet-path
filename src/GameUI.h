@@ -2,6 +2,8 @@
 #include "Level.h"
 #include "raylib.h"
 #include <string>
+#include <utility>
+#include <vector>
 
 enum GameMode    { GAME_SANDBOX, GAME_PLAYING, GAME_WIN, GAME_LEVEL_SELECT };
 enum FileOpState { FILEOP_NONE, FILEOP_SAVING, FILEOP_LOADING };
@@ -60,3 +62,39 @@ Rectangle BriefingGotItBtnRect();
 void      DrawHelpOverlay();
 Rectangle HelpOverlayRect();
 Rectangle HelpCloseBtnRect();
+
+// ── Game menu ─────────────────────────────────────────────────────────────
+// Pause-style menu: resolution, fullscreen, FPS, audio, save/load, quit.
+struct GameMenuState {
+    std::vector<std::pair<int,int>> resolutions;  // supported resolutions (filtered preset list)
+    int   resIdx     = 0;
+    bool  fullscreen = false;
+    bool  showFps    = true;
+    bool  soundOn    = true;
+    float volume     = 1.0f;
+};
+
+struct GameMenuLayout {
+    Rectangle card;
+    Rectangle resume;
+    Rectangle levelSelect;
+    Rectangle resBtns[7];
+    int       numRes = 0;
+    Rectangle fullscreen;
+    Rectangle showFps;
+    Rectangle mute;
+    Rectangle volDown;
+    Rectangle volUp;
+    Rectangle save;
+    Rectangle load;
+    Rectangle restart;       // zero-rect when hasRestart==false
+    Rectangle quit;
+    float     displayLabelY;
+    float     audioLabelY;
+    float     fileLabelY;
+    float     quitDividerY;
+};
+
+// hasRestart: show "Restart Level" option (GAME_PLAYING / GAME_WIN only).
+GameMenuLayout ComputeGameMenuLayout(const GameMenuState& s, bool hasRestart);
+void           DrawGameMenu(const GameMenuState& s, bool hasRestart);

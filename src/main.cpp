@@ -55,6 +55,9 @@ int main() {
     ForwardResult lastFailedTrace;
     bool          briefingVisible = false;
     bool          helpVisible     = false;
+    bool          menuVisible     = false;
+    bool          shouldQuit      = false;
+    GameMenuState gameSettings;
 
     // ── Save / Load dialog state ───────────────────────────────
     FileOpState fileOp      = FILEOP_NONE;
@@ -72,6 +75,26 @@ int main() {
         levelExists[i]  = LoadLevel(lpath, tmpDef);
         levelTitles[i]  = levelExists[i] ? tmpDef.title
                         : std::string("Level ") + std::to_string(i + 1);
+    }
+
+    // Populate supported resolutions from monitor max
+    {
+        int mon  = GetCurrentMonitor();
+        int maxW = GetMonitorWidth(mon);
+        int maxH = GetMonitorHeight(mon);
+        const std::pair<int,int> presets[] = {
+            {1280,720},{1366,768},{1600,900},
+            {1920,1080},{2560,1440},{2560,1600},{3840,2160}
+        };
+        for (const auto& p : presets)
+            if (p.first <= maxW && p.second <= maxH)
+                gameSettings.resolutions.push_back(p);
+        // Match current window size to a preset index
+        int cw = GetScreenWidth(), ch = GetScreenHeight();
+        for (int i = 0; i < (int)gameSettings.resolutions.size(); ++i)
+            if (gameSettings.resolutions[i].first  == cw &&
+                gameSettings.resolutions[i].second == ch)
+            { gameSettings.resIdx = i; break; }
     }
 
     // Clears all canvas state and enters GAME_SANDBOX
@@ -103,7 +126,7 @@ int main() {
         activeTrace          = {};
     };
 
-    while (!WindowShouldClose()) {
+    while (!WindowShouldClose() && !shouldQuit) {
         float dt = GetFrameTime();
 
         if (IsWindowResized())
@@ -195,11 +218,15 @@ int main() {
             if (IsKeyPressed(KEY_T))
                 troubleshootMode = !troubleshootMode;
             if (ps.activePortAreaField == -1) {
-                if (IsKeyPressed(KEY_M)) gameMode = GAME_LEVEL_SELECT;
+                if (IsKeyPressed(KEY_M)) {
+                    menuVisible     = true;
+                    briefingVisible = false;
+                    helpVisible     = false;
+                }
             }
         }
 
-        if (fileOp == FILEOP_NONE && IsKeyPressed(KEY_H) &&
+        if (fileOp == FILEOP_NONE && !menuVisible && IsKeyPressed(KEY_H) &&
             gameMode != GAME_LEVEL_SELECT && ps.activeField == -1 &&
             ps.activeRouteField == -1 && ps.aclActiveField == -1 && ps.natField == -1) {
             helpVisible = !helpVisible;
@@ -211,6 +238,8 @@ int main() {
                 helpVisible = false;
             } else if (briefingVisible) {
                 briefingVisible = false;
+            } else if (menuVisible) {
+                menuVisible = false;
             } else if (gameMode == GAME_LEVEL_SELECT) {
                 gameMode = (currentLevel > 0) ? GAME_PLAYING : GAME_SANDBOX;
             } else if (traceModalOpen) {
@@ -246,6 +275,10 @@ int main() {
                 } else if (simState.mode == SIM_SELECTING_DST) {
                     simState.mode  = SIM_IDLE;
                     simState.srcId = -1;
+                } else if (gameMode != GAME_LEVEL_SELECT) {
+                    menuVisible     = true;
+                    briefingVisible = false;
+                    helpVisible     = false;
                 }
             }
         }
@@ -312,6 +345,84 @@ int main() {
                     CheckCollisionPointRec(screenMouse, BriefingGotItBtnRect()))
                     briefingVisible = false;
                 // all other clicks consumed while briefing open
+            } else if (menuVisible) {
+                bool hasRestart = (gameMode == GAME_PLAYING || gameMode == GAME_WIN);
+                GameMenuLayout ML = ComputeGameMenuLayout(gameSettings, hasRestart);
+                if (!CheckCollisionPointRec(screenMouse, ML.card)) {
+                    menuVisible = false;
+                } else if (CheckCollisionPointRec(screenMouse, ML.resume)) {
+                    menuVisible = false;
+                } else if (CheckCollisionPointRec(screenMouse, ML.levelSelect)) {
+                    menuVisible = false;
+                    gameMode    = GAME_LEVEL_SELECT;
+                } else if (CheckCollisionPointRec(screenMouse, ML.fullscreen)) {
+                    gameSettings.fullscreen = !gameSettings.fullscreen;
+                    ToggleFullscreen();
+                    if (!gameSettings.fullscreen && !gameSettings.resolutions.empty()) {
+                        int rw = gameSettings.resolutions[gameSettings.resIdx].first;
+                        int rh = gameSettings.resolutions[gameSettings.resIdx].second;
+                        SetWindowSize(rw, rh);
+                    }
+                } else if (CheckCollisionPointRec(screenMouse, ML.showFps)) {
+                    gameSettings.showFps = !gameSettings.showFps;
+                } else if (CheckCollisionPointRec(screenMouse, ML.mute)) {
+                    gameSettings.soundOn = !gameSettings.soundOn;
+                    SetMasterVolume(gameSettings.soundOn ? gameSettings.volume : 0.f);
+                } else if (CheckCollisionPointRec(screenMouse, ML.volDown)) {
+                    gameSettings.volume = std::max(0.f, gameSettings.volume - 0.1f);
+                    if (gameSettings.soundOn) SetMasterVolume(gameSettings.volume);
+                } else if (CheckCollisionPointRec(screenMouse, ML.volUp)) {
+                    gameSettings.volume = std::min(1.f, gameSettings.volume + 0.1f);
+                    if (gameSettings.soundOn) SetMasterVolume(gameSettings.volume);
+                } else if (CheckCollisionPointRec(screenMouse, ML.save)) {
+                    menuVisible = false;
+                    fileOp      = FILEOP_SAVING;
+                    fileNameBuf = "scene.json";
+                    fileOpMsg.clear();
+                } else if (CheckCollisionPointRec(screenMouse, ML.load)) {
+                    menuVisible = false;
+                    fileOp      = FILEOP_LOADING;
+                    fileNameBuf = "scene.json";
+                    fileOpMsg.clear();
+                } else if (hasRestart &&
+                           CheckCollisionPointRec(screenMouse, ML.restart)) {
+                    menuVisible = false;
+                    ApplyLevel(activeLevelDef, nodes, cables, selectedId);
+                    ps                   = PanelState{};
+                    simState             = SimState{};
+                    logEntries.clear();
+                    lastConditionsPassed = 0;
+                    failedAttempts       = 0;
+                    starsEarned          = 0;
+                    gameMode             = GAME_PLAYING;
+                    dragging             = false;
+                    connecting           = false;
+                    hoverNodeId          = -1;
+                    hoverPort            = -1;
+                    contextMenu.visible  = false;
+                    troubleshootMode     = false;
+                    traceModalOpen       = false;
+                    failAnnotationTimer  = 0.f;
+                    lastFailedTrace      = {};
+                    briefingVisible      = true;
+                    helpVisible          = false;
+                } else if (CheckCollisionPointRec(screenMouse, ML.quit)) {
+                    shouldQuit = true;
+                } else {
+                    // Resolution buttons
+                    for (int i = 0; i < ML.numRes && i < 7; ++i) {
+                        if (CheckCollisionPointRec(screenMouse, ML.resBtns[i])) {
+                            gameSettings.resIdx = i;
+                            if (!gameSettings.fullscreen) {
+                                int rw = gameSettings.resolutions[i].first;
+                                int rh = gameSettings.resolutions[i].second;
+                                SetWindowSize(rw, rh);
+                            }
+                            break;
+                        }
+                    }
+                }
+                // all other clicks consumed while menu is open
             } else if (gameMode == GAME_WIN) {
                 // Win overlay clicks — consume event; don't fall through to canvas
                 if (CheckCollisionPointRec(screenMouse, WinRetryBtnRect())) {
@@ -408,10 +519,14 @@ int main() {
             // HUD navigation buttons — take priority over canvas interactions
             if (gameMode == GAME_SANDBOX &&
                 CheckCollisionPointRec(screenMouse, SandboxMenuBtnRect())) {
-                gameMode = GAME_LEVEL_SELECT;
+                menuVisible     = true;
+                briefingVisible = false;
+                helpVisible     = false;
             } else if (gameMode == GAME_PLAYING &&
                        CheckCollisionPointRec(screenMouse, LevelHudMenuBtnRect())) {
-                gameMode = GAME_LEVEL_SELECT;
+                menuVisible     = true;
+                briefingVisible = false;
+                helpVisible     = false;
             } else if (gameMode == GAME_PLAYING &&
                        CheckCollisionPointRec(screenMouse, LevelHudSandboxBtnRect())) {
                 goSandbox();
@@ -1412,17 +1527,21 @@ int main() {
                 DrawLevelSelectScreen(levelTitles, levelExists);
 
             // HUD — screen space, outside camera
-            DrawFPS(CANVAS_W() - 80, 10);
+            if (gameSettings.showFps) DrawFPS(CANVAS_W() - 80, 10);
             if (gameMode != GAME_LEVEL_SELECT)
-                DrawText("H = Help",
+                DrawText("H = Help  \xe2\x80\xa2  M = Menu",
                          10, CANVAS_H() - 20, 9, Color{71, 85, 105, 255});
             DrawFileDialog(fileOp, fileNameBuf, fileOpMsg, fileOpTimer);
 
-            // Briefing card and help overlay (drawn on top of everything else)
+            // Overlays drawn on top of everything else (menu above briefing/help)
             if (briefingVisible && gameMode == GAME_PLAYING)
                 DrawBriefingCard(activeLevelDef);
             if (helpVisible)
                 DrawHelpOverlay();
+            if (menuVisible) {
+                bool hasRestart = (gameMode == GAME_PLAYING || gameMode == GAME_WIN);
+                DrawGameMenu(gameSettings, hasRestart);
+            }
         EndDrawing();
     }
 

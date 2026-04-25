@@ -482,8 +482,9 @@ void DrawHelpOverlay() {
     row(kx, dx, ly, "Scroll",     "Zoom in / out");
     row(kx, dx, ly, "Right-click","Context menu");
     ly += 4;
-    sec(kx, ly, "LEVELS");
-    row(kx, dx, ly, "M",      "Open level select");
+    sec(kx, ly, "MENU / FILE");
+    row(kx, dx, ly, "M",      "Open menu");
+    row(kx, dx, ly, "Esc",    "Open menu (when idle)");
     row(kx, dx, ly, "Ctrl+S", "Save scene");
     row(kx, dx, ly, "Ctrl+O", "Open scene");
 
@@ -507,4 +508,213 @@ void DrawHelpOverlay() {
     DrawText("Press H or click \xc3\x97 to close",
              (int)(r.x + 14), (int)(r.y + r.height - 20), 9,
              Color{71, 85, 105, 255});
+}
+
+// ── Game menu ─────────────────────────────────────────────────────────────
+
+GameMenuLayout ComputeGameMenuLayout(const GameMenuState& s, bool hasRestart) {
+    GameMenuLayout L = {};
+    const float CW  = 440.f;
+    const float PAD = 12.f;
+    const float IW  = CW - 2.f * PAD;  // 416
+    const float BH  = 28.f;
+
+    int numRes = (int)s.resolutions.size();
+    if (numRes > 7) numRes = 7;
+    L.numRes = numRes;
+    int numResRows = (numRes > 0) ? (numRes + 2) / 3 : 0;
+    const float RBW = (IW - 2.f * 4.f) / 3.f;
+    const float RBH = 26.f;
+
+    // Compute card height
+    float h = PAD;
+    h += 18.f + 8.f;                                        // title + gap
+    h += 1.f  + 10.f;                                       // top divider + gap
+    h += BH   + 8.f;                                        // Resume
+    h += BH   + 14.f;                                       // Level Select
+    h += 12.f + 7.f;                                        // Display label + gap
+    if (numRes > 0)
+        h += numResRows * (RBH + 4.f) - 4.f + 8.f;         // resolution grid
+    h += BH   + 8.f;                                        // Fullscreen
+    h += BH   + 14.f;                                       // Show FPS
+    h += 12.f + 7.f;                                        // Audio label + gap
+    h += BH   + 14.f;                                       // Audio row
+    h += 12.f + 7.f;                                        // File label + gap
+    h += BH   + 8.f;                                        // Save/Load
+    if (hasRestart)  h += BH + 8.f;                         // Restart
+    h += 1.f  + 8.f;                                        // bottom divider + gap
+    h += BH   + PAD;                                        // Quit + bottom padding
+
+    float cx = ((float)SCREEN_W() - CW) / 2.f;
+    float cy = ((float)SCREEN_H() - h)  / 2.f;
+    L.card = {cx, cy, CW, h};
+
+    float x0 = cx + PAD;
+    float y  = cy + PAD;
+
+    y += 26.f;   // title + gap
+    y += 11.f;   // divider + gap
+
+    L.resume      = {x0, y, IW, BH};  y += BH + 8.f;
+    L.levelSelect = {x0, y, IW, BH};  y += BH + 14.f;
+
+    L.displayLabelY = y;
+    y += 19.f;
+
+    for (int i = 0; i < numRes; ++i) {
+        int col = i % 3, row = i / 3;
+        L.resBtns[i] = {x0 + col * (RBW + 4.f), y + row * (RBH + 4.f), RBW, RBH};
+    }
+    if (numRes > 0)
+        y += numResRows * (RBH + 4.f) - 4.f + 8.f;
+
+    L.fullscreen = {x0, y, IW, BH};  y += BH + 8.f;
+    L.showFps    = {x0, y, IW, BH};  y += BH + 14.f;
+
+    L.audioLabelY = y;
+    y += 19.f;
+
+    const float muteW = 150.f;
+    const float vBtnW = 36.f;
+    L.mute    = {x0,           y, muteW, BH};
+    L.volDown = {x0 + muteW + 12.f, y, vBtnW, BH};
+    L.volUp   = {x0 + IW - vBtnW,  y, vBtnW, BH};
+    y += BH + 14.f;
+
+    L.fileLabelY = y;
+    y += 19.f;
+
+    float halfW = (IW - 8.f) / 2.f;
+    L.save = {x0,              y, halfW, BH};
+    L.load = {x0 + halfW + 8.f, y, halfW, BH};
+    y += BH + 8.f;
+
+    if (hasRestart) {
+        L.restart = {x0, y, IW, BH};
+        y += BH + 8.f;
+    }
+
+    L.quitDividerY = y;
+    y += 9.f;
+    L.quit = {x0, y, IW, BH};
+
+    return L;
+}
+
+void DrawGameMenu(const GameMenuState& s, bool hasRestart) {
+    DrawRectangle(0, 0, SCREEN_W(), SCREEN_H(), Color{0, 0, 0, 185});
+
+    GameMenuLayout L = ComputeGameMenuLayout(s, hasRestart);
+    const Rectangle& C = L.card;
+    Vector2 mouse = GetMousePosition();
+
+    DrawRectangleRounded(C, 0.04f, 6, Color{10, 17, 35, 252});
+    DrawRectangleLinesEx(C, 1.5f, Color{51, 65, 85, 255});
+
+    // Button helpers
+    auto drawBtn = [&](Rectangle r, const char* label, Color bg, Color brd, Color tc) {
+        bool hov = CheckCollisionPointRec(mouse, r);
+        Color abg = hov ? Color{(uint8_t)std::min(255,(int)bg.r+25),
+                                (uint8_t)std::min(255,(int)bg.g+25),
+                                (uint8_t)std::min(255,(int)bg.b+25), bg.a} : bg;
+        DrawRectangleRounded(r, 0.2f, 4, abg);
+        DrawRectangleLinesEx(r, 1.f, brd);
+        int tw = MeasureText(label, 10);
+        DrawText(label, (int)(r.x + (r.width  - tw) / 2.f),
+                        (int)(r.y + (r.height - 10.f) / 2.f), 10, tc);
+    };
+
+    auto drawToggle = [&](Rectangle r, const char* label, bool on,
+                          Color onBg, Color onBrd) {
+        bool hov = CheckCollisionPointRec(mouse, r);
+        Color bg  = on ? onBg : (hov ? Color{30,41,59,255} : Color{20,28,48,255});
+        Color brd = on ? onBrd : Color{51,65,85,255};
+        DrawRectangleRounded(r, 0.2f, 4, bg);
+        DrawRectangleLinesEx(r, 1.f, brd);
+        int tw = MeasureText(label, 10);
+        DrawText(label, (int)(r.x + (r.width  - tw) / 2.f),
+                        (int)(r.y + (r.height - 10.f) / 2.f), 10,
+                        on ? WHITE : Color{148,163,184,255});
+    };
+
+    auto drawSecLabel = [&](float lx, float ly, const char* text) {
+        DrawText(text, (int)lx, (int)ly, 9, Color{71,85,105,255});
+        DrawLineEx({C.x + 12.f, ly + 11.f}, {C.x + C.width - 12.f, ly + 11.f},
+                   0.5f, Color{51,65,85,80});
+    };
+
+    // Title
+    const char* title = "MENU";
+    int ttw = MeasureText(title, 16);
+    DrawText(title, (int)(C.x + C.width / 2.f - ttw / 2.f),
+             (int)(C.y + 12.f), 16, Color{226,232,240,255});
+
+    DrawLineEx({C.x + 12.f, C.y + 38.f}, {C.x + C.width - 12.f, C.y + 38.f},
+               1.f, Color{51,65,85,255});
+
+    // Navigation
+    drawBtn(L.resume,     "Resume",      Color{30,58,138,255}, Color{59,130,246,255}, WHITE);
+    drawBtn(L.levelSelect,"Level Select",Color{22,33,62, 255}, Color{51,65,85, 255},
+            Color{148,163,184,255});
+
+    // Display section
+    drawSecLabel(C.x + 12.f, L.displayLabelY, "DISPLAY");
+
+    for (int i = 0; i < L.numRes; ++i) {
+        bool active = (i == s.resIdx);
+        char label[16];
+        std::snprintf(label, sizeof(label), "%dx%d",
+                      s.resolutions[i].first, s.resolutions[i].second);
+        drawToggle(L.resBtns[i], label, active,
+                   Color{30,58,138,255}, Color{59,130,246,255});
+    }
+
+    const char* fsLabel = s.fullscreen ? "Fullscreen: ON" : "Fullscreen: OFF";
+    drawToggle(L.fullscreen, fsLabel, s.fullscreen,
+               Color{20,83,45,255}, Color{34,197,94,255});
+
+    const char* fpsLabel = s.showFps ? "Show FPS: ON" : "Show FPS: OFF";
+    drawToggle(L.showFps, fpsLabel, s.showFps,
+               Color{76,29,149,255}, Color{147,51,234,255});
+
+    // Audio section
+    drawSecLabel(C.x + 12.f, L.audioLabelY, "AUDIO");
+
+    const char* sndLabel = s.soundOn ? "Sound: ON" : "Sound: MUTED";
+    drawToggle(L.mute, sndLabel, s.soundOn,
+               Color{20,83,45,255}, Color{34,197,94,255});
+
+    drawBtn(L.volDown, "-", Color{30,41,59,255}, Color{51,65,85,255},
+            Color{148,163,184,255});
+
+    char volBuf[8];
+    std::snprintf(volBuf, sizeof(volBuf), "%d%%", (int)(s.volume * 100.f + 0.5f));
+    float vdx = L.volDown.x + L.volDown.width + 4.f;
+    float vdw = L.volUp.x - vdx - 4.f;
+    int   vtw = MeasureText(volBuf, 10);
+    DrawText(volBuf, (int)(vdx + (vdw - vtw) / 2.f),
+             (int)(L.volDown.y + (L.volDown.height - 10.f) / 2.f), 10,
+             s.soundOn ? Color{203,213,225,255} : Color{71,85,105,255});
+
+    drawBtn(L.volUp, "+", Color{30,41,59,255}, Color{51,65,85,255},
+            Color{148,163,184,255});
+
+    // File section
+    drawSecLabel(C.x + 12.f, L.fileLabelY, "FILE");
+
+    drawBtn(L.save, "Save Scene", Color{30,41,59,255}, Color{51,65,85,255},
+            Color{148,163,184,255});
+    drawBtn(L.load, "Open Scene", Color{30,41,59,255}, Color{51,65,85,255},
+            Color{148,163,184,255});
+
+    if (hasRestart)
+        drawBtn(L.restart, "Restart Level", Color{30,41,59,255},
+                Color{127,29,29,255}, Color{239,68,68,255});
+
+    DrawLineEx({C.x + 12.f, L.quitDividerY},
+               {C.x + C.width - 12.f, L.quitDividerY},
+               1.f, Color{51,65,85,255});
+
+    drawBtn(L.quit, "Quit", Color{30,41,59,255},
+            Color{127,29,29,255}, Color{239,68,68,255});
 }
