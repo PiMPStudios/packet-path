@@ -468,6 +468,11 @@ int main() {
                     traceModalOpen       = false;
                     failAnnotationTimer  = 0.f;
                     lastFailedTrace      = {};
+                    briefingVisible      = true;
+                    briefingCard.pos       = BriefingDefaultPos();
+                    briefingCard.collapsed = false;
+                    briefingCard.dragging  = false;
+                    helpVisible          = false;
                 } else if (CheckCollisionPointRec(screenMouse, WinNextBtnRect()) &&
                            currentLevel < 16) {
                     int nextLevel = currentLevel + 1;
@@ -770,7 +775,7 @@ int main() {
 
         // ── Briefing card drag ────────────────────────────────────────
         if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && briefingVisible && briefingCard.dragging) {
-            // constants match BC_W/BC_TH/BC_H in GameUI.cpp; use BriefingCardBounds for dimensions
+            // BriefingCardBounds accounts for collapsed height so clamp uses the live card size
             Rectangle b = BriefingCardBounds(briefingCard.pos, briefingCard.collapsed);
             briefingCard.pos.x = std::clamp(screenMouse.x - briefingCard.dragOff.x,
                                             0.f, (float)CANVAS_W() - b.width);
