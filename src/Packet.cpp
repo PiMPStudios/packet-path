@@ -62,7 +62,8 @@ void UpdatePacketAnim(PacketAnim& anim, float dt,
         return;
     }
 
-    anim.t += dt / HOP_DURATION;
+    if (anim.paused) return;
+    anim.t += dt * anim.speedMult / HOP_DURATION;
     if (anim.t >= 1.f) {
         anim.t = 0.f;
         anim.hop++;
@@ -85,4 +86,60 @@ void UpdatePacketAnim(PacketAnim& anim, float dt,
             else                     anim.failPulse    = 0.5f;
         }
     }
+}
+
+void StepForwardAnim(PacketAnim& anim) {
+    if (anim.done) return;
+    const auto& path = anim.result.path;
+    if ((int)path.size() <= 1) {
+        anim.done = true;
+        if (anim.result.success) anim.successPulse = 0.5f;
+        else                     anim.failPulse    = 0.5f;
+        return;
+    }
+    anim.t = 0.f;
+    anim.hop++;
+    if (anim.hop < (int)anim.result.hops.size()) {
+        uint32_t raw      = anim.result.hops[anim.hop].outLabel;
+        anim.currentLabel = (raw == MPLS_IMPLICIT_NULL) ? 0 : raw;
+        anim.currentVlan  = anim.result.hops[anim.hop].vlanTag;
+        anim.currentVni   = anim.result.hops[anim.hop].vxlanVni;
+    } else {
+        anim.currentLabel = 0;
+        anim.currentVlan  = 0;
+        anim.currentVni   = 0;
+    }
+    if (anim.hop >= (int)path.size() - 1) {
+        anim.done         = true;
+        anim.currentLabel = 0;
+        anim.currentVlan  = 0;
+        anim.currentVni   = 0;
+        if (anim.result.success) anim.successPulse = 0.5f;
+        else                     anim.failPulse    = 0.5f;
+    }
+}
+
+Vector2 GetPacketWorldPos(const PacketAnim& anim,
+                          const std::vector<DeviceNode>& nodes,
+                          const std::vector<Cable>& cables)
+{
+    const auto& path = anim.result.path;
+    if (path.empty() || anim.done || anim.hop >= (int)path.size() - 1)
+        return {-99999.f, -99999.f};
+
+    int fromId = path[anim.hop];
+    int toId   = path[anim.hop + 1];
+    const DeviceNode* fromNode = FindNode(nodes, fromId);
+    const DeviceNode* toNode   = FindNode(nodes, toId);
+    const Cable*      cable    = FindCable(cables, fromId, toId);
+    if (!fromNode || !toNode || !cable) return {-99999.f, -99999.f};
+
+    int fromPort = (cable->fromId == fromId) ? cable->fromPort : cable->toPort;
+    int toPort   = (cable->fromId == toId)   ? cable->fromPort : cable->toPort;
+
+    Vector2 p0 = GetPortPosition(*fromNode, fromPort);
+    Vector2 p3 = GetPortPosition(*toNode,   toPort);
+    Vector2 c1 = BezierCtrl(p0, fromPort);
+    Vector2 c2 = BezierCtrl(p3, toPort);
+    return EvaluateCubicBezier(p0, c1, c2, p3, anim.t);
 }

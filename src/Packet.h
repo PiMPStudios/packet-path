@@ -10,14 +10,16 @@ enum SimMode { SIM_IDLE, SIM_SELECTING_DST, SIM_ANIMATING };
 
 struct PacketAnim {
     ForwardResult result;
-    int   hop          = 0;
-    float t            = 0.f;
-    bool  done         = false;
+    int      hop          = 0;
+    float    t            = 0.f;
+    bool     done         = false;
     float    failPulse    = 0.f;
     float    successPulse = 0.f;
-    uint32_t currentLabel = 0;  // top-of-stack label displayed on the packet dot (0 = unlabeled)
-    int      currentVlan  = 0;   // VLAN badge to display while animating (0 = hidden)
-    uint32_t currentVni  = 0;   // VXLAN VNI badge: non-zero while inside tunnel
+    uint32_t currentLabel = 0;
+    int      currentVlan  = 0;
+    uint32_t currentVni   = 0;
+    bool     paused       = false;
+    float    speedMult    = 1.f;
 };
 
 struct SimState {
@@ -34,3 +36,7 @@ std::string  BuildPathStr(const std::vector<int>& path,
 void         UpdatePacketAnim(PacketAnim& anim, float dt,
                               const std::vector<DeviceNode>& nodes,
                               const std::vector<Cable>& cables);
+void    StepForwardAnim(PacketAnim& anim);
+Vector2 GetPacketWorldPos(const PacketAnim& anim,
+                          const std::vector<DeviceNode>& nodes,
+                          const std::vector<Cable>& cables);
