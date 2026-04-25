@@ -1,61 +1,82 @@
 {
   "id": 5,
-  "title": "MPLS Label Switching",
-  "briefing": "OSPF is already converged. Enable MPLS on RTR-1, RTR-2, RTR-3, and RTR-4 by selecting each router and clicking MPLS: Disabled in the MPLS tab. Then send a packet from PC-A to PC-B — watch labels PUSH at RTR-1, SWAP at RTR-2, and PHP-POP at RTR-3 before delivery.",
+  "title": "OSPF: Single Area",
+  "briefing": "OSPF is enabled on both routers (all ports in Area 0). Wait a moment for adjacencies to form, then send a packet from PC-A to PC-B.",
   "devices": [
     {
-      "id": 1, "label": "PC-A", "type": "PC",
-      "x": -540, "y": 0,
+      "id": 1,
+      "label": "PC-A",
+      "type": "PC",
+      "x": -300.0,
+      "y": 0.0,
       "portIp1": "10.0.0.2/24",
-      "staticRoutes": [{"dest": "0.0.0.0/0", "nextHop": "10.0.0.1"}]
+      "staticRoutes": [
+        {
+          "dest": "0.0.0.0/0",
+          "nextHop": "10.0.0.1"
+        }
+      ]
     },
     {
-      "id": 2, "label": "RTR-1", "type": "ROUTER",
-      "x": -270, "y": 0,
+      "id": 2,
+      "label": "RTR-1",
+      "type": "ROUTER",
+      "x": -100.0,
+      "y": 0.0,
       "portIp3": "10.0.0.1/24",
       "portIp1": "10.0.12.1/24",
       "ospfEnabled": true
     },
     {
-      "id": 3, "label": "RTR-2", "type": "ROUTER",
-      "x": -90, "y": 0,
+      "id": 3,
+      "label": "RTR-2",
+      "type": "ROUTER",
+      "x": 100.0,
+      "y": 0.0,
       "portIp3": "10.0.12.2/24",
-      "portIp1": "10.0.23.1/24",
-      "ospfEnabled": true
-    },
-    {
-      "id": 4, "label": "RTR-3", "type": "ROUTER",
-      "x": 90, "y": 0,
-      "portIp3": "10.0.23.2/24",
-      "portIp1": "10.0.34.1/24",
-      "ospfEnabled": true
-    },
-    {
-      "id": 5, "label": "RTR-4", "type": "ROUTER",
-      "x": 270, "y": 0,
-      "portIp3": "10.0.34.2/24",
       "portIp1": "10.0.1.1/24",
       "ospfEnabled": true
     },
     {
-      "id": 6, "label": "PC-B", "type": "PC",
-      "x": 540, "y": 0,
+      "id": 4,
+      "label": "PC-B",
+      "type": "PC",
+      "x": 300.0,
+      "y": 0.0,
       "portIp3": "10.0.1.2/24",
-      "staticRoutes": [{"dest": "0.0.0.0/0", "nextHop": "10.0.1.1"}]
+      "staticRoutes": [
+        {
+          "dest": "0.0.0.0/0",
+          "nextHop": "10.0.1.1"
+        }
+      ]
     }
   ],
   "cables": [
-    {"from": 1, "fromPort": 1, "to": 2, "toPort": 3},
-    {"from": 2, "fromPort": 1, "to": 3, "toPort": 3},
-    {"from": 3, "fromPort": 1, "to": 4, "toPort": 3},
-    {"from": 4, "fromPort": 1, "to": 5, "toPort": 3},
-    {"from": 5, "fromPort": 1, "to": 6, "toPort": 3}
+    {
+      "from": 1,
+      "fromPort": 1,
+      "to": 2,
+      "toPort": 3
+    },
+    {
+      "from": 2,
+      "fromPort": 1,
+      "to": 3,
+      "toPort": 3
+    },
+    {
+      "from": 3,
+      "fromPort": 1,
+      "to": 4,
+      "toPort": 3
+    }
   ],
   "winConditions": [
     {
       "src": "PC-A",
       "dst": "PC-B",
-      "description": "PC-A can reach PC-B across the MPLS core"
+      "description": "PC-A can reach PC-B via OSPF"
     }
   ]
 }

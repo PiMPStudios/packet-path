@@ -1,59 +1,111 @@
 {
   "id": 8,
-  "title": "BGP Route Reflection",
-  "briefing": "A Route Reflector (RR) lets clients inside an AS learn external routes without a full mesh. RTR-A is pre-configured as the RR. Set RTR-B's ASN to 100 (BGP tab → ASN → type 100 → Enter). Set RTR-A's ASN to 100 — an iBGP session forms. Set RTR-D's ASN to 200 — an eBGP session forms. Open RTR-B's BGP tab: the RIB should show 172.16.0.0/24 reflected from RTR-A. Then send a packet from PC-A to PC-B.",
+  "title": "iBGP Full Mesh",
+  "briefing": "AS100 has two routers: RTR-2 (internal) and RTR-1 (border). RTR-3 is the external AS200 peer. OSPF is already running between RTR-2 and RTR-1. Set RTR-1 and RTR-2 to the same ASN (100) in their BGP tabs. Once both are set, RTR-2 should show an iBGP session to RTR-1 (purple badge) and its BGP RIB should list 172.16.0.0/24 \u2014 the external prefix learned via RTR-1. Then send a packet from PC-A to PC-B.",
   "devices": [
     {
-      "id": 1, "label": "PC-A", "type": "PC",
-      "x": -500, "y": 0,
+      "id": 1,
+      "label": "PC-A",
+      "type": "PC",
+      "x": -560,
+      "y": 0,
       "portIp1": "10.0.0.2/24",
-      "staticRoutes": [{"dest": "0.0.0.0/0", "nextHop": "10.0.0.1"}]
+      "staticRoutes": [
+        {
+          "dest": "0.0.0.0/0",
+          "nextHop": "10.0.0.1"
+        }
+      ]
     },
     {
-      "id": 2, "label": "RTR-B", "type": "ROUTER",
-      "x": -220, "y": 0,
+      "id": 2,
+      "label": "RTR-2",
+      "type": "ROUTER",
+      "x": -280,
+      "y": 0,
       "portIp3": "10.0.0.1/24",
-      "portIp1": "10.1.0.2/30",
+      "portIp1": "10.1.0.1/30",
+      "ospfEnabled": true,
+      "ospfArea1": 0,
       "bgpEnabled": true,
       "localAsn": 0,
-      "bgpNetworks": ["10.0.0.0/24"]
+      "bgpNetworks": [
+        "10.0.0.0/24"
+      ]
     },
     {
-      "id": 3, "label": "RTR-A", "type": "ROUTER",
-      "x": 60, "y": 0,
-      "portIp3": "10.1.0.1/30",
+      "id": 3,
+      "label": "RTR-1",
+      "type": "ROUTER",
+      "x": 0,
+      "y": 0,
+      "portIp3": "10.1.0.2/30",
       "portIp1": "10.2.0.1/30",
+      "ospfEnabled": true,
+      "ospfArea3": 0,
       "bgpEnabled": true,
-      "isRouteReflector": true,
       "localAsn": 0
     },
     {
-      "id": 4, "label": "RTR-D", "type": "ROUTER",
-      "x": 340, "y": 0,
+      "id": 4,
+      "label": "RTR-3",
+      "type": "ROUTER",
+      "x": 280,
+      "y": 0,
       "portIp3": "10.2.0.2/30",
       "portIp1": "172.16.0.1/24",
       "bgpEnabled": true,
-      "localAsn": 0,
-      "bgpNetworks": ["172.16.0.0/24"]
+      "localAsn": 200,
+      "bgpNetworks": [
+        "172.16.0.0/24"
+      ]
     },
     {
-      "id": 5, "label": "PC-B", "type": "PC",
-      "x": 560, "y": 0,
+      "id": 5,
+      "label": "PC-B",
+      "type": "PC",
+      "x": 560,
+      "y": 0,
       "portIp3": "172.16.0.2/24",
-      "staticRoutes": [{"dest": "0.0.0.0/0", "nextHop": "172.16.0.1"}]
+      "staticRoutes": [
+        {
+          "dest": "0.0.0.0/0",
+          "nextHop": "172.16.0.1"
+        }
+      ]
     }
   ],
   "cables": [
-    {"from": 1, "fromPort": 1, "to": 2, "toPort": 3},
-    {"from": 2, "fromPort": 1, "to": 3, "toPort": 3},
-    {"from": 3, "fromPort": 1, "to": 4, "toPort": 3},
-    {"from": 4, "fromPort": 1, "to": 5, "toPort": 3}
+    {
+      "from": 1,
+      "fromPort": 1,
+      "to": 2,
+      "toPort": 3
+    },
+    {
+      "from": 2,
+      "fromPort": 1,
+      "to": 3,
+      "toPort": 3
+    },
+    {
+      "from": 3,
+      "fromPort": 1,
+      "to": 4,
+      "toPort": 3
+    },
+    {
+      "from": 4,
+      "fromPort": 1,
+      "to": 5,
+      "toPort": 3
+    }
   ],
   "winConditions": [
     {
       "src": "PC-A",
       "dst": "PC-B",
-      "description": "PC-A reaches PC-B via iBGP route reflection"
+      "description": "PC-A reaches PC-B via iBGP + eBGP"
     }
   ]
 }

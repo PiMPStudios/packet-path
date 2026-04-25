@@ -1,70 +1,114 @@
 {
   "id": 13,
-  "title": "VLAN Gateway Down",
-  "briefing": "PC-Sales and PC-Eng are on separate VLANs — inter-VLAN routing was working, but RTR-1 has crashed. Press T for Troubleshoot Mode, right-click RTR-1 and choose Restore Device. Once both VLANs can reach each other, try saving your fixed topology with Ctrl+S.",
+  "title": "MPLS Label Switching",
+  "briefing": "OSPF is already converged. Enable MPLS on RTR-1, RTR-2, RTR-3, and RTR-4 by selecting each router and clicking MPLS: Disabled in the MPLS tab. Then send a packet from PC-A to PC-B \u2014 watch labels PUSH at RTR-1, SWAP at RTR-2, and PHP-POP at RTR-3 before delivery.",
   "devices": [
     {
       "id": 1,
-      "label": "PC-Sales",
+      "label": "PC-A",
       "type": "PC",
-      "x": -350,
-      "y": -100,
-      "portIp0": "10.10.0.2/24",
+      "x": -540,
+      "y": 0,
+      "portIp1": "10.0.0.2/24",
       "staticRoutes": [
-        { "dest": "0.0.0.0/0", "nextHop": "10.10.0.1" }
+        {
+          "dest": "0.0.0.0/0",
+          "nextHop": "10.0.0.1"
+        }
       ]
     },
     {
       "id": 2,
-      "label": "PC-Eng",
-      "type": "PC",
-      "x": -350,
-      "y": 100,
-      "portIp0": "10.20.0.2/24",
-      "staticRoutes": [
-        { "dest": "0.0.0.0/0", "nextHop": "10.20.0.1" }
-      ]
+      "label": "RTR-1",
+      "type": "ROUTER",
+      "x": -270,
+      "y": 0,
+      "portIp3": "10.0.0.1/24",
+      "portIp1": "10.0.12.1/24",
+      "ospfEnabled": true
     },
     {
       "id": 3,
-      "label": "SW-1",
-      "type": "SWITCH",
-      "x": -100,
+      "label": "RTR-2",
+      "type": "ROUTER",
+      "x": -90,
       "y": 0,
-      "vlanPort0": { "mode": "trunk" },
-      "vlanPort1": { "mode": "access", "vlan": 10 },
-      "vlanPort2": { "mode": "access", "vlan": 20 }
+      "portIp3": "10.0.12.2/24",
+      "portIp1": "10.0.23.1/24",
+      "ospfEnabled": true
     },
     {
       "id": 4,
-      "label": "RTR-1",
+      "label": "RTR-3",
       "type": "ROUTER",
-      "x": 150,
+      "x": 90,
       "y": 0,
-      "crashed": true,
-      "subIfaces": [
-        { "port": 0, "vlan": 10, "ip": "10.10.0.1/24" },
-        { "port": 0, "vlan": 20, "ip": "10.20.0.1/24" }
+      "portIp3": "10.0.23.2/24",
+      "portIp1": "10.0.34.1/24",
+      "ospfEnabled": true
+    },
+    {
+      "id": 5,
+      "label": "RTR-4",
+      "type": "ROUTER",
+      "x": 270,
+      "y": 0,
+      "portIp3": "10.0.34.2/24",
+      "portIp1": "10.0.1.1/24",
+      "ospfEnabled": true
+    },
+    {
+      "id": 6,
+      "label": "PC-B",
+      "type": "PC",
+      "x": 540,
+      "y": 0,
+      "portIp3": "10.0.1.2/24",
+      "staticRoutes": [
+        {
+          "dest": "0.0.0.0/0",
+          "nextHop": "10.0.1.1"
+        }
       ]
     }
   ],
   "cables": [
-    { "from": 1, "fromPort": 0, "to": 3, "toPort": 1 },
-    { "from": 2, "fromPort": 0, "to": 3, "toPort": 2 },
-    { "from": 3, "fromPort": 0, "to": 4, "toPort": 0 }
+    {
+      "from": 1,
+      "fromPort": 1,
+      "to": 2,
+      "toPort": 3
+    },
+    {
+      "from": 2,
+      "fromPort": 1,
+      "to": 3,
+      "toPort": 3
+    },
+    {
+      "from": 3,
+      "fromPort": 1,
+      "to": 4,
+      "toPort": 3
+    },
+    {
+      "from": 4,
+      "fromPort": 1,
+      "to": 5,
+      "toPort": 3
+    },
+    {
+      "from": 5,
+      "fromPort": 1,
+      "to": 6,
+      "toPort": 3
+    }
   ],
   "winConditions": [
     {
-      "src": "PC-Sales",
-      "dst": "PC-Eng",
-      "description": "PC-Sales can reach PC-Eng (inter-VLAN routing restored)",
-      "requiresFix": true
-    },
-    {
-      "src": "PC-Eng",
-      "dst": "PC-Sales",
-      "description": "PC-Eng can reach PC-Sales (inter-VLAN routing restored)",
-      "requiresFix": true
+      "src": "PC-A",
+      "dst": "PC-B",
+      "description": "PC-A can reach PC-B across the MPLS core"
     }
   ]
 }

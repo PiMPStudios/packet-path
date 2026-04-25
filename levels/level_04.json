@@ -1,53 +1,97 @@
 {
   "id": 4,
-  "title": "Multi-Area OSPF: ABR",
-  "briefing": "RTR-2 bridges Area 0 (left) and Area 1 (right). After OSPF converges, O IA routes appear on RTR-1 and RTR-3. Send a packet from PC-A to PC-B.",
+  "title": "Router-on-a-Stick",
+  "briefing": "PC-A (VLAN 10) and PC-B (VLAN 20) are on the same switch but different VLANs. A router-on-a-stick configuration can route between them. PC-A and PC-B are already configured with default gateways pointing to R1. Set SW1 port 2 to trunk, then add two subinterfaces on R1 (port 0): VLAN 10 with IP 10.10.0.1/24, and VLAN 20 with IP 10.20.0.1/24.",
   "devices": [
     {
-      "id": 1, "label": "PC-A", "type": "PC",
-      "x": -350.0, "y": 0.0,
-      "portIp1": "10.0.0.2/24",
-      "staticRoutes": [{"dest": "0.0.0.0/0", "nextHop": "10.0.0.1"}]
+      "id": 1,
+      "type": "PC",
+      "label": "PC-A",
+      "x": 120,
+      "y": 280,
+      "portIp0": "10.10.0.2/24",
+      "staticRoutes": [
+        {
+          "dest": "0.0.0.0/0",
+          "nextHop": "10.10.0.1"
+        }
+      ]
     },
     {
-      "id": 2, "label": "RTR-1", "type": "ROUTER",
-      "x": -175.0, "y": 0.0,
-      "portIp3": "10.0.0.1/24",
-      "portIp1": "10.0.12.1/24",
-      "ospfEnabled": true
+      "id": 2,
+      "type": "PC",
+      "label": "PC-B",
+      "x": 120,
+      "y": 440,
+      "portIp0": "10.20.0.2/24",
+      "staticRoutes": [
+        {
+          "dest": "0.0.0.0/0",
+          "nextHop": "10.20.0.1"
+        }
+      ]
     },
     {
-      "id": 3, "label": "RTR-2", "type": "ROUTER",
-      "x": 0.0, "y": 0.0,
-      "portIp3": "10.0.12.2/24",
-      "portIp1": "10.0.23.1/24",
-      "ospfEnabled": true,
-      "ospfArea3": 0,
-      "ospfArea1": 1
+      "id": 3,
+      "type": "SWITCH",
+      "label": "SW1",
+      "x": 400,
+      "y": 360,
+      "vlanPort0": {
+        "mode": "access",
+        "vlan": 10
+      },
+      "vlanPort1": {
+        "mode": "access",
+        "vlan": 20
+      },
+      "vlanPort2": {
+        "mode": "access",
+        "vlan": 1
+      },
+      "vlanPort3": {
+        "mode": "access",
+        "vlan": 1
+      }
     },
     {
-      "id": 4, "label": "RTR-3", "type": "ROUTER",
-      "x": 175.0, "y": 0.0,
-      "portIp3": "10.0.23.2/24",
-      "portIp1": "10.0.1.1/24",
-      "ospfEnabled": true,
-      "ospfArea3": 1,
-      "ospfArea1": 1
-    },
-    {
-      "id": 5, "label": "PC-B", "type": "PC",
-      "x": 350.0, "y": 0.0,
-      "portIp3": "10.0.1.2/24",
-      "staticRoutes": [{"dest": "0.0.0.0/0", "nextHop": "10.0.1.1"}]
+      "id": 4,
+      "type": "ROUTER",
+      "label": "R1",
+      "x": 680,
+      "y": 360
     }
   ],
   "cables": [
-    {"from": 1, "fromPort": 1, "to": 2, "toPort": 3},
-    {"from": 2, "fromPort": 1, "to": 3, "toPort": 3},
-    {"from": 3, "fromPort": 1, "to": 4, "toPort": 3},
-    {"from": 4, "fromPort": 1, "to": 5, "toPort": 3}
+    {
+      "from": 1,
+      "fromPort": 0,
+      "to": 3,
+      "toPort": 0
+    },
+    {
+      "from": 2,
+      "fromPort": 0,
+      "to": 3,
+      "toPort": 1
+    },
+    {
+      "from": 3,
+      "fromPort": 2,
+      "to": 4,
+      "toPort": 0
+    }
   ],
   "winConditions": [
-    {"src": "PC-A", "dst": "PC-B", "description": "PC-A can reach PC-B across two OSPF areas"}
+    {
+      "src": "PC-A",
+      "dst": "PC-B",
+      "description": "PC-A reaches PC-B (inter-VLAN via router-on-a-stick)"
+    },
+    {
+      "src": "PC-B",
+      "dst": "PC-A",
+      "description": "PC-B reaches PC-A (inter-VLAN routing is bidirectional)"
+    }
   ]
 }

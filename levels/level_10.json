@@ -1,48 +1,87 @@
 {
   "id": 10,
-  "title": "Router-on-a-Stick",
-  "briefing": "PC-A (VLAN 10) and PC-B (VLAN 20) are on the same switch but different VLANs. A router-on-a-stick configuration can route between them. PC-A and PC-B are already configured with default gateways pointing to R1. Set SW1 port 2 to trunk, then add two subinterfaces on R1 (port 0): VLAN 10 with IP 10.10.0.1/24, and VLAN 20 with IP 10.20.0.1/24.",
+  "title": "ACL Firewall",
+  "briefing": "PC-A cannot reach PC-B. RTR-1 has an Access Control List blocking all traffic from the 10.0.1.0/24 subnet. Open the ACL tab on RTR-1 and delete the deny rule to restore connectivity.",
   "devices": [
     {
-      "id": 1, "type": "PC", "label": "PC-A",
-      "x": 120, "y": 280,
-      "portIp0": "10.10.0.2/24",
-      "staticRoutes": [{"dest": "0.0.0.0/0", "nextHop": "10.10.0.1"}]
+      "id": 1,
+      "label": "PC-A",
+      "type": "PC",
+      "x": -300,
+      "y": 0,
+      "portIp0": "10.0.1.2/24",
+      "staticRoutes": [
+        {
+          "dest": "0.0.0.0/0",
+          "nextHop": "10.0.1.1"
+        }
+      ]
     },
     {
-      "id": 2, "type": "PC", "label": "PC-B",
-      "x": 120, "y": 440,
-      "portIp0": "10.20.0.2/24",
-      "staticRoutes": [{"dest": "0.0.0.0/0", "nextHop": "10.20.0.1"}]
+      "id": 2,
+      "label": "RTR-1",
+      "type": "ROUTER",
+      "x": 0,
+      "y": 0,
+      "portIp0": "10.0.1.1/24",
+      "portIp1": "10.0.2.1/24",
+      "aclInPort": 0,
+      "aclRules": [
+        {
+          "seq": 10,
+          "action": "deny",
+          "src": "10.0.1.0/24",
+          "dst": "any"
+        },
+        {
+          "seq": 20,
+          "action": "permit",
+          "src": "any",
+          "dst": "any"
+        }
+      ]
     },
     {
-      "id": 3, "type": "SWITCH", "label": "SW1",
-      "x": 400, "y": 360,
-      "vlanPort0": {"mode": "access", "vlan": 10},
-      "vlanPort1": {"mode": "access", "vlan": 20},
-      "vlanPort2": {"mode": "access", "vlan": 1},
-      "vlanPort3": {"mode": "access", "vlan": 1}
-    },
-    {
-      "id": 4, "type": "ROUTER", "label": "R1",
-      "x": 680, "y": 360
+      "id": 3,
+      "label": "PC-B",
+      "type": "PC",
+      "x": 300,
+      "y": 0,
+      "portIp0": "10.0.2.2/24",
+      "staticRoutes": [
+        {
+          "dest": "0.0.0.0/0",
+          "nextHop": "10.0.2.1"
+        }
+      ]
     }
   ],
   "cables": [
-    {"from": 1, "fromPort": 0, "to": 3, "toPort": 0},
-    {"from": 2, "fromPort": 0, "to": 3, "toPort": 1},
-    {"from": 3, "fromPort": 2, "to": 4, "toPort": 0}
+    {
+      "from": 1,
+      "fromPort": 0,
+      "to": 2,
+      "toPort": 0
+    },
+    {
+      "from": 2,
+      "fromPort": 1,
+      "to": 3,
+      "toPort": 0
+    }
   ],
   "winConditions": [
     {
       "src": "PC-A",
       "dst": "PC-B",
-      "description": "PC-A reaches PC-B (inter-VLAN via router-on-a-stick)"
+      "description": "PC-A can reach PC-B (ACL deny rule removed)",
+      "requiresFix": true
     },
     {
       "src": "PC-B",
       "dst": "PC-A",
-      "description": "PC-B reaches PC-A (inter-VLAN routing is bidirectional)"
+      "description": "PC-B can reach PC-A (bidirectional routing restored)",
+      "requiresFix": true
     }
   ]
 }

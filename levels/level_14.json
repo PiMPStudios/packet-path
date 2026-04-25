@@ -1,90 +1,73 @@
 {
   "id": 14,
-  "title": "VXLAN Overlay",
-  "briefing": "PC-A and PC-B live on the same VXLAN segment (VNI 100) but across different racks. The underlay links are pre-cabled with /30 addresses — connected routes handle transit between the leaves. Open the VXLAN tab on Leaf-1 and enable EVPN, then do the same on Leaf-2 — BGP EVPN will distribute the overlay routes automatically. Send a ping and watch the teal VNI:100 badge travel through the fabric.",
+  "title": "Link Down",
+  "briefing": "PC-A can't reach PC-B \u2014 a cable has been cut. Press T for Troubleshoot Mode to see the broken link highlighted in red. Right-click the broken cable and choose Restore Link, then verify connectivity with a ping.",
   "devices": [
     {
       "id": 1,
       "label": "PC-A",
       "type": "PC",
-      "x": -500,
+      "x": -300,
       "y": 0,
-      "portIp0": "10.100.0.2/24",
+      "portIp0": "10.1.0.2/24",
       "staticRoutes": [
-        { "dest": "0.0.0.0/0", "nextHop": "10.100.0.1" }
+        {
+          "dest": "0.0.0.0/0",
+          "nextHop": "10.1.0.1"
+        }
       ]
     },
     {
       "id": 2,
-      "label": "Leaf-1",
-      "type": "ROUTER",
-      "x": -250,
-      "y": 0,
-      "portIp0": "10.100.0.1/24",
-      "portIp1": "10.0.1.1/30",
-      "staticRoutes": [
-        { "dest": "10.0.2.0/30", "nextHop": "10.0.1.2" }
-      ],
-      "vxlanEnabled": true,
-      "vni": 100,
-      "vtepIp": "10.0.1.1",
-      "evpnEnabled": false
-    },
-    {
-      "id": 3,
-      "label": "Spine",
+      "label": "RTR-1",
       "type": "ROUTER",
       "x": 0,
       "y": 0,
-      "portIp0": "10.0.1.2/30",
-      "portIp1": "10.0.2.2/30"
+      "portIp0": "10.1.0.1/24",
+      "portIp1": "10.2.0.1/24"
     },
     {
-      "id": 4,
-      "label": "Leaf-2",
-      "type": "ROUTER",
-      "x": 250,
-      "y": 0,
-      "portIp0": "10.0.2.1/30",
-      "portIp1": "10.200.0.1/24",
-      "staticRoutes": [
-        { "dest": "10.0.1.0/30", "nextHop": "10.0.2.2" }
-      ],
-      "vxlanEnabled": true,
-      "vni": 100,
-      "vtepIp": "10.0.2.1",
-      "evpnEnabled": false
-    },
-    {
-      "id": 5,
+      "id": 3,
       "label": "PC-B",
       "type": "PC",
-      "x": 500,
+      "x": 300,
       "y": 0,
-      "portIp0": "10.200.0.2/24",
+      "portIp0": "10.2.0.2/24",
       "staticRoutes": [
-        { "dest": "0.0.0.0/0", "nextHop": "10.200.0.1" }
+        {
+          "dest": "0.0.0.0/0",
+          "nextHop": "10.2.0.1"
+        }
       ]
     }
   ],
   "cables": [
-    { "from": 1, "fromPort": 0, "to": 2, "toPort": 0 },
-    { "from": 2, "fromPort": 1, "to": 3, "toPort": 0 },
-    { "from": 3, "fromPort": 1, "to": 4, "toPort": 0 },
-    { "from": 4, "fromPort": 1, "to": 5, "toPort": 0 }
+    {
+      "from": 1,
+      "fromPort": 0,
+      "to": 2,
+      "toPort": 0,
+      "broken": true
+    },
+    {
+      "from": 2,
+      "fromPort": 1,
+      "to": 3,
+      "toPort": 0
+    }
   ],
   "winConditions": [
     {
       "src": "PC-A",
       "dst": "PC-B",
-      "description": "VXLAN overlay carries PC-A traffic to PC-B across the fabric",
-      "requiresFix": false
+      "description": "PC-A can reach PC-B after link restoration",
+      "requiresFix": true
     },
     {
       "src": "PC-B",
       "dst": "PC-A",
-      "description": "VXLAN overlay carries PC-B traffic to PC-A across the fabric",
-      "requiresFix": false
+      "description": "PC-B can reach PC-A after link restoration",
+      "requiresFix": true
     }
   ]
 }
