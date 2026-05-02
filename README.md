@@ -4,6 +4,14 @@ A visual, interactive network simulator that teaches real networking concepts �
 
 ---
 
+![MPLS Label Switching — PC-A to PC-B across a 4-router MPLS core](docs/screenshots/gameplay-mpls.png)
+
+![Multi-Area OSPF — ABR bridging Area 0 and Area 1, OSPF neighbors at Full state](docs/screenshots/gameplay-ospf-multiarea.png)
+
+![VXLAN Overlay — leaf-spine fabric with BGP EVPN on Leaf-2](docs/screenshots/gameplay-vxlan.png)
+
+---
+
 ## What It Is
 
 Packet Path is a scenario-based learning game where you configure real network topologies and watch packets animate through them in real time. Every routing decision, label swap, ARP resolution, and ACL hit is shown visually and logged — so you can see exactly why a packet succeeded or was dropped.
