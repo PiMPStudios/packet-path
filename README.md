@@ -164,6 +164,13 @@ Active development. The core simulation engine, 16 levels, and all UI features l
 
 ---
 
+## Contributors
+
+**DaRealDaHoodie** — design, engineering, everything  
+**Claude Sonnet 4.6** (Anthropic) — co-author, pair programmer, protocol consultant, and the one who kept the RFC citations honest
+
+---
+
 ## License
 
 Source available under the [MIT + Commons Clause](LICENSE) license — free to use, study, and modify for personal and educational purposes. Commercial use requires permission from PiMP Studios.
