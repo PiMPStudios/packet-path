@@ -158,4 +158,4 @@ Active development. The core simulation engine, 16 levels, and all UI features l
 
 ## License
 
-Source available. See [LICENSE](LICENSE) for terms.
+Source available under the [MIT + Commons Clause](LICENSE) license — free to use, study, and modify for personal and educational purposes. Commercial use requires permission from PiMP Studios.
