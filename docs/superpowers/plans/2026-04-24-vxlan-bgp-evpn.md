@@ -13,7 +13,7 @@
 ## File Map
 
 | File | Action | Purpose |
-|------|--------|---------|
+| ------ | -------- | --------- |
 | `src/Device.h` | Modify | `ROUTE_EVPN` enum value, `vni` on `RouteEntry`, `vxlanVni` on `HopDecision`, VXLAN fields on `DeviceNode`, `TAB_VXLAN` in `PanelTab`, VXLAN buffers in `PanelState`, `currentVni` in `PacketAnim` |
 | `src/Device.cpp` | Modify | Include `evpnRoutes` in `GetRoutingTable()` |
 | `src/EvpnEngine.h` | Create | `BuildEvpnRoutes()` declaration |
@@ -31,6 +31,7 @@
 ### Task 1: Data Model — Device.h additions
 
 **Files:**
+
 - Modify: `src/Device.h`
 
 All pure struct/enum additions — no logic. Read the file first to get exact line numbers, then make targeted additions in the correct sections.
@@ -38,11 +39,13 @@ All pure struct/enum additions — no logic. Read the file first to get exact li
 - [ ] **Step 1: Add `ROUTE_EVPN` to `RouteSource` enum**
 
 Current (line ~60):
+
 ```cpp
 enum RouteSource { ROUTE_CONNECTED, ROUTE_STATIC, ROUTE_OSPF, ROUTE_OSPF_IA, ROUTE_BGP };
 ```
 
 Replace with:
+
 ```cpp
 enum RouteSource { ROUTE_CONNECTED, ROUTE_STATIC, ROUTE_OSPF, ROUTE_OSPF_IA, ROUTE_BGP, ROUTE_EVPN };
 ```
@@ -50,6 +53,7 @@ enum RouteSource { ROUTE_CONNECTED, ROUTE_STATIC, ROUTE_OSPF, ROUTE_OSPF_IA, ROU
 - [ ] **Step 2: Add `vni` field to `RouteEntry` struct**
 
 `RouteEntry` currently ends with `int subVlanId = 0;`. Add one line after it:
+
 ```cpp
     uint32_t    vni       = 0;   // non-zero for ROUTE_EVPN entries
 ```
@@ -57,6 +61,7 @@ enum RouteSource { ROUTE_CONNECTED, ROUTE_STATIC, ROUTE_OSPF, ROUTE_OSPF_IA, ROU
 - [ ] **Step 3: Add `vxlanVni` field to `HopDecision` struct**
 
 `HopDecision` currently ends with `int vlanTag = 0;`. Add one line after it:
+
 ```cpp
     uint32_t vxlanVni = 0;   // non-zero = hop is inside a VXLAN tunnel
 ```
@@ -64,6 +69,7 @@ enum RouteSource { ROUTE_CONNECTED, ROUTE_STATIC, ROUTE_OSPF, ROUTE_OSPF_IA, ROU
 - [ ] **Step 4: Add VXLAN fields to `DeviceNode` struct**
 
 After the last field in `DeviceNode` (`std::vector<SubInterface> subIfaces;`), add:
+
 ```cpp
     // VXLAN / BGP EVPN (routers/leaves only)
     bool        vxlanEnabled = false;
@@ -76,6 +82,7 @@ After the last field in `DeviceNode` (`std::vector<SubInterface> subIfaces;`), a
 - [ ] **Step 5: Add `TAB_VXLAN` to `PanelTab` enum**
 
 `PanelTab` currently ends with `TAB_SUB`. Append:
+
 ```cpp
 enum PanelTab { TAB_CONFIG, TAB_ROUTES, TAB_ARP, TAB_OSPF, TAB_MPLS, TAB_BGP, TAB_VLAN, TAB_SUB, TAB_VXLAN };
 ```
@@ -83,6 +90,7 @@ enum PanelTab { TAB_CONFIG, TAB_ROUTES, TAB_ARP, TAB_OSPF, TAB_MPLS, TAB_BGP, TA
 - [ ] **Step 6: Add VXLAN input state to `PanelState` struct**
 
 After the last field in `PanelState` (the `subIpBuf` line), add:
+
 ```cpp
     // VXLAN tab
     int         vxlanField   = -1;   // 0=VNI editing, 1=VTEP IP editing
@@ -93,6 +101,7 @@ After the last field in `PanelState` (the `subIpBuf` line), add:
 - [ ] **Step 7: Add `currentVni` to `PacketAnim` struct**
 
 `PacketAnim` currently ends with `int currentVlan = 0;`. Add one line after it:
+
 ```cpp
     uint32_t currentVni  = 0;   // VXLAN VNI badge: non-zero while inside tunnel
 ```
@@ -117,6 +126,7 @@ git commit -m "feat: add VXLAN/EVPN data model to Device.h"
 ### Task 2: EvpnEngine — Route Distribution
 
 **Files:**
+
 - Create: `src/EvpnEngine.h`
 - Create: `src/EvpnEngine.cpp`
 - Modify: `src/Device.cpp` (add evpnRoutes to `GetRoutingTable`)
@@ -124,6 +134,7 @@ git commit -m "feat: add VXLAN/EVPN data model to Device.h"
 The Makefile uses `$(wildcard src/*.cpp)` — new files are auto-compiled. No Makefile changes needed.
 
 **Design rules (implement exactly):**
+
 1. Clear all `evpnRoutes` on every node at the start of each call (routes are rebuilt from scratch each frame)
 2. For each VTEP (vxlanEnabled + evpnEnabled + non-empty vtepIp), find all OTHER nodes that are also vxlanEnabled + evpnEnabled + same vni
 3. For each remote peer's portIp[i]: skip if the IP (stripped of mask) equals the peer's vtepIp — this prevents the underlay link subnet from being advertised as an overlay route
@@ -220,12 +231,14 @@ void BuildEvpnRoutes(std::vector<DeviceNode>& nodes) {
 - [ ] **Step 3: Add `evpnRoutes` to `GetRoutingTable` in `src/Device.cpp`**
 
 Read `src/Device.cpp`. Find the `GetRoutingTable` function (around line 80). After the `bgpRoutes` lines:
+
 ```cpp
     for (const auto& r : n.bgpRoutes)
         table.push_back({r.prefix, r.nextHop, -1, ROUTE_BGP});
 ```
 
 Add immediately after:
+
 ```cpp
     for (const auto& r : n.evpnRoutes)
         table.push_back(r);
@@ -251,6 +264,7 @@ git commit -m "feat: add EvpnEngine with VXLAN EVPN route distribution"
 ### Task 3: SimulationEngine — VXLAN Two-Pass Forwarding
 
 **Files:**
+
 - Modify: `src/SimulationEngine.cpp`
 
 **Design:** When the route-selection loop matches a `ROUTE_EVPN` entry, the code performs two recursive calls instead of the normal hop-advance:
@@ -304,6 +318,7 @@ Inside `SimulateForward`, the `for (const auto& route : table)` loop has a large
 - [ ] **Step 3: Add `ROUTE_EVPN` to the route-type label in the non-CONNECTED `HopDecision` block**
 
 Find the block that sets `hd.routeType` (around line 304–308):
+
 ```cpp
                 if      (route.src == ROUTE_STATIC)  hd.routeType = "S";
                 else if (route.src == ROUTE_OSPF)    hd.routeType = "O";
@@ -313,6 +328,7 @@ Find the block that sets `hd.routeType` (around line 304–308):
 ```
 
 Add before the `else`:
+
 ```cpp
                 else if (route.src == ROUTE_EVPN)    hd.routeType = "VX";
 ```
@@ -345,6 +361,7 @@ git commit -m "feat: VXLAN two-pass forwarding in SimulationEngine"
 ### Task 4: Packet Animation — VNI Badge
 
 **Files:**
+
 - Modify: `src/NetworkCanvas.cpp`
 
 Show an orange "VNI:NNN" badge on the animated packet while `hop.vxlanVni > 0`. The badge renders above the MPLS/VLAN badges using the same pill style.
@@ -352,6 +369,7 @@ Show an orange "VNI:NNN" badge on the animated packet while `hop.vxlanVni > 0`. 
 - [ ] **Step 1: Read the DrawPacketAnim function**
 
 Search for `DrawPacketAnim` in `src/NetworkCanvas.cpp` and read the full function. Identify:
+
 - Where `anim.currentLabel` and `anim.currentVlan` are updated (when the hop index advances)
 - Where the MPLS label badge is drawn
 - Where the VLAN badge is drawn
@@ -406,6 +424,7 @@ git commit -m "feat: VNI badge on packet animation during VXLAN tunnel hops"
 ### Task 5: VXLAN Config Tab UI
 
 **Files:**
+
 - Modify: `src/NetworkCanvas.h` (add `DrawVxlanTab` declaration)
 - Modify: `src/NetworkCanvas.cpp` (implement `DrawVxlanTab`, update `DrawPanel`)
 - Modify: `src/ConfigPanel.cpp` (VXLAN tab input handling)
@@ -415,6 +434,7 @@ The tab follows the exact same visual style as `DrawBgpTab` and `DrawVlanTab`: r
 - [ ] **Step 1: Read existing tab functions for style reference**
 
 Read `DrawBgpTab` and `DrawVlanTab` in `src/NetworkCanvas.cpp`. Note:
+
 - Panel bounds (x, width, typical y offsets)
 - How text fields are drawn with `DrawTextField`
 - How booleans are toggled (checkbox style or button)
@@ -425,6 +445,7 @@ Also read `DrawPanel` to see how the tab bar is rendered (tab labels, widths, cl
 - [ ] **Step 2: Add `DrawVxlanTab` declaration to `src/NetworkCanvas.h`**
 
 After the `DrawSubIfaceTab` line, add:
+
 ```cpp
 void DrawVxlanTab(const DeviceNode* n, const PanelState& ps);
 ```
@@ -492,6 +513,7 @@ Read `DrawPanel` in `src/NetworkCanvas.cpp`. Find where the tab labels are liste
 The tab bar click regions are computed from the tab count and panel width. Adding one more tab shrinks all tab widths proportionally — confirm the tab bar still fits at the current panel width (280px ÷ 9 tabs ≈ 31px per tab, which is tight but acceptable with 2–4 character labels).
 
 In the tab content dispatch (the `if (ps.activeTab == TAB_CONFIG)` chain), add:
+
 ```cpp
 else if (ps.activeTab == TAB_VXLAN) DrawVxlanTab(selectedNode, ps);
 ```
@@ -501,6 +523,7 @@ else if (ps.activeTab == TAB_VXLAN) DrawVxlanTab(selectedNode, ps);
 Read `ConfigPanel.cpp` to understand how other tabs handle clicks and text input (look at `TAB_BGP` or `TAB_VLAN` handlers as reference). Add a `TAB_VXLAN` case that handles:
 
 **Click on VXLAN enabled checkbox (y ≈ 140–154 panel-relative):**
+
 ```cpp
 // Toggle vxlanEnabled
 selectedNode->vxlanEnabled = !selectedNode->vxlanEnabled;
@@ -513,27 +536,32 @@ if (!selectedNode->vxlanEnabled) {
 ```
 
 **Click on VNI field (y ≈ 185–207):**
+
 ```cpp
 ps.vxlanField = 0;
 ps.vxlanVniBuf = std::to_string(selectedNode->vni);
 ```
 
 **Click on VTEP IP field (y ≈ 228–250):**
+
 ```cpp
 ps.vxlanField = 1;
 ps.vxlanVtepBuf = selectedNode->vtepIp;
 ```
 
 **Click on EVPN enabled checkbox (y ≈ 268–282):**
+
 ```cpp
 selectedNode->evpnEnabled = !selectedNode->evpnEnabled;
 ```
 
 **Text input while vxlanField == 0 (VNI):**
+
 - Accept digits only
 - On Enter/Tab: parse as uint32_t, clamp to [1, 16777215], store in `selectedNode->vni`, set vxlanField = -1
 
 **Text input while vxlanField == 1 (VTEP IP):**
+
 - Accept printable characters (IP address)
 - On Enter/Tab: store in `selectedNode->vtepIp`, set vxlanField = -1
 
@@ -563,11 +591,13 @@ git commit -m "feat: VXLAN config tab (VNI, VTEP IP, EVPN toggle)"
 ### Task 6: Level Serialization + Level 14 JSON
 
 **Files:**
+
 - Modify: `src/Level.cpp`
 - Create: `levels/level_14.json`
 
 **Level 14 topology:**
-```
+
+```text
 PC-A ── Leaf-1 ── Spine ── Leaf-2 ── PC-B
 VLAN:  VNI 100  underlay  VNI 100
 ```
@@ -601,6 +631,7 @@ if (n.vxlanEnabled) {
 - [ ] **Step 3: Create `levels/level_14.json`**
 
 IP plan:
+
 - PC-A: 10.100.0.2/24, GW 10.100.0.1
 - Leaf-1: portIp0=10.100.0.1/24 (to PC-A), portIp1=10.0.1.1/30 (underlay to Spine), vtepIp="10.0.1.1", vni=100, evpnEnabled=false
 - Spine: portIp0=10.0.1.2/30, portIp1=10.0.2.2/30, OSPF only
@@ -726,6 +757,7 @@ git commit -m "feat: VXLAN serialization + level 14 (VXLAN overlay)"
 ### Task 7: main.cpp Integration
 
 **Files:**
+
 - Modify: `src/main.cpp`
 
 Three additions: include the new header, call `BuildEvpnRoutes` in the per-frame engine loop, extend the "Next Level" cap from 13 to 14.
@@ -770,6 +802,7 @@ Expected: build completes with no new errors.
 - [ ] **Step 5: Full integration smoke test**
 
 Load level 14. Confirm:
+
 1. Leaf-1 and Leaf-2 appear with "VXL" tab visible in their config panel.
 2. Open Leaf-1 VXLAN tab — VNI shows 100, VTEP IP shows "10.0.1.1", EVPN disabled.
 3. Enable EVPN on Leaf-1 → Leaf-1's EVPN routes count shows 1 (10.200.0.0/24 from Leaf-2). Enable EVPN on Leaf-2 → Leaf-2's EVPN routes count shows 1 (10.100.0.0/24 from Leaf-1).
@@ -810,6 +843,7 @@ After all 7 tasks complete:
 ## Self-Review
 
 **Spec coverage:**
+
 - VTEPs on routers ✓ (vxlanEnabled + vtepIp + vni on DeviceNode)
 - EVPN control plane using BGP semantics ✓ (EvpnEngine distributes overlay routes; player enables "EVPN" matching BGP EVPN vocabulary)
 - VXLAN tunnel creation ✓ (two-pass SimulateForward with ROUTE_EVPN case)
@@ -820,6 +854,7 @@ After all 7 tasks complete:
 **Placeholder scan:** All code is complete. SubnetOf helper is a concrete implementation. DrawVxlanTab badge offsets are explicit values. All fields are named.
 
 **Infinite recursion guard:** The EVPN two-pass calls `SimulateForward` twice recursively. Recursion terminates because:
+
 1. Underlay call: vtepIp (e.g., `10.0.2.1`) is in the underlay /30 subnet. No EVPN route matches this address (EVPN routes are for overlay /24 subnets). OSPF/CONNECTED routes handle the underlay hop.
 2. Local delivery call: destIp (e.g., `10.200.0.2`) is the actual destination in the overlay subnet, which is CONNECTED on the remote VTEP. No EVPN re-match.
 

@@ -13,7 +13,7 @@
 ## File Map
 
 | File | Change |
-|---|---|
+| --- | --- |
 | `src/GameUI.h` | Remove 3 old declarations; add `BriefingCardState` struct + 7 new function declarations |
 | `src/GameUI.cpp` | Remove old 4 implementations; add new rendering + rect helpers (~70 lines net change) |
 | `src/main.cpp` | Add `BriefingCardState`; update click, drag, release, ESC, B-key, HUD hint, draw call |
@@ -23,6 +23,7 @@
 ## Task 1: GameUI.h + GameUI.cpp — New Briefing Card API
 
 **Files:**
+
 - Modify: `src/GameUI.h:53-58`
 - Modify: `src/GameUI.cpp:367-448`
 
@@ -224,16 +225,19 @@ git commit -m "feat: floating briefing card API — BriefingCardState + pos-base
 ## Task 2: main.cpp — Wire Up State, Interactions, Drag, Key Binding
 
 **Files:**
+
 - Modify: `src/main.cpp` (multiple targeted sections)
 
 ### Step 1 — Add `BriefingCardState` variable
 
 Find line 59 (the `briefingVisible` declaration):
+
 ```cpp
     bool          briefingVisible = false;
 ```
 
 Add `briefingCard` on the line immediately after:
+
 ```cpp
     bool          briefingVisible = false;
     BriefingCardState briefingCard;
@@ -249,6 +253,7 @@ Find the `goSandbox` lambda body (around line 104). Add two lines at the end, ju
 ```
 
 So the final two lines of the lambda body look like:
+
 ```cpp
         briefingVisible = false;
         briefingCard    = BriefingCardState{};
@@ -268,11 +273,14 @@ briefingCard.dragging  = false;
 Find them by searching for `briefingVisible      = true;` (note the extra spaces — the codebase uses alignment spacing). The three occurrences are:
 
 **A.** Restart button handler (~line 410):
+
 ```cpp
                     briefingVisible      = true;
                     helpVisible          = false;
 ```
+
 Becomes:
+
 ```cpp
                     briefingVisible      = true;
                     briefingCard.pos       = BriefingDefaultPos();
@@ -282,11 +290,14 @@ Becomes:
 ```
 
 **B.** Next Level button handler (~line 484):
+
 ```cpp
                         briefingVisible      = true;
                         helpVisible          = false;
 ```
+
 Becomes:
+
 ```cpp
                         briefingVisible      = true;
                         briefingCard.pos       = BriefingDefaultPos();
@@ -296,11 +307,14 @@ Becomes:
 ```
 
 **C.** Level-select card click handler (~line 522):
+
 ```cpp
                             briefingVisible      = true;
                             helpVisible          = false;
 ```
+
 Becomes:
+
 ```cpp
                             briefingVisible      = true;
                             briefingCard.pos       = BriefingDefaultPos();
@@ -312,6 +326,7 @@ Becomes:
 ### Step 4 — Add B key handler for briefing toggle
 
 Find the H key handler (around line 232):
+
 ```cpp
         if (fileOp == FILEOP_NONE && !menuVisible && IsKeyPressed(KEY_H) &&
             gameMode != GAME_LEVEL_SELECT && ps.activeField == -1 &&
@@ -340,6 +355,7 @@ Add the B key handler immediately after the closing `}`:
 ### Step 5 — Replace the old `else if (briefingVisible)` click-consumer
 
 Find and remove the old briefing block in the LMB-pressed handler (around lines 346–350):
+
 ```cpp
             } else if (briefingVisible) {
                 if (CheckCollisionPointRec(screenMouse, BriefingCloseBtnRect()) ||
@@ -350,6 +366,7 @@ Find and remove the old briefing block in the LMB-pressed handler (around lines 
 ```
 
 Replace with (the `else if (menuVisible)` line stays; we only remove the briefing block):
+
 ```cpp
             } else if (menuVisible) {
 ```
@@ -357,6 +374,7 @@ Replace with (the `else if (menuVisible)` line stays; we only remove the briefin
 Then, inside the big `else` block at the bottom (around line 530, labeled `// HUD navigation buttons`), add briefing card hit-testing **as the very first thing** in that `else` block, before the sandbox/level HUD button checks:
 
 Find this comment and the code right after it:
+
 ```cpp
             } else {
             // HUD navigation buttons — take priority over canvas interactions
@@ -418,6 +436,7 @@ Change to:
 ### Step 6 — Add drag update in LMB-held section
 
 Find the existing LMB-held block (around line 724):
+
 ```cpp
         // ── LMB held ──────────────────────────────────────────────────
         if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && dragging) {
@@ -444,6 +463,7 @@ Add the briefing card drag update **immediately before** that block:
 ### Step 7 — Clear drag flag on LMB release
 
 Find the LMB-released block (around line 741):
+
 ```cpp
         // ── LMB released ──────────────────────────────────────────────
         if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
@@ -451,6 +471,7 @@ Find the LMB-released block (around line 741):
 ```
 
 Add one line immediately after `if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {`:
+
 ```cpp
             briefingCard.dragging = false;
 ```
@@ -458,12 +479,14 @@ Add one line immediately after `if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {`
 ### Step 8 — Update the draw call
 
 Find line ~1561:
+
 ```cpp
             if (briefingVisible && gameMode == GAME_PLAYING)
                 DrawBriefingCard(activeLevelDef);
 ```
 
 Change to:
+
 ```cpp
             if (briefingVisible && gameMode == GAME_PLAYING)
                 DrawBriefingCard(activeLevelDef, briefingCard);
@@ -472,6 +495,7 @@ Change to:
 ### Step 9 — Update the HUD key hint
 
 Find lines ~1554–1557:
+
 ```cpp
             if (gameMode != GAME_LEVEL_SELECT)
                 DrawTextEx(GFont(), "H = Help  \xe2\x80\xa2  M = Menu",
@@ -480,6 +504,7 @@ Find lines ~1554–1557:
 ```
 
 Replace with:
+
 ```cpp
             if (gameMode != GAME_LEVEL_SELECT) {
                 const char* hint = (gameMode == GAME_PLAYING)
@@ -506,6 +531,7 @@ make && ./PacketPath
 ```
 
 Test checklist:
+
 1. From level select, click any level → briefing card appears, expanded, centered, title bar visible
 2. Drag the title bar → card follows the mouse, stays within canvas bounds
 3. Click [−] → card collapses to just the title bar; click [+] → expands again
@@ -537,6 +563,7 @@ git push
 ## Self-Review
 
 **Spec coverage:**
+
 - [x] Floating card (not a blocking modal) — non-consuming click handler in Task 2 Step 5
 - [x] Draggable — LMB drag via title bar, Task 2 Steps 5–7
 - [x] Collapsible — [−]/[+] button and "Got it" collapse in Task 1 Step 3, Task 2 Steps 4–5
@@ -547,6 +574,7 @@ git push
 **Placeholder scan:** No TBDs. All code blocks are complete.
 
 **Type consistency:**
+
 - `BriefingCardState` declared in GameUI.h, used in main.cpp as `BriefingCardState briefingCard;` ✓
 - `DrawBriefingCard(const LevelDef&, const BriefingCardState&)` matches both declaration and call site ✓
 - `BriefingCardBounds`, `BriefingTitleBarRect`, `BriefingCollapseBtnRect`, `BriefingCloseBtnRect`, `BriefingGotItBtnRect` all take `Vector2 pos` — consistent throughout ✓

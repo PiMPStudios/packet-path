@@ -13,7 +13,7 @@
 ## File Map
 
 | Action | File | Responsibility |
-|--------|------|----------------|
+| -------- | ------ | ---------------- |
 | Modify | `src/Cable.h` | Add `bool broken = false` |
 | Modify | `src/Device.h` | Add `bool crashed = false` to DeviceNode; add `LOG_LINK_DOWN`, `LOG_DEVICE_CRASH`, `LOG_RESTORED` to LogType |
 | Modify | `src/Level.h` | Add `bool requiresFix = false` to WinCondition |
@@ -30,6 +30,7 @@
 ## Task 1: Data Model Flags and LogType Extensions
 
 **Files:**
+
 - Modify: `src/Cable.h`
 - Modify: `src/Device.h`
 
@@ -58,11 +59,13 @@ Open `src/Device.h`. Find `DeviceNode` (line ~140). Locate the `bool selected = 
 - [ ] **Step 3: Extend LogType enum**
 
 In `src/Device.h`, find (line ~97):
+
 ```cpp
 enum LogType { LOG_FORWARD, LOG_ARP_REQ, LOG_ARP_REPLY, LOG_ARP_HIT, LOG_OSPF };
 ```
 
 Replace with:
+
 ```cpp
 enum LogType { LOG_FORWARD, LOG_ARP_REQ, LOG_ARP_REPLY, LOG_ARP_HIT, LOG_OSPF,
                LOG_LINK_DOWN, LOG_DEVICE_CRASH, LOG_RESTORED };
@@ -88,6 +91,7 @@ git commit -m "feat: add Cable.broken, DeviceNode.crashed, LOG_LINK_DOWN/DEVICE_
 ## Task 2: Level JSON Support
 
 **Files:**
+
 - Modify: `src/Level.h`
 - Modify: `src/Level.cpp`
 
@@ -202,6 +206,7 @@ git commit -m "feat: LoadLevel reads broken/crashed flags and requiresFix from J
 ## Task 3: SimulationEngine Respects Failures
 
 **Files:**
+
 - Modify: `src/SimulationEngine.cpp`
 
 Two sites to change: (1) `FindL2Path` BFS skips broken cables, (2) `SimulateForward` fails early on crashed src or intermediate device.
@@ -295,6 +300,7 @@ git commit -m "feat: SimulationEngine skips broken cables and fails on crashed d
 ## Task 4: Visual Indicators
 
 **Files:**
+
 - Modify: `src/NetworkCanvas.cpp`
 
 Three draw-function changes: (1) broken cables render red with a midpoint ✗ badge, (2) crashed devices get a red overlay and ✗ badge, (3) log console renders `LOG_LINK_DOWN` / `LOG_DEVICE_CRASH` / `LOG_RESTORED` icons.
@@ -389,6 +395,7 @@ git commit -m "feat: broken cables red, crashed devices red overlay, log icons f
 ## Task 5: Context Menu — Dynamic Items and Fault Actions
 
 **Files:**
+
 - Modify: `src/UI.h`
 - Modify: `src/UI.cpp`
 - Modify: `src/NetworkCanvas.cpp`
@@ -601,9 +608,11 @@ cd /Users/tweaver/Developer/GitRepos/Packet-Path && make 2>&1 | tail -5
 Expected: compile error on `ExecuteMenuAction` call in main.cpp — missing `logEntries` argument. This is expected and will be fixed in Task 6 Step 3. Alternatively, add a dummy `logEntries` argument temporarily to get a clean build, then remove it in Task 6.
 
 If you want a clean build here: in `main.cpp` line ~228, temporarily change to:
+
 ```cpp
 ExecuteMenuAction(contextMenu, nodes, cables, selectedId, ps, camera, simState, logEntries);
 ```
+
 (logEntries is already declared at line 39, so this is the correct final form — add it now.)
 
 Expected after: zero errors.
@@ -620,6 +629,7 @@ git commit -m "feat: context menu Cut/Restore Link, Crash/Restore Device with lo
 ## Task 6: main.cpp Wiring and Troubleshoot Mode
 
 **Files:**
+
 - Modify: `src/NetworkCanvas.h`
 - Modify: `src/NetworkCanvas.cpp`
 - Modify: `src/main.cpp`
@@ -766,6 +776,7 @@ Expected: zero errors.
 Launch `./packet-path`. Press `1` for Level 1. Build a simple topology if needed.
 
 **Cut Link test:**
+
 1. Right-click a cable → menu shows "Cut Link" and "Delete Cable"
 2. Click "Cut Link" → cable turns red with midpoint ✗ badge; log shows `! LINK DOWN: X — Y`
 3. Send a packet across the broken cable → simulation fails, broken path overlay shows
@@ -774,6 +785,7 @@ Launch `./packet-path`. Press `1` for Level 1. Build a simple topology if needed
 6. Send the packet again → succeeds
 
 **Crash Device test:**
+
 1. Right-click a device → menu shows "Rename", "Crash Device", "Delete", "Send Packet To…"
 2. Click "Crash Device" → device gets red border + ✗ badge above; log shows `! DEVICE CRASHED: X`
 3. Send a packet through the crashed device → simulation fails with "X is crashed" reason
@@ -781,6 +793,7 @@ Launch `./packet-path`. Press `1` for Level 1. Build a simple topology if needed
 5. Click "Restore Device" → red border removed; log shows `+ RESTORED: X`
 
 **Troubleshoot Mode test:**
+
 1. Break one cable and crash one device
 2. Press `T` → HUD shows `TROUBLESHOOT [T]` red badge; "LINK DOWN" and "CRASHED" text labels appear
 3. Press `T` again → labels disappear
@@ -806,6 +819,7 @@ git commit -m "feat: wire failure injection — targetBroken, troubleshootMode, 
 For level designers adding pre-injected failures to later levels:
 
 **Broken cable** — add `"broken": true` to the cable entry:
+
 ```json
 {
   "from": 1, "fromPort": 0, "to": 2, "toPort": 1,
@@ -814,6 +828,7 @@ For level designers adding pre-injected failures to later levels:
 ```
 
 **Crashed device** — add `"crashed": true` to the device entry:
+
 ```json
 {
   "id": 3, "type": "ROUTER", "label": "R1",
@@ -824,6 +839,7 @@ For level designers adding pre-injected failures to later levels:
 ```
 
 **Fix-required win condition** — add `"requiresFix": true` to the condition:
+
 ```json
 {
   "src": "PC-A", "dst": "PC-B",
@@ -841,7 +857,7 @@ Win conditions still check src→dst reachability. A pre-injected broken cable b
 ### Spec Coverage
 
 | Requirement | Task |
-|-------------|------|
+| ------------- | ------ |
 | Right-click cable → Cut Link | Task 5 `ExecuteMenuAction` CTX_CABLE item 0 |
 | Right-click cable (broken) → Restore Link | Task 5 `ExecuteMenuAction` CTX_CABLE item 0 toggle |
 | Right-click device → Crash Device | Task 5 `ExecuteMenuAction` CTX_NODE item 1 |

@@ -15,6 +15,7 @@
 Branch: `phase-3a-routing-table` (create from `main` @ `fd2720a`, 675 lines).
 
 Key facts the implementer must know:
+
 - `std::clamp` throughout — **never** `Clamp()` (triggers ~53 warnings)
 - `FindNode` returns `const DeviceNode*` — do not change this signature
 - `DrawSplineSegmentBezierCubic` for bezier cables — not `DrawLineBezierCubic`
@@ -29,7 +30,7 @@ Key facts the implementer must know:
 ## File Map
 
 | File | Status | Responsibility |
-|---|---|---|
+| --- | --- | --- |
 | `src/main.cpp` | Modify | All Phase 3a changes — data model, helpers, tab UI, routing engine |
 
 ---
@@ -37,6 +38,7 @@ Key facts the implementer must know:
 ## Task 1: M3a.1 — Fix #3, Data Model, and IP Helpers
 
 **Files:**
+
 - Modify: `src/main.cpp`
 
 Add `#include <cstdint>`, new enums/structs (`RouteSource`, `RouteEntry`, `PanelTab`), extend `DeviceNode` and `PanelState`, add IP helper functions, fix the hoverItem draw-coupling.
@@ -300,6 +302,7 @@ git commit -m "feat(m3a.1): routing data model, IP helpers, hoverItem input-phas
 ## Task 2: M3a.2 — Panel Tab Header + Config Tab Extraction
 
 **Files:**
+
 - Modify: `src/main.cpp`
 
 Add the tab header to `DrawPanel`, extract `DrawConfigTab` (with updated Y coordinates), add tab-click handling and selection-reset logic.
@@ -539,6 +542,7 @@ git commit -m "feat(m3a.2): panel tab header, DrawConfigTab extraction, selectio
 ## Task 3: M3a.3 — Routes Tab Display (Read-Only)
 
 **Files:**
+
 - Modify: `src/main.cpp`
 
 Implement full `DrawRoutesTab` with connected route rows (green "C"), static route rows (blue "S") with `[×]` delete buttons, empty-state placeholder, and column headers. Add-form fields come in Task 4 — they are stubbed here as static visuals only.
@@ -669,6 +673,7 @@ git commit -m "feat(m3a.3): routes tab display with connected routes and static 
 ## Task 4: M3a.4 — Routes Tab Interactions (Add + Delete)
 
 **Files:**
+
 - Modify: `src/main.cpp`
 
 Wire up the add-form fields for keyboard input, `KEY_TAB` focus cycling, `[Add]` button click, and `[×]` delete buttons. Update `DrawRoutesTab` to pass active state to fields. Add `UpdateRoutesTab` for keyboard handling.
@@ -840,6 +845,7 @@ git commit -m "feat(m3a.4): static route add/delete, form keyboard input, KEY_TA
 ## Task 5: M3a.5 — Forwarding Engine
 
 **Files:**
+
 - Modify: `src/main.cpp`
 
 Add `ForwardResult` struct and implement `SimulateForward` — a pure-logic, longest-prefix-match forwarding function. No UI. Verify with startup assertions, then remove the assertion block.
@@ -1042,7 +1048,8 @@ git log --oneline
 ```
 
 Expected history:
-```
+
+```text
 feat(m3a.5): SimulateForward longest-prefix match forwarding engine
 feat(m3a.4): static route add/delete, form keyboard input, KEY_TAB cycling
 feat(m3a.3): routes tab display with connected routes and static route rows

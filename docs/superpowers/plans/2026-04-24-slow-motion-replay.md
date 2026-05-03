@@ -13,7 +13,7 @@
 ## File Map
 
 | File | Action | Responsibility |
-|---|---|---|
+| --- | --- | --- |
 | `src/Packet.h` | Modify | Add `paused`/`speedMult` fields; declare `StepForwardAnim`, `GetPacketWorldPos` |
 | `src/Packet.cpp` | Modify | Implement `StepForwardAnim`, `GetPacketWorldPos`; patch `UpdatePacketAnim` |
 | `src/TraceModal.h` | Modify | Change `DrawTraceModal` signature to accept `activeHop = -1` |
@@ -27,6 +27,7 @@
 ## Task 1: `Packet.h` / `Packet.cpp` — core replay state
 
 **Files:**
+
 - Modify: `src/Packet.h`
 - Modify: `src/Packet.cpp`
 
@@ -219,6 +220,7 @@ git commit -m "feat: add paused/speedMult to PacketAnim; implement StepForwardAn
 ## Task 2: `TraceModal.h` / `TraceModal.cpp` — active-hop highlight
 
 **Files:**
+
 - Modify: `src/TraceModal.h`
 - Modify: `src/TraceModal.cpp`
 
@@ -345,6 +347,7 @@ Replace the entire `for` loop body (lines 55–145 in the current file):
 ```
 
 Key changes vs. the original:
+
 1. `bool hasLabel`, `bool hasAcl`, `bool hasNat`, `int extras`, `float rowStride` moved to loop top.
 2. Active-hop `DrawRectangleRounded` highlight added after computing `rowStride`.
 3. The old `int extras` and `float rowStride = 44.f + extras * 16.f;` lines at the bottom of the loop body are removed.
@@ -370,6 +373,7 @@ git commit -m "feat: add activeHop highlight to DrawTraceModal"
 ## Task 3: `GameUI.h` / `GameUI.cpp` — Replay HUD
 
 **Files:**
+
 - Modify: `src/GameUI.h`
 - Modify: `src/GameUI.cpp`
 
@@ -395,6 +399,7 @@ Rectangle ReplaySpeedBtnRect(int idx) {
 ```
 
 Button positions (screen coords, all h=18, y=58):
+
 - idx=0 → {88, 58, 38, 18} → "0.25x"
 - idx=1 → {130, 58, 38, 18} → "0.5x"
 - idx=2 → {172, 58, 38, 18} → "1x"
@@ -454,6 +459,7 @@ git commit -m "feat: add DrawReplayHUD and ReplaySpeedBtnRect to GameUI"
 ## Task 4: `main.cpp` — wire everything together
 
 **Files:**
+
 - Modify: `src/main.cpp`
 
 Four changes, applied top-to-bottom in the file:
@@ -565,12 +571,14 @@ Find the `else if (inCanvas)` branch (currently line ~529). Add a packet-dot hit
 **D1** — Update `DrawTraceModal` call at ~line 1438 to pass active hop:
 
 Change:
+
 ```cpp
             if (traceModalOpen)
                 DrawTraceModal(activeTrace);
 ```
 
 To:
+
 ```cpp
             if (traceModalOpen)
                 DrawTraceModal(activeTrace,
@@ -620,11 +628,13 @@ Expected: clean build.
 - [ ] **Step 7: Smoke test**
 
 Launch the game:
+
 ```bash
 cd /Users/tweaver/Developer/GitRepos/Packet-Path && ./PacketPath
 ```
 
 Manual verification checklist:
+
 - [ ] Launch game → open sandbox, add two PCs + a cable, configure IPs, send a packet
 - [ ] While packet is animating, press **Space** → packet freezes; amber PAUSED badge appears at y=58
 - [ ] Press **Space** again → packet resumes; PAUSED badge disappears
@@ -651,7 +661,7 @@ git commit -m "feat: wire slow-motion replay controls — Space pause, Right ste
 ### Spec coverage check
 
 | Requirement | Task |
-|---|---|
+| --- | --- |
 | Space toggles pause/resume during SIM_ANIMATING | Task 4, Change A |
 | Right arrow steps one hop when paused | Task 4, Change A |
 | Click on packet dot opens trace modal | Task 4, Change C |

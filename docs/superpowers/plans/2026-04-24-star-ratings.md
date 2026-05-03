@@ -7,6 +7,7 @@
 **Architecture:** A single `failedAttempts` counter (reset on level load, incremented on each failed `SimulateForward` call) feeds `ComputeStars()` at win time, producing `starsEarned` (1–3). This value is passed to the GameUI draw functions, which render filled gold / outlined grey circles in both the win overlay and the HUD badge. No JSON changes — scoring is universal.
 
 **Scoring rules:**
+
 - **3 stars (PERFECT!)** — 0 failed simulations. Configured correctly first try.
 - **2 stars (GREAT!)** — 1–2 failed simulations. Minor troubleshooting needed.
 - **1 star (CLEARED!)** — 3+ failed simulations. Got there eventually.
@@ -18,7 +19,7 @@
 ## File Map
 
 | Action | File | Responsibility |
-|--------|------|---------------|
+| -------- | ------ | --------------- |
 | Modify | `src/Level.h` | Declare `ComputeStars(int failedAttempts)` |
 | Modify | `src/Level.cpp` | Implement `ComputeStars()` |
 | Modify | `src/GameUI.h` | Add `int starsEarned = 0` default param to `DrawWinOverlay` and `DrawLevelHUD` |
@@ -30,6 +31,7 @@
 ## Task 1: ComputeStars() Pure Function
 
 **Files:**
+
 - Modify: `src/Level.h`
 - Modify: `src/Level.cpp`
 
@@ -44,6 +46,7 @@ int ComputeStars(int failedAttempts);
 ```
 
 Full updated tail of `src/Level.h`:
+
 ```cpp
 int CheckWinConditions(const LevelDef& def,
                        const std::vector<DeviceNode>& nodes,
@@ -84,6 +87,7 @@ git commit -m "feat: add ComputeStars() — 0 fails=3★, 1-2=2★, 3+=1★"
 ## Task 2: Win Overlay Visual Upgrade
 
 **Files:**
+
 - Modify: `src/GameUI.h`
 - Modify: `src/GameUI.cpp`
 
@@ -225,6 +229,7 @@ git commit -m "feat: win overlay with earned/unearned star circles and score lab
 ## Task 3: HUD Badge Star Dots
 
 **Files:**
+
 - Modify: `src/GameUI.h`
 - Modify: `src/GameUI.cpp`
 
@@ -273,6 +278,7 @@ void DrawLevelHUD(int levelId, const std::string& title,
 ```
 
 **Layout notes:**
+
 - Badge: x=8, width=240 → right edge at x=248
 - Star circle centers: x=220, 232, 244 (left to right = star 1, 2, 3)
 - Right edge of star 3: 244+4=248 — flush with badge right edge ✓
@@ -298,6 +304,7 @@ git commit -m "feat: HUD badge 240px with star dots (gold=earned, grey=unearned)
 ## Task 4: main.cpp — Tracking, Computation, and Wiring
 
 **Files:**
+
 - Modify: `src/main.cpp`
 
 Changes: add `failedAttempts` and `starsEarned` state variables; reset both on every level load; increment `failedAttempts` on each failed simulation; compute `starsEarned = ComputeStars(failedAttempts)` on win; pass `starsEarned` to both draw functions.
@@ -317,6 +324,7 @@ int         starsEarned          = 0;   // computed on win via ComputeStars()
 There are three ApplyLevel call sites. Each already resets `lastConditionsPassed = 0;` and `gameMode = GAME_PLAYING;`. Add the two resets immediately after `lastConditionsPassed = 0;` in all three blocks:
 
 **Block 1** — key-press level load (inside the `for (int k = 1; k <= 10; ++k)` loop):
+
 ```cpp
 lastConditionsPassed = 0;
 failedAttempts       = 0;
@@ -325,6 +333,7 @@ gameMode             = GAME_PLAYING;
 ```
 
 **Block 2** — Retry button click:
+
 ```cpp
 lastConditionsPassed = 0;
 failedAttempts       = 0;
@@ -333,6 +342,7 @@ gameMode             = GAME_PLAYING;
 ```
 
 **Block 3** — Next Level button click:
+
 ```cpp
 lastConditionsPassed = 0;
 failedAttempts       = 0;
@@ -397,14 +407,17 @@ Expected: clean compile, no warnings.
 - [ ] **Step 8: Smoke test**
 
 Launch `./packet-path`, press `1` for Level 1. Configure R1's interface IP and PC-A's destination IP. Send a packet that succeeds immediately (0 fails). Verify:
+
 - Win overlay shows 3 gold circles and "PERFECT!"
 - HUD badge shows 3 gold dots
 
 Press Retry. Send one wrong packet (fails). Then configure correctly and win. Verify:
+
 - Win overlay shows 2 gold circles + 1 grey ring and "GREAT!"
 - HUD badge shows 2 gold + 1 grey
 
 Load Level 10 (press `0`). Don't configure anything — send 3 failing packets. Then configure correctly (trunk + subinterfaces) and win. Verify:
+
 - Win overlay shows 1 gold circle + 2 grey rings and "CLEARED!"
 - HUD badge shows 1 gold + 2 grey
 
@@ -426,7 +439,7 @@ git commit -m "feat: star rating — track failures, compute on win, wire to HUD
 ### Spec coverage
 
 | Requirement | Task |
-|-------------|------|
+| ------------- | ------ |
 | 3 stars = 0 failures, 2 = 1-2 failures, 1 = 3+ | Task 1 `ComputeStars()` |
 | Scoring computed on win (not from JSON) | Task 1 + Task 4 |
 | Win overlay: 3 stars + breakdown label | Task 2 `DrawWinOverlay` |

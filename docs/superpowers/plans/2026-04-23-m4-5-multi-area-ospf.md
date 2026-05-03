@@ -13,7 +13,7 @@
 ## Codebase snapshot (read before starting)
 
 | File | Role |
-|------|------|
+| ------ | ------ |
 | `src/Device.h` | All data structures — the gate for every other file |
 | `src/Device.cpp` | `GetRoutingTable`, `IsAbr` (add here) |
 | `src/OspfEngine.h` | `UpdateOspf` declaration, `IsAbr` declaration |
@@ -25,6 +25,7 @@
 | `src/main.cpp` | Game loop, input, OSPF tick |
 
 Key constants (from `src/NetworkCanvas.h`):
+
 - `CANVAS_W = 1000`, `PANEL_W = 280`, `SCREEN_H = 720`
 - `CFG_PORT_Y0 = 272`, `CFG_PORT_STRIDE = 44`
 - `PORTS_PER_NODE = 4` (in `Device.h`)
@@ -34,6 +35,7 @@ Key constants (from `src/NetworkCanvas.h`):
 ## Task 1: Data Model
 
 **Files:**
+
 - Modify: `src/Device.h`
 - Modify: `src/Device.cpp`
 
@@ -207,10 +209,11 @@ git commit -m "feat(m4.5): data model — ROUTE_OSPF_IA, per-port area, areaLsdb
 ## Task 2: OspfEngine — area-aware adjacency, per-area LSDB, O IA propagation
 
 **Files:**
+
 - Modify: `src/OspfEngine.h`
 - Modify: `src/OspfEngine.cpp`
 
-### What changes and why
+### What changes and why — OspfEngine
 
 - **Hello FSM**: Before forming an adjacency, both sides must have the same area on their port (`ospfPortArea[localPort] == ospfPortArea[bPort]`). The shared area is recorded on both neighbor structs (`nbrAB.area = linkArea`).
 - **`GenerateLsa(node, area)`**: Now area-scoped — adjacencies only from neighbors in that area, networks only from ports assigned to that area.
@@ -618,12 +621,13 @@ git commit -m "feat(m4.5): area-aware OSPF engine — per-area LSDB, ABR detecti
 ## Task 3: UI + Wiring
 
 **Files:**
+
 - Modify: `src/ConfigPanel.h`
 - Modify: `src/ConfigPanel.cpp`
 - Modify: `src/NetworkCanvas.cpp`
 - Modify: `src/main.cpp`
 
-### What changes and why
+### What changes and why — UI and Wiring
 
 - **Config tab**: Each port row gains a small area field to the right of the IP field. The IP field shrinks from 188px to 128px to make room. A tiny "A:" label sits between them.
 - **OSPF tab**: The hardcoded "Area: 0" line is replaced with an ABR badge (purple pill) when `IsAbr` is true; otherwise shows the current area of the first configured port.
@@ -633,7 +637,7 @@ git commit -m "feat(m4.5): area-aware OSPF engine — per-area LSDB, ABR detecti
 
 ### Layout math
 
-```
+```text
 Panel x=1000 to x=1280 (PANEL_W=280)
 Port row total usable: x=1080 to x=1268 (left pad=80, right margin=12)
   Port IP field:  x=1080, width=128, ends=1208
@@ -1059,9 +1063,11 @@ make 2>&1
 Expected: no errors. The binary `Packet-Path` is rebuilt.
 
 If you see `error: 'lsdb' is not a member of 'DeviceNode'`, search for any remaining `lsdb` reference:
+
 ```bash
 grep -rn "\.lsdb" src/
 ```
+
 Fix each occurrence by replacing `.lsdb` with `.areaLsdbs`.
 
 - [ ] **Step 8: Commit**
@@ -1081,7 +1087,7 @@ This task verifies the three-router teaching scenario end-to-end.
 
 ### The scenario
 
-```
+```text
 R1 (area 0) ──── R2 (ABR) ──── R3 (area 1)
               Gi0/0 | Gi0/1
 ```
@@ -1107,6 +1113,7 @@ Expected: window opens, FPS counter visible, no crashes.
 - [ ] **Step 2: Verify area fields appear**
 
 Press `R` three times to spawn R1, R2, R3. Click R1. In the Config tab, each port row should have:
+
 - IP field (left, ~128px)
 - "A:" label
 - Small area field (right, ~44px) — showing "0"
@@ -1118,12 +1125,14 @@ If the area field is missing or overlaps the IP field, check `PnlPortFieldRect` 
 - [ ] **Step 3: Configure R1**
 
 Click R1. Config tab:
+
 - Hostname: `R1`
 - Gi0/0 IP: `10.0.0.1/24`, Area field: `0` (default, leave as-is)
 
 - [ ] **Step 4: Configure R2 (the ABR)**
 
 Click R2. Config tab:
+
 - Hostname: `R2`
 - Gi0/0 IP: `10.0.0.2/24`, Area field: click area field, type `0`, press Enter
 - Gi0/1 IP: `10.1.0.1/24`, Area field: click area field, type `1`, press Enter
@@ -1131,6 +1140,7 @@ Click R2. Config tab:
 - [ ] **Step 5: Configure R3**
 
 Click R3. Config tab:
+
 - Hostname: `R3`
 - Gi0/0 IP: `10.1.0.2/24`, Area field: click area field, type `1`, press Enter
 
@@ -1153,7 +1163,8 @@ Click R3 → OSPF tab → enable.
 - [ ] **Step 8: Wait for adjacency and check log**
 
 Wait ~4 seconds. Log console should show:
-```
+
+```text
 O  OSPF: adjacency FULL 10.0.0.1 <-> 10.0.0.2 (area 0)
 O  OSPF: adjacency FULL 10.1.0.1 <-> 10.1.0.2 (area 1)
 ```
@@ -1165,7 +1176,8 @@ Cable R1–R2 should turn green. Cable R2–R3 should turn green.
 Click R2 → OSPF tab. The line below Router ID should show a purple "ABR" pill badge. If it still shows "Area: 0", `IsAbr` is not returning true — check that `OspfNeighbor.area` is being set in the Hello FSM.
 
 Neighbor table for R2 should show:
-```
+
+```text
 Router-ID    State    Area   Dead
 10.0.0.1     FULL     0      7.8s
 10.1.0.1     FULL     1      7.8s
@@ -1176,7 +1188,8 @@ Router-ID    State    Area   Dead
 - [ ] **Step 10: Check R1's routes**
 
 Click R1 → Routes tab. Should show:
-```
+
+```text
 C   10.0.0.0/24   direct      Gi0/0
 O   10.0.0.0/24   ...         (if R2 has a network — may deduplicate)
 O IA 10.1.0.0/24  10.0.0.2    Gi0/0   (inter-area via R2)
@@ -1187,7 +1200,8 @@ Key check: `10.1.0.0/24` should appear with orange "O IA" type indicator. If it'
 - [ ] **Step 11: Check R3's routes**
 
 Click R3 → Routes tab. Should show:
-```
+
+```text
 C    10.1.0.0/24   direct      Gi0/0
 O IA 10.0.0.0/24   10.1.0.1   Gi0/0   (inter-area via R2)
 ```
@@ -1215,6 +1229,7 @@ If no changes were needed during verification, skip the add/commit.
 ## Self-Review
 
 **Spec coverage check:**
+
 - ✅ Per-interface area assignment (`ospfPortArea[PORTS_PER_NODE]`, area field UI)
 - ✅ Area-aware Hello FSM (ports must match area)
 - ✅ ABR detection (`IsAbr` — FULL neighbors in 2+ areas)
@@ -1227,6 +1242,7 @@ If no changes were needed during verification, skip the add/commit.
 - ✅ OSPF disable clears `areaLsdbs`
 
 **Type consistency:**
+
 - `ospfPortArea` is `uint32_t[]` in Device.h; compared as `uint32_t` in OspfEngine.cpp — consistent.
 - `RouteEntry.area` is `uint32_t`; set in `RunSpfArea` and `PropagateSummaryRoutes` — consistent.
 - `OspfNeighbor.area` is `uint32_t`; set in Hello FSM, read in `RunSpfArea` neighbor lookup — consistent.

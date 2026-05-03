@@ -15,6 +15,7 @@
 Single file modified: `src/main.cpp`
 
 New symbols added (in order they appear in the file):
+
 1. Constants: `LOG_H`, `CANVAS_H`, `HOP_DURATION`
 2. Structs: `LogEntry`, `SimMode` enum, `PacketAnim`, `SimState`
 3. Free functions (above `main()`): `GetFirstValidIp`, `FindCable`, `EvaluateCubicBezier`, `BuildPathStr`, `UpdatePacketAnim`, `DrawPacketAnim`, `DrawLogConsole`
@@ -26,6 +27,7 @@ New symbols added (in order they appear in the file):
 ## Task 1: M3b.1 — Layout Constants + Log Console Strip
 
 **Files:**
+
 - Modify: `src/main.cpp`
 
 **Context:** The log strip is 90px tall at the bottom of the window. `CANVAS_H = SCREEN_H - LOG_H = 630`. Everything currently using `SCREEN_H` for canvas-area calculations must switch to `CANVAS_H`. The log strip is drawn last and overdraw handles the panel bleed — no scissor mode needed.
@@ -201,6 +203,7 @@ Expected: zero warnings, zero errors.
 ```
 
 Verify:
+
 - Dark log strip visible at bottom 90px, full width
 - "LOG" label and "No simulations run yet" placeholder visible
 - Dot grid stops at the log strip boundary (no dots bleeding into the strip)
@@ -219,6 +222,7 @@ git commit -m "feat(m3b.1): log console strip, CANVAS_H layout, dotgrid clip, in
 ## Task 2: M3b.2 — SimState + "Send Packet To…" + SIM_SELECTING_DST
 
 **Files:**
+
 - Modify: `src/main.cpp`
 
 **Context:** Add the simulation mode state machine and wire the "Send Packet To…" context menu item. When selected, the canvas enters `SIM_SELECTING_DST` mode: nodes glow with a blue ring and a status label appears at the top of the canvas. ESC cancels.
@@ -458,6 +462,7 @@ git commit -m "feat(m3b.2): SimState, Send Packet To context menu, SIM_SELECTING
 ## Task 3: M3b.3 — Helper Functions + UpdatePacketAnim + Destination Click
 
 **Files:**
+
 - Modify: `src/main.cpp`
 
 **Context:** Add the pure-logic helpers and wire the destination click. When the user clicks a node in `SIM_SELECTING_DST` mode, `SimulateForward` is called, a `LogEntry` is pushed, and `simState.mode` becomes `SIM_ANIMATING`. `UpdatePacketAnim` advances `t` and `hop` each frame.
@@ -677,6 +682,7 @@ git commit -m "feat(m3b.3): helpers, UpdatePacketAnim, destination click handler
 ## Task 4: M3b.4 — DrawPacketAnim
 
 **Files:**
+
 - Modify: `src/main.cpp`
 
 **Context:** The glowing dot travels along the bezier cable from node to node. The dot is always green during travel. On failure, after the last hop completes, the src's failPulse countdown draws an expanding red ring on the failed node. `DrawPacketAnim` is called inside `BeginMode2D`, after `DrawAllCables` and before the node-drawing loop.
@@ -790,6 +796,7 @@ git commit -m "feat(m3b.4): DrawPacketAnim — glowing dot and failure pulse"
 ## Task 5: M3b.5 — Integration, Polish, and Edge Cases
 
 **Files:**
+
 - Modify: `src/main.cpp`
 
 **Context:** Verify the full end-to-end flow, add remaining guards, and ensure all Phase 2 and Phase 3a features still work correctly. This task is mostly run-and-verify with targeted small fixes.
@@ -926,12 +933,14 @@ Expected: zero warnings, zero errors.
 Run through the complete acceptance criteria:
 
 **Layout:**
+
 - [ ] Log strip visible at bottom 90px, full width, dark background, "LOG" label
 - [ ] Dot grid stops at CANVAS_H boundary
 - [ ] Context menus never open inside log strip (right-click near bottom edge)
 - [ ] HUD hint text appears above log strip
 
 **Simulation trigger:**
+
 - [ ] Right-click a node → context menu shows "Rename", "Delete", "Send Packet To…"
 - [ ] Click "Send Packet To…" → blue rings on all nodes, green ring on src, hint label at top
 - [ ] ESC cancels → rings disappear
@@ -940,6 +949,7 @@ Run through the complete acceptance criteria:
 - [ ] DEL key blocked during animating mode
 
 **Packet animation (requires configured topology: PC1 ↔ Router1 ↔ PC2):**
+
 - [ ] PC1 → PC2: green dot travels PC1 → R1 → PC2, completes, log shows ✓ delivered
 - [ ] PC1 → unconfigured node: log shows ✗ destination has no configured IP, no dot
 - [ ] PC1 → unreachable node (no route): red dot stops at last node, red pulse, log shows ✗
@@ -947,11 +957,13 @@ Run through the complete acceptance criteria:
 - [ ] One sim at a time: cannot trigger new sim while animating
 
 **Log console:**
+
 - [ ] Each simulation pushes one entry (newest at top, green/red coloring)
 - [ ] "No simulations run yet" when no sims run
 - [ ] Multiple entries stack correctly (max 3 shown, newest at top)
 
 **Phase 2 regression:**
+
 - [ ] Canvas drag, cable connect, context menu, hostname/IP editing all still work
 - [ ] Routes tab add/delete still works
 - [ ] Context menus clamp to CANVAS_H (not SCREEN_H)
@@ -974,7 +986,8 @@ git log --oneline
 ```
 
 Expected history (most recent first):
-```
+
+```text
 feat(m3b.5): KEY_DELETE guard, RMB cancel, SIM_IDLE block, integration verified
 feat(m3b.4): DrawPacketAnim — glowing dot and failure pulse
 feat(m3b.3): helpers, UpdatePacketAnim, destination click handler, log entry push
@@ -995,7 +1008,7 @@ Expected: zero warnings, game runs cleanly, packet animation fully functional, l
 ## Acceptance Criteria Summary
 
 | Feature | Verified in |
-|---|---|
+| --- | --- |
 | `LOG_H = 90`, `CANVAS_H = 630` | Task 1 |
 | Dot grid clips to `CANVAS_H` | Task 1 |
 | `inCanvas` excludes log strip | Task 1 |

@@ -13,7 +13,7 @@
 ## File Map
 
 | File | Action | Responsibility |
-|---|---|---|
+| --- | --- | --- |
 | `src/Device.h` | Modify | Add `ROUTE_OSPF`, `OspfState`, `OspfAdjacency`, `RouterLsa`, `OspfNeighbor`; extend `DeviceNode` |
 | `src/Device.cpp` | Modify | Append `ospfRoutes` in `GetRoutingTable` |
 | `src/Cable.h` | Modify | Declare `FindNodeMut` |
@@ -31,6 +31,7 @@
 ## Task 1: Data Model — Device.h, Device.cpp, Cable.h, Cable.cpp
 
 **Files:**
+
 - Modify: `src/Device.h`
 - Modify: `src/Device.cpp`
 - Modify: `src/Cable.h`
@@ -41,10 +42,13 @@ No new tests possible without a test harness; verify by `make` succeeding and th
 - [ ] **Step 1: Extend the `RouteSource` enum in Device.h**
 
 In `src/Device.h`, replace line 18:
+
 ```cpp
 enum RouteSource { ROUTE_CONNECTED, ROUTE_STATIC };
 ```
+
 with:
+
 ```cpp
 enum RouteSource { ROUTE_CONNECTED, ROUTE_STATIC, ROUTE_OSPF };
 ```
@@ -52,6 +56,7 @@ enum RouteSource { ROUTE_CONNECTED, ROUTE_STATIC, ROUTE_OSPF };
 - [ ] **Step 2: Add OSPF state + struct declarations to Device.h**
 
 After the `RouteEntry` struct (after line 25 in the current file), insert:
+
 ```cpp
 // ── OSPF types ────────────────────────────────────────────────────────────
 enum OspfState { OSPF_DOWN, OSPF_INIT, OSPF_TWOWAY, OSPF_FULL };
@@ -80,6 +85,7 @@ struct OspfNeighbor {
 - [ ] **Step 3: Add OSPF fields to DeviceNode**
 
 Inside `struct DeviceNode { ... }` in `src/Device.h`, after the `arpTable` field (currently the last field), add:
+
 ```cpp
     // OSPF state (routers only)
     bool        ospfEnabled  = false;
@@ -95,6 +101,7 @@ Inside `struct DeviceNode { ... }` in `src/Device.h`, after the `arpTable` field
 In `src/Device.cpp`, the `GetRoutingTable` function currently ends at line 89. Change the function body to append `ospfRoutes` before returning:
 
 Replace:
+
 ```cpp
 std::vector<RouteEntry> GetRoutingTable(const DeviceNode& n) {
     std::vector<RouteEntry> table;
@@ -108,7 +115,9 @@ std::vector<RouteEntry> GetRoutingTable(const DeviceNode& n) {
     return table;
 }
 ```
+
 with:
+
 ```cpp
 std::vector<RouteEntry> GetRoutingTable(const DeviceNode& n) {
     std::vector<RouteEntry> table;
@@ -128,6 +137,7 @@ std::vector<RouteEntry> GetRoutingTable(const DeviceNode& n) {
 - [ ] **Step 5: Add `FindNodeMut` to Cable.h**
 
 In `src/Cable.h`, after the existing `FindNode` declaration (line 10), add:
+
 ```cpp
 DeviceNode*       FindNodeMut(std::vector<DeviceNode>& nodes, int id);
 ```
@@ -135,6 +145,7 @@ DeviceNode*       FindNodeMut(std::vector<DeviceNode>& nodes, int id);
 - [ ] **Step 6: Implement `FindNodeMut` in Cable.cpp**
 
 In `src/Cable.cpp`, after the existing `FindNode` implementation, add:
+
 ```cpp
 DeviceNode* FindNodeMut(std::vector<DeviceNode>& nodes, int id) {
     for (auto& n : nodes)
@@ -148,6 +159,7 @@ DeviceNode* FindNodeMut(std::vector<DeviceNode>& nodes, int id) {
 ```bash
 make
 ```
+
 Expected: compiles without errors or new warnings. App launches normally.
 
 - [ ] **Step 8: Commit**
@@ -162,6 +174,7 @@ git commit -m "feat(m4.3): add OSPF data model — OspfState, RouterLsa, OspfNei
 ## Task 2: OspfEngine.h + OspfEngine.cpp
 
 **Files:**
+
 - Create: `src/OspfEngine.h`
 - Create: `src/OspfEngine.cpp`
 
@@ -170,6 +183,7 @@ The Makefile uses `$(wildcard src/*.cpp)` — no Makefile change needed.
 - [ ] **Step 1: Create OspfEngine.h**
 
 Create `src/OspfEngine.h`:
+
 ```cpp
 #pragma once
 #include "Device.h"
@@ -486,6 +500,7 @@ std::vector<std::string> UpdateOspf(float dt,
 ```bash
 make
 ```
+
 Expected: compiles without errors. App launches. No functional change yet — `UpdateOspf` is not called from `main.cpp` yet.
 
 - [ ] **Step 5: Commit**
@@ -500,6 +515,7 @@ git commit -m "feat(m4.3): add OspfEngine — Hello FSM, LSDB rebuild, Dijkstra 
 ## Task 3: main.cpp Integration
 
 **Files:**
+
 - Modify: `src/main.cpp`
 
 Wire the engine into the game loop and panel input handlers.
@@ -507,6 +523,7 @@ Wire the engine into the game loop and panel input handlers.
 - [ ] **Step 1: Add `#include "OspfEngine.h"` to main.cpp**
 
 At the top of `src/main.cpp`, among the existing includes, add:
+
 ```cpp
 #include "OspfEngine.h"
 ```
@@ -535,6 +552,7 @@ Find the line `float dt = GetFrameTime();` or the existing `UpdatePacketAnim` ca
 - [ ] **Step 3: Add TAB_OSPF click handler**
 
 In the tab click section (currently lines 300–314 in `main.cpp`), after the existing ARP tab handler:
+
 ```cpp
                 if (CheckCollisionPointRec(screenMouse, PnlArpTabRect())) {
                     ps.activeTab        = TAB_ARP;
@@ -542,7 +560,9 @@ In the tab click section (currently lines 300–314 in `main.cpp`), after the ex
                     ps.activeRouteField = -1;
                 }
 ```
+
 add:
+
 ```cpp
                 if (CheckCollisionPointRec(screenMouse, PnlOspfTabRect())) {
                     ps.activeTab        = TAB_OSPF;
@@ -581,6 +601,7 @@ Still in the same `if (!inCanvas && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))` bl
 ```bash
 make
 ```
+
 Expected: compiles without errors. App launches. OSPF tab click does nothing visible yet (TAB_OSPF case not handled in DrawPanel). Console may show a compile-time note about `TAB_OSPF` not handled in the switch — this is expected and resolved in Task 4.
 
 - [ ] **Step 6: Commit**
@@ -595,6 +616,7 @@ git commit -m "feat(m4.3): wire UpdateOspf into game loop — call per frame, pu
 ## Task 4: Config Panel OSPF Tab UI
 
 **Files:**
+
 - Modify: `src/ConfigPanel.h`
 - Modify: `src/ConfigPanel.cpp`
 - Modify: `src/NetworkCanvas.h`
@@ -603,10 +625,13 @@ git commit -m "feat(m4.3): wire UpdateOspf into game loop — call per frame, pu
 - [ ] **Step 1: Add `TAB_OSPF` to the PanelTab enum in ConfigPanel.h**
 
 In `src/ConfigPanel.h`, replace line 7:
+
 ```cpp
 enum PanelTab { TAB_CONFIG, TAB_ROUTES, TAB_ARP };
 ```
+
 with:
+
 ```cpp
 enum PanelTab { TAB_CONFIG, TAB_ROUTES, TAB_ARP, TAB_OSPF };
 ```
@@ -614,6 +639,7 @@ enum PanelTab { TAB_CONFIG, TAB_ROUTES, TAB_ARP, TAB_OSPF };
 - [ ] **Step 2: Declare the new rect functions in ConfigPanel.h**
 
 After the existing `PnlArpTabRect()` declaration, add:
+
 ```cpp
 Rectangle PnlOspfTabRect();
 Rectangle PnlOspfEnableRect();
@@ -622,10 +648,13 @@ Rectangle PnlOspfEnableRect();
 - [ ] **Step 3: Update `PnlTabW()` for 4 tabs in ConfigPanel.cpp**
 
 In `src/ConfigPanel.cpp`, replace line 13:
+
 ```cpp
 float PnlTabW() { return (PANEL_W - 24 - 8) / 3.0f; }
 ```
+
 with:
+
 ```cpp
 float PnlTabW() { return (PANEL_W - 24 - 12) / 4.0f; }
 ```
@@ -635,6 +664,7 @@ This changes tab width from ~82.7 px to 61.0 px. The existing `PnlConfigTabRect`
 - [ ] **Step 4: Add the new rect functions to ConfigPanel.cpp**
 
 After the `PnlArpTabRect()` implementation in `src/ConfigPanel.cpp`, add:
+
 ```cpp
 Rectangle PnlOspfTabRect() {
     return {(float)(CANVAS_W + 12) + 3.0f * (PnlTabW() + 4.0f), 88.0f, PnlTabW(), 26.0f};
@@ -647,6 +677,7 @@ Rectangle PnlOspfEnableRect() {
 - [ ] **Step 5: Declare `DrawOspfTab` in NetworkCanvas.h**
 
 In `src/NetworkCanvas.h`, after the `DrawArpTab` declaration (line 64), add:
+
 ```cpp
 void DrawOspfTab(const DeviceNode* n);
 ```
@@ -752,6 +783,7 @@ In `src/NetworkCanvas.cpp`, inside `DrawPanel`, there are two changes:
 ```
 
 **7b. Add the TAB_OSPF branch to the tab content section** — replace:
+
 ```cpp
     // Tab content
     if (ps.activeTab == TAB_CONFIG)
@@ -761,7 +793,9 @@ In `src/NetworkCanvas.cpp`, inside `DrawPanel`, there are two changes:
     else
         DrawArpTab(n);
 ```
+
 with:
+
 ```cpp
     // Tab content
     if (ps.activeTab == TAB_CONFIG)
@@ -779,6 +813,7 @@ with:
 ```bash
 make
 ```
+
 Expected: compiles without errors. Launch the app. Add two routers, select one — you should see 4 tabs: Config | Routes | ARP | OSPF. Click OSPF tab — see "OSPF: Disabled" button. For a PC or Switch, the OSPF tab should show "OSPF: routers only".
 
 - [ ] **Step 9: Commit**
@@ -793,6 +828,7 @@ git commit -m "feat(m4.3): add OSPF panel tab — enable toggle, router-id displ
 ## Task 5: Cable OSPF State Coloring
 
 **Files:**
+
 - Modify: `src/NetworkCanvas.cpp` (`DrawAllCables` function)
 
 Cables between two FULL OSPF neighbors render green; cables where at least one side is INIT or 2-WAY render yellow; otherwise the default slate-gray.
@@ -842,6 +878,7 @@ void DrawAllCables(const std::vector<Cable>& cables,
 ```bash
 make
 ```
+
 Expected: compiles without errors. Launch the app. Add two routers, cable them, give each a port IP on the same /30 subnet, enable OSPF on both. After ~2 seconds the cable turns green.
 
 - [ ] **Step 3: Commit**
@@ -862,6 +899,7 @@ git commit -m "feat(m4.4): color cables by OSPF adjacency state — green=FULL, 
 ```bash
 make clean && make
 ```
+
 Expected: zero errors, zero warnings beyond any pre-existing ones.
 
 - [ ] **Step 2: Run the app and exercise the OSPF teaching scenario**
@@ -869,6 +907,7 @@ Expected: zero errors, zero warnings beyond any pre-existing ones.
 Launch `./packet-path`. Perform the following sequence:
 
 **Setup:**
+
 1. Right-click canvas → Add Router Here (place two routers: R1, R2)
 2. Select R1 → Config tab → set Mgmt IP `10.0.0.1/32`, port Gi0/0 IP `192.168.1.1/30`
 3. Select R2 → Config tab → set Mgmt IP `10.0.0.2/32`, port Gi0/0 IP `192.168.1.2/30`
@@ -903,6 +942,7 @@ Launch `./packet-path`. Perform the following sequence:
 git add -A
 git commit -m "chore(m4.3+m4.4): OSPF single-area verified — Hello, FSM, LSDB, SPF, cable coloring all working"
 ```
+
 (Only commit if there are unstaged changes; this step may be a no-op if Tasks 1–5 committed everything.)
 
 ---
@@ -910,6 +950,7 @@ git commit -m "chore(m4.3+m4.4): OSPF single-area verified — Hello, FSM, LSDB,
 ## Self-Review Checklist
 
 **Spec coverage:**
+
 - [x] 4-state FSM (Down → Init → 2-Way → Full) — Phase 2 of UpdateOspf
 - [x] Hello interval (2s) and Dead interval (8s) — OSPF_HELLO_INTERVAL, OSPF_DEAD_INTERVAL constants
 - [x] Router LSA with adjacencies[] + networks[] — GenerateLsa
@@ -925,6 +966,7 @@ git commit -m "chore(m4.3+m4.4): OSPF single-area verified — Hello, FSM, LSDB,
 **No placeholders:** All code is complete and compilable.
 
 **Type consistency:**
+
 - `OspfNeighbor::neighborNodeId` (int) matches `DeviceNode::id` (int) throughout
 - `OspfNeighbor::neighborRouterId` (std::string) matches `RouterLsa::routerId` (std::string)
 - `ROUTE_OSPF` added to both enum and GetRoutingTable

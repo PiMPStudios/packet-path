@@ -23,7 +23,7 @@ It is not a toy model. The simulation engine runs real protocol behavior: OSPF S
 ## Levels
 
 | # | Title | Concepts |
-|---|---|---|
+| --- | --- | --- |
 | 1 | Basic Ping | IP forwarding, ARP, static routes |
 | 2 | Multi-Hop Routing | Default gateway, multi-hop paths |
 | 3 | Router-on-a-Stick | Inter-VLAN routing, subinterfaces |
@@ -45,7 +45,8 @@ It is not a toy model. The simulation engine runs real protocol behavior: OSPF S
 
 ## Features
 
-**Simulation**
+### Simulation
+
 - Animated packet movement along bezier cable curves
 - ARP resolution with request/reply/cache behavior
 - Hop-by-hop forwarding with per-device RIB/FIB
@@ -57,7 +58,8 @@ It is not a toy model. The simulation engine runs real protocol behavior: OSPF S
 - ACL: ordered permit/deny rules applied per interface/direction
 - NAT: PAT/overload translation with connection table
 
-**UI**
+### UI
+
 - Infinite pan/zoom canvas (Camera2D)
 - Drag-and-drop devices (PC, Router, Switch, PE)
 - Click-to-wire bezier cable connections
@@ -76,17 +78,20 @@ It is not a toy model. The simulation engine runs real protocol behavior: OSPF S
 
 ## Building
 
-**Requirements**
+### Requirements
+
 - macOS (tested on macOS 13+)
 - g++ with C++17 support
 - [raylib 5.5](https://github.com/raysan5/raylib) installed via Homebrew or system path
 
-**Install raylib (Homebrew)**
+### Install raylib (Homebrew)
+
 ```bash
 brew install raylib
 ```
 
-**Build and run**
+### Build and run
+
 ```bash
 git clone https://github.com/PiMPStudios/packet-path.git
 cd packet-path
@@ -101,7 +106,7 @@ The Makefile uses `pkg-config` to find raylib automatically, falling back to `/u
 ## Controls
 
 | Input | Action |
-|---|---|
+| --- | --- |
 | `P` / `R` / `S` | Spawn PC / Router / Switch |
 | Left-click | Select device, drag nodes and cables |
 | Right-click | Context menu (send packet, delete, rename) |
@@ -116,7 +121,7 @@ The Makefile uses `pkg-config` to find raylib automatically, falling back to `/u
 
 ## Architecture
 
-```
+```text
 src/
 ├── main.cpp              — game loop, input, state machine
 ├── SimulationEngine      — packet forwarding, protocol dispatch
@@ -144,7 +149,7 @@ All protocol logic lives in `*Engine` classes with no raylib dependency. Renderi
 The simulator is built against published RFCs. Key references in `docs/RFCs/`:
 
 | RFC | Protocol |
-|---|---|
+| --- | --- |
 | RFC 791 | IPv4 |
 | RFC 826 | ARP |
 | RFC 2328 / 5340 | OSPFv2 / OSPFv3 |

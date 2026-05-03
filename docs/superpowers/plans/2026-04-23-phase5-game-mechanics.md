@@ -13,7 +13,7 @@
 ## File Map
 
 | Action | File | Responsibility |
-|--------|------|----------------|
+| -------- | ------ | ---------------- |
 | Create | `include/nlohmann/json.hpp` | Single-header JSON parser (downloaded) |
 | Create | `src/Level.h` | `WinCondition`, `LevelDef`, `LoadLevel`, `ApplyLevel`, `CheckWinConditions` |
 | Create | `src/Level.cpp` | JSON parsing, level application, win-condition runner |
@@ -33,6 +33,7 @@
 ## Task 1: Level data model, JSON loader, win-condition checker (M5.1 + M5.2)
 
 **Files:**
+
 - Create: `include/nlohmann/json.hpp` (downloaded)
 - Create: `src/Level.h`
 - Create: `src/Level.cpp`
@@ -280,6 +281,7 @@ git commit -m "feat(m5.1-m5.2): Level data model, JSON loader, win-condition che
 ## Task 2: Level HUD and win overlay UI (M5.3)
 
 **Files:**
+
 - Create: `src/GameUI.h`
 - Create: `src/GameUI.cpp`
 
@@ -446,6 +448,7 @@ git commit -m "feat(m5.3): GameUI — level HUD badge and win overlay with star 
 ## Task 3: Wire levels into main.cpp (M5.2 + M5.3 game loop integration)
 
 **Files:**
+
 - Modify: `src/main.cpp`
 
 This task makes five precise changes to `main.cpp`. Read the full file before editing to confirm line numbers match (the file is ~565 lines as of this plan).
@@ -656,6 +659,7 @@ git commit -m "feat(m5.2-m5.3): wire level loading, win-condition check, and ove
 ## Task 4: Author 4 level JSON files (M5.4)
 
 **Files:**
+
 - Create: `levels/level_01.json`
 - Create: `levels/level_02.json`
 - Create: `levels/level_03.json`
@@ -663,7 +667,7 @@ git commit -m "feat(m5.2-m5.3): wire level loading, win-condition check, and ove
 
 ### JSON schema reference
 
-```
+```text
 {
   "id":        int           — level number (1-4)
   "title":     string        — shown in HUD badge
@@ -869,6 +873,7 @@ Topology: `PC-A ←→ RTR-1 ←→ RTR-2(ABR) ←→ RTR-3 ←→ PC-B` (5 devi
 Lesson: RTR-2 is an Area Border Router — its left port is in Area 0, right port in Area 1. After convergence, RTR-1 and RTR-3 get O IA (inter-area) routes via RTR-2. The O IA routes appear in orange in the Routes tab.
 
 Area assignments:
+
 - RTR-1: all ports → Area 0 (default)
 - RTR-2: port 3 (left, facing RTR-1) → Area 0; port 1 (right, facing RTR-3) → Area 1
 - RTR-3: all ports → Area 1
@@ -928,6 +933,7 @@ Area assignments:
 ```
 
 Static trace (after OSPF converges):
+
 - PC-A → default via 10.0.0.1 → RTR-1
 - RTR-1 → O IA 10.0.1.0/24 via 10.0.12.2 → RTR-2
 - RTR-2 → O 10.0.1.0/24 via 10.0.23.2 → RTR-3
@@ -950,6 +956,7 @@ Expected: zero errors, zero warnings.
 ```
 
 Manual verification checklist:
+
 - [ ] Press **1**: Level 1 loads — PC-A, RTR-1, PC-B appear on canvas. Level badge shows "LVL 1  Basic Ping  0/1" in yellow.
 - [ ] Right-click PC-A → Send Packet To → click PC-B → green success animation → win overlay appears with "LEVEL COMPLETE!", three gold stars, "✓ PC-A can reach PC-B".
 - [ ] Click **Retry** → level reloads, overlay disappears, badge shows 0/1 again.
@@ -976,7 +983,7 @@ git commit -m "feat(m5.4): 4 CCNA-style level JSON files — ping, static routin
 ### Spec coverage
 
 | Requirement | Task |
-|-------------|------|
+| ------------- | ------ |
 | M5.1 — Level JSON format + loader | Task 1 (Level.h/Level.cpp, nlohmann/json) |
 | M5.1 — `levels/level_01.json` schema | Task 4 (all 4 files) |
 | M5.2 — Win condition checker | Task 1 (`CheckWinConditions`) + Task 3 (hook in main) |

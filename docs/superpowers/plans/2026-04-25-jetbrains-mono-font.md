@@ -12,7 +12,7 @@
 
 ## Parallelisation map
 
-```
+```text
 [pre-done] fonts in assets/fonts/
 Task 1 ──────────────────── Font.h + Font.cpp (font system)
 Task 2 ──────────────────── GameUI scale buttons (GameUI.h + GameUI.cpp only)
@@ -64,6 +64,7 @@ DrawTextEx(GFont(), lbl, {(float)(int)(pp.x - lw * 0.5f), (float)y}, FS(8), Sp(F
 ```
 
 **Required `#include` at top of every converted file:**
+
 ```cpp
 #include "Font.h"
 ```
@@ -76,6 +77,7 @@ DrawTextEx(GFont(), lbl, {(float)(int)(pp.x - lw * 0.5f), (float)y}, FS(8), Sp(F
 ## Task 1: Font system — `Font.h` + `Font.cpp`
 
 **Files:**
+
 - Create: `src/Font.h`
 - Create: `src/Font.cpp`
 - (Makefile uses `$(wildcard src/*.cpp)` — no Makefile change needed)
@@ -173,6 +175,7 @@ git commit -m "feat: add Font.h/cpp — JetBrains Mono loader with unicode codep
 ## Task 2: Menu scale buttons — `GameUI.h` + `GameUI.cpp`
 
 **Files:**
+
 - Modify: `src/GameUI.h` — add `uiScale` to `GameMenuState`; add `uiScaleBtns[4]` + `uiScaleLabelY` to `GameMenuLayout`
 - Modify: `src/GameUI.cpp` — update `ComputeGameMenuLayout` and `DrawGameMenu`
 
@@ -233,6 +236,7 @@ Find the height-accumulation block. After the line that adds the resolution grid
 ```
 
 The surrounding context for reference:
+
 ```cpp
     if (numRes > 0)
         h += numResRows * (RBH + 4.f) - 4.f + 8.f;         // resolution grid
@@ -300,6 +304,7 @@ git commit -m "feat: add UI Scale presets (1x/1.25x/1.5x/2x) to pause menu layou
 ## Task 3: Convert `NetworkCanvas.cpp` (200 call sites)
 
 **Files:**
+
 - Modify: `src/NetworkCanvas.cpp`
 
 > **Depends on Task 1 being committed.** Verify `src/Font.h` exists before starting.
@@ -315,15 +320,19 @@ At the top of `src/NetworkCanvas.cpp`, after the existing includes, add:
 - [ ] **Step 2: Convert all `MeasureText` calls**
 
 Work through the file top to bottom. Every occurrence of:
+
 ```cpp
 MeasureText(expr, size)
 ```
+
 becomes:
+
 ```cpp
 (int)TW(expr, size)
 ```
 
 When the result is stored in a `float` or used in float arithmetic, omit the `(int)` cast:
+
 ```cpp
 float lw = TW(expr, size);
 ```
@@ -331,15 +340,19 @@ float lw = TW(expr, size);
 - [ ] **Step 3: Convert all `DrawText` calls**
 
 Every occurrence of:
+
 ```cpp
 DrawText(text, x, y, size, color);
 ```
+
 becomes:
+
 ```cpp
 DrawTextEx(GFont(), text, {(float)(x), (float)(y)}, FS(size), Sp(FS(size)), color);
 ```
 
 Where `x` and `y` are already `int` expressions like `(int)(n.position.x - tw/2.0f)`, wrap them:
+
 ```cpp
 DrawTextEx(GFont(), text,
            {(float)(int)(n.position.x - tw / 2.0f),
@@ -348,6 +361,7 @@ DrawTextEx(GFont(), text,
 ```
 
 Special attention — `NODE_FONT_SZ` usages (3 call sites near top of file):
+
 ```cpp
 // BEFORE:
 int tw = MeasureText(n.label.c_str(), NODE_FONT_SZ);
@@ -364,6 +378,7 @@ DrawTextEx(GFont(), n.label.c_str(),
 ```
 
 The em dash buffer pattern (two locations ~line 1068, 1082):
+
 ```cpp
 // BEFORE (writes raw UTF-8 em dash into pbuf then passes to DrawText):
 else { pbuf[0]='\xe2'; pbuf[1]='\x80'; pbuf[2]='\x94'; pbuf[3]='\0'; }
@@ -393,6 +408,7 @@ git commit -m "refactor: convert NetworkCanvas.cpp DrawText→DrawTextEx (200 si
 ## Task 4: Convert `GameUI.cpp` (56 call sites)
 
 **Files:**
+
 - Modify: `src/GameUI.cpp`
 
 > **Depends on Task 1 being committed.** Verify `src/Font.h` exists before starting.
@@ -461,6 +477,7 @@ git commit -m "refactor: convert GameUI.cpp DrawText→DrawTextEx (56 sites)"
 ## Task 5: Convert `TraceModal.cpp` (17 call sites)
 
 **Files:**
+
 - Modify: `src/TraceModal.cpp`
 
 > **Depends on Task 1 being committed.** Verify `src/Font.h` exists before starting.
@@ -501,6 +518,7 @@ git commit -m "refactor: convert TraceModal.cpp DrawText→DrawTextEx (17 sites)
 ## Task 6: Wire `main.cpp` + final compile + commit + push
 
 **Files:**
+
 - Modify: `src/main.cpp`
 
 > **Depends on ALL prior tasks being committed** (Font.h exists; GameUI scale buttons exist; all other files converted).
@@ -508,6 +526,7 @@ git commit -m "refactor: convert TraceModal.cpp DrawText→DrawTextEx (17 sites)
 - [ ] **Step 1: Add `Font.h` include to `main.cpp`**
 
 Near the top with other includes:
+
 ```cpp
 #include "Font.h"
 ```
@@ -564,11 +583,13 @@ Find the menu click handler block (inside `menuVisible` LMB-press section). Loca
 - [ ] **Step 5: Replace `DrawFPS` with custom version**
 
 Find:
+
 ```cpp
             if (gameSettings.showFps) DrawFPS(CANVAS_W() - 80, 10);
 ```
 
 Replace with:
+
 ```cpp
             if (gameSettings.showFps) {
                 char fpsBuf[16];
@@ -608,12 +629,14 @@ Expected: clean compile, zero warnings. Fix any errors before proceeding.
 - [ ] **Step 8: Smoke test**
 
 Launch the game:
+
 ```bash
 cd /Users/tweaver/Developer/GitRepos/Packet-Path
 ./packet-path
 ```
 
 Verify:
+
 - [ ] Level select screen renders text in JetBrains Mono (smooth, not pixelated)
 - [ ] Pause menu (M key) shows UI SCALE section with 1x / 1.25x / 1.5x / 2x buttons
 - [ ] Clicking 1.5x scales all text up; clicking 1x returns to normal

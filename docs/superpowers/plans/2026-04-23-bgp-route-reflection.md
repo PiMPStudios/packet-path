@@ -13,7 +13,7 @@
 ## File Map
 
 | File | Change |
-|------|--------|
+| ------ | -------- |
 | `src/Device.h` | Add `isRouteReflector` to `DeviceNode`; add `originatorId`+`clusterList` to `BgpRoute` |
 | `src/Level.cpp` | Parse `isRouteReflector` from JSON |
 | `src/BgpEngine.cpp` | Phase 2b: RR relay logic (CLUSTER_LIST loop prevention, ORIGINATOR_ID stamping) |
@@ -28,6 +28,7 @@
 ## Context for Every Task
 
 This codebase is a C++ network simulator game built with raylib. Key patterns:
+
 - `DeviceNode` (in `src/Device.h`) holds all per-device state including BGP fields.
 - `BgpEngine.cpp` runs every frame: clears state, builds sessions (Phase 1), advertises origins (Phase 2a), relays/reflects routes (Phase 2b), deduplicates.
 - `NetworkCanvas.cpp` contains `DrawBgpTab()` which renders the BGP config panel for a selected router.
@@ -43,6 +44,7 @@ The iBGP full-mesh feature (shipped in the prior session) added `bool ibgp = fal
 ### Task 1: Data model — `isRouteReflector` on DeviceNode + RR attributes on BgpRoute
 
 **Files:**
+
 - Modify: `src/Device.h`
 
 **What and why:** Add `bool isRouteReflector = false;` to `DeviceNode` — the single flag that activates RR behavior. Add `uint32_t originatorId = 0;` and `std::vector<uint32_t> clusterList;` to `BgpRoute` — these carry RFC 4456 ORIGINATOR_ID and CLUSTER_LIST through the relay chain and are used for loop detection.
@@ -50,12 +52,14 @@ The iBGP full-mesh feature (shipped in the prior session) added `bool ibgp = fal
 - [ ] **Step 1: Locate the structs**
 
 Open `src/Device.h`. The two structs to modify are:
+
 - `BgpRoute` (around line 29) — add two new fields
 - `DeviceNode` (around line 122) — add `isRouteReflector` near the other BGP fields (around line 145)
 
 - [ ] **Step 2: Add fields to `BgpRoute`**
 
 Current `BgpRoute` (lines 29–34):
+
 ```cpp
 struct BgpRoute {
     std::string           prefix;           // CIDR e.g. "10.0.0.0/24"
@@ -66,6 +70,7 @@ struct BgpRoute {
 ```
 
 Replace with:
+
 ```cpp
 struct BgpRoute {
     std::string           prefix;
@@ -80,6 +85,7 @@ struct BgpRoute {
 - [ ] **Step 3: Add `isRouteReflector` to `DeviceNode`**
 
 Locate the BGP state block in `DeviceNode` (around line 145):
+
 ```cpp
     // BGP state (routers only)
     bool                     bgpEnabled  = false;
@@ -90,6 +96,7 @@ Locate the BGP state block in `DeviceNode` (around line 145):
 ```
 
 Replace with:
+
 ```cpp
     // BGP state (routers only)
     bool                     bgpEnabled       = false;
@@ -120,6 +127,7 @@ git commit -m "feat(rr): add isRouteReflector to DeviceNode and RR attrs to BgpR
 ### Task 2: Level.cpp — parse `isRouteReflector` from JSON
 
 **Files:**
+
 - Modify: `src/Level.cpp`
 
 **What and why:** Levels pre-configure `isRouteReflector = true` on the RR router in JSON. Without this, the Level 8 briefing can't pre-wire the RR toggle — students would have to discover it themselves. This task adds a one-liner to `LoadLevel()`.
@@ -127,6 +135,7 @@ git commit -m "feat(rr): add isRouteReflector to DeviceNode and RR attrs to BgpR
 - [ ] **Step 1: Locate the BGP field block in `LoadLevel()`**
 
 In `src/Level.cpp`, find the BGP loading block (around line 40):
+
 ```cpp
         n.bgpEnabled = d.value("bgpEnabled", false);
         n.localAsn   = (uint32_t)d.value("localAsn",  0);
@@ -138,6 +147,7 @@ In `src/Level.cpp`, find the BGP loading block (around line 40):
 - [ ] **Step 2: Add `isRouteReflector` parsing**
 
 Replace the above block with:
+
 ```cpp
         n.bgpEnabled       = d.value("bgpEnabled",       false);
         n.isRouteReflector = d.value("isRouteReflector", false);
@@ -167,9 +177,11 @@ git commit -m "feat(rr): parse isRouteReflector from level JSON"
 ### Task 3: BgpEngine — Route Reflector relay logic
 
 **Files:**
+
 - Modify: `src/BgpEngine.cpp`
 
 **What and why:** This is the core engine change. In Phase 2b, the current split-horizon check (`if (nb.ibgp) { ... block iBGP→iBGP relay }`) is replaced with a two-branch block:
+
 - If `n.isRouteReflector`: apply CLUSTER_LIST loop prevention instead of split-horizon — allow relay to iBGP clients.
 - If NOT RR: keep classic split-horizon (unchanged behavior for non-RR routers).
 
@@ -347,6 +359,7 @@ git commit -m "feat(rr): Route Reflector relay — CLUSTER_LIST loop prevention,
 ### Task 4: BGP tab UI — Route Reflector toggle + client label
 
 **Files:**
+
 - Modify: `src/ConfigPanel.h`
 - Modify: `src/ConfigPanel.cpp`
 - Modify: `src/NetworkCanvas.cpp`
@@ -354,6 +367,7 @@ git commit -m "feat(rr): Route Reflector relay — CLUSTER_LIST loop prevention,
 **What and why:** Students need a toggle in the BGP tab to mark a router as a Route Reflector. The toggle appears only when BGP is enabled AND ASN > 0 (the "Set ASN..." warning takes its y-slot when ASN == 0). When a router IS an RR, the NEIGHBORS section header changes to CLIENTS to reinforce the concept.
 
 Layout after this task (BGP tab y-coordinates):
+
 - `y=120`: BGP Enable/Disable button (26px, unchanged)
 - `y=152`: ASN row (unchanged)
 - `y=182`: Route Reflector toggle (22px) — shown when `localAsn > 0`; OR "Set ASN..." warning — shown when `localAsn == 0`
@@ -362,6 +376,7 @@ Layout after this task (BGP tab y-coordinates):
 - [ ] **Step 1: Declare `PnlBgpRrRect()` in ConfigPanel.h**
 
 Open `src/ConfigPanel.h`. Find the BGP rect declarations (around line 33):
+
 ```cpp
 Rectangle PnlBgpTabRect();
 Rectangle PnlBgpToggleRect();
@@ -369,6 +384,7 @@ Rectangle PnlBgpAsnRect();
 ```
 
 Replace with:
+
 ```cpp
 Rectangle PnlBgpTabRect();
 Rectangle PnlBgpToggleRect();
@@ -379,6 +395,7 @@ Rectangle PnlBgpRrRect();
 - [ ] **Step 2: Implement `PnlBgpRrRect()` in ConfigPanel.cpp**
 
 Open `src/ConfigPanel.cpp`. Find the `PnlBgpAsnRect()` implementation (around line 46):
+
 ```cpp
 Rectangle PnlBgpAsnRect() {
     return {(float)(CANVAS_W + 56), 152.0f, (float)(PANEL_W - 68), 22.0f};
@@ -386,6 +403,7 @@ Rectangle PnlBgpAsnRect() {
 ```
 
 Add `PnlBgpRrRect()` directly after it:
+
 ```cpp
 Rectangle PnlBgpAsnRect() {
     return {(float)(CANVAS_W + 56), 152.0f, (float)(PANEL_W - 68), 22.0f};
@@ -398,6 +416,7 @@ Rectangle PnlBgpRrRect() {
 - [ ] **Step 3: Update `DrawBgpTab()` in NetworkCanvas.cpp**
 
 Open `src/NetworkCanvas.cpp`. Find the section after the ASN field draw (around line 653):
+
 ```cpp
     if (n->localAsn == 0)
         DrawText("Set ASN to form sessions", CANVAS_W + 12, y + 28, 10,
@@ -410,6 +429,7 @@ Open `src/NetworkCanvas.cpp`. Find the section after the ASN field draw (around 
 ```
 
 Replace this section with:
+
 ```cpp
     if (n->localAsn == 0) {
         DrawText("Set ASN to form sessions", CANVAS_W + 12, y + 30, 10,
@@ -448,6 +468,7 @@ Expected: single compile line, no errors.
 - [ ] **Step 5: Manual visual check**
 
 Run `./packet-path`. Open Level 7 (press `7`). Select RTR-1. Click BGP tab.
+
 - With ASN=0: "Set ASN to form sessions" shows at the usual spot. No RR toggle yet. ✓
 - Set ASN=100 (click ASN field, type 100, Enter). "Route Reflector: OFF" button appears in purple/dark. ✓
 - NEIGHBORS label shows (not CLIENTS since RTR-1 is not an RR). ✓
@@ -464,6 +485,7 @@ git commit -m "feat(rr): add Route Reflector toggle button and CLIENTS label to 
 ### Task 5: Input handler — wire RR toggle click + extend level count to 8
 
 **Files:**
+
 - Modify: `src/main.cpp`
 
 **What and why:** The RR toggle button drawn in Task 4 has no click handler yet — clicks pass through. This task wires the click, toggles `isRouteReflector`, and extends the level count from 7 to 8 (four occurrences: the loop bound, two `currentLevel < 7` guards, and the HUD text).
@@ -471,6 +493,7 @@ git commit -m "feat(rr): add Route Reflector toggle button and CLIENTS label to 
 - [ ] **Step 1: Find the BGP tab click handler**
 
 In `src/main.cpp`, search for `TAB_BGP`. The click handler block (around line 601) looks like:
+
 ```cpp
                 if (ps.activeTab == TAB_BGP) {
                     // ...
@@ -487,12 +510,14 @@ In `src/main.cpp`, search for `TAB_BGP`. The click handler block (around line 60
 - [ ] **Step 2: Add RR rect click after the ASN rect check**
 
 Find the line:
+
 ```cpp
                         if (selNode->bgpEnabled &&
                             CheckCollisionPointRec(screenMouse, PnlBgpAsnRect())) {
 ```
 
 After the closing brace `}` of that `if` block, add:
+
 ```cpp
                         if (selNode->bgpEnabled && selNode->localAsn > 0 &&
                             CheckCollisionPointRec(screenMouse, PnlBgpRrRect())) {
@@ -503,11 +528,13 @@ After the closing brace `}` of that `if` block, add:
 - [ ] **Step 3: Extend level count — loop bound**
 
 Find line 66 (the keyboard shortcut loop):
+
 ```cpp
                 for (int k = 1; k <= 7; ++k) {
 ```
 
 Change the comment on line 64 and the loop bound on line 66:
+
 ```cpp
             // Level shortcuts: 1–8 load JSON levels, 0 returns to sandbox
             if (ps.activePortAreaField == -1) {
@@ -517,11 +544,13 @@ Change the comment on line 64 and the loop bound on line 66:
 - [ ] **Step 4: Extend level count — "Next Level" win overlay guard**
 
 Find (around line 185):
+
 ```cpp
                            currentLevel < 7) {
 ```
 
 Change to:
+
 ```cpp
                            currentLevel < 8) {
 ```
@@ -529,11 +558,13 @@ Change to:
 - [ ] **Step 5: Extend level count — win overlay draw**
 
 Find (around line 804):
+
 ```cpp
                 DrawWinOverlay(activeLevelDef, currentLevel < 7);
 ```
 
 Change to:
+
 ```cpp
                 DrawWinOverlay(activeLevelDef, currentLevel < 8);
 ```
@@ -541,11 +572,13 @@ Change to:
 - [ ] **Step 6: Extend level count — HUD text**
 
 Find (around line 810):
+
 ```cpp
                      "Drag-port=Cable  Esc=Cancel  1-7=Level  0=Sandbox",
 ```
 
 Change to:
+
 ```cpp
                      "Drag-port=Cable  Esc=Cancel  1-8=Level  0=Sandbox",
 ```
@@ -574,13 +607,15 @@ git commit -m "feat(rr): wire Route Reflector toggle click; extend level count t
 ### Task 6: Level 8 — Route Reflection teaching scenario
 
 **Files:**
+
 - Create: `levels/level_08.json`
 
 **What and why:** Level 8 teaches that a Route Reflector inside an AS enables clients to learn external routes without a direct eBGP session to the border router. Topology: PC-A → RTR-B (AS100, client) ↔ iBGP ↔ RTR-A (AS100, RR, pre-set `isRouteReflector=true`) ↔ eBGP ↔ RTR-D (AS200) → PC-B. The student sets the three ASNs; the RR toggle is pre-wired on RTR-A. RTR-B's RIB shows 172.16.0.0/24 reflected from RTR-A. Win condition: PC-A → PC-B.
 
 IP plan:
+
 | Device | Port | IP | Role |
-|--------|------|----|------|
+| -------- | ------ | ---- | ------ |
 | PC-A | port1 | 10.0.0.2/24 | source |
 | RTR-B | port3 | 10.0.0.1/24 | LAN facing PC-A |
 | RTR-B | port1 | 10.1.0.2/30 | link to RTR-A |
@@ -689,6 +724,7 @@ git commit -m "feat(rr): add Level 8 BGP Route Reflection teaching scenario"
 ## Self-Review
 
 ### Spec coverage
+
 - [x] `isRouteReflector` flag on DeviceNode — Task 1
 - [x] Automatic client behavior (all same-AS iBGP peers are clients) — Task 3 (no per-neighbor flag needed; all iBGP neighbors of an RR are clients by definition in Option A design)
 - [x] Route reflection logic in BgpEngine Phase 2b — Task 3
@@ -701,15 +737,18 @@ git commit -m "feat(rr): add Level 8 BGP Route Reflection teaching scenario"
 - [x] Level count extended to 8 (4 occurrences in main.cpp) — Task 5
 
 ### Placeholder scan
+
 No TBDs, TODOs, or vague steps found.
 
 ### Type consistency
+
 - `n.isRouteReflector` — field name matches across Device.h (definition), BgpEngine.cpp (read), NetworkCanvas.cpp (read), main.cpp (write).
 - `relay.originatorId` / `relay.clusterList` — field names match BgpRoute definition in Device.h.
 - `PnlBgpRrRect()` — declared in ConfigPanel.h, defined in ConfigPanel.cpp, called in NetworkCanvas.cpp and main.cpp.
 - All y-coordinates in DrawBgpTab: ASN stays at 152, RR at 182, NEIGHBORS/CLIENTS section at 210.
 
 ### Ambiguity resolved
+
 - "Automatic client behavior" in Option A means: no per-neighbor client flag. Any same-AS iBGP neighbor of an RR is implicitly a client. This is implemented in BgpEngine by the `n.isRouteReflector` branch — the RR's iBGP neighbors are all treated as clients without any additional flag.
 - ORIGINATOR_ID is set to `learned.neighborNodeId` (the client's node ID) on first reflection. If already set (route was reflected by another RR), it's preserved.
 - Level 8 pre-sets `isRouteReflector=true` on RTR-A so students observe the effect without having to discover the toggle — the briefing draws their attention to RTR-B's RIB instead.

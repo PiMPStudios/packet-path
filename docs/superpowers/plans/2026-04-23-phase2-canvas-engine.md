@@ -13,7 +13,7 @@
 ## File Map
 
 | File | Status | Responsibility |
-|---|---|---|
+| --- | --- | --- |
 | `src/main.cpp` | Modify | Add PANEL_W/CANVAS_W constants; extend DeviceNode; add DrawTextField, ValidateIP, UpdateTextField, GetPortName, DrawPanel, DrawContextMenu, HitTestCable, ExecuteMenuAction; update camera offset, mouse guard, ESC handling, spawn/delete key gating |
 
 ---
@@ -33,6 +33,7 @@ Phase 2 builds on the final Phase 1 + carry-forward `src/main.cpp` (~340 lines) 
 ## Task 1: M2.1 — Fixed Right Sidebar (Visual Shell)
 
 **Files:**
+
 - Modify: `src/main.cpp`
 
 Add the panel background, border, header, and placeholder. No text fields yet.
@@ -41,11 +42,13 @@ Camera offset shifts to canvas center. Mouse input is guarded to the left 1000px
 - [ ] **Step 1: Add four panel constants after the existing constants block**
 
 Current constants block ends at:
+
 ```cpp
 static const Color BG_COLOR     = {15, 23, 42, 255};
 ```
 
 Add immediately after:
+
 ```cpp
 static const int   PANEL_W      = 280;
 static const int   CANVAS_W     = SCREEN_W - PANEL_W;   // 1000
@@ -56,11 +59,13 @@ static const Color PANEL_BORDER = {51, 65, 85, 255};
 - [ ] **Step 2: Fix DrawDotGrid — canvas width, not screen width**
 
 In `DrawDotGrid`, find this line:
+
 ```cpp
     Vector2 botRight = GetScreenToWorld2D({(float)SCREEN_W, (float)SCREEN_H}, cam);
 ```
 
 Replace with:
+
 ```cpp
     Vector2 botRight = GetScreenToWorld2D({(float)CANVAS_W, (float)SCREEN_H}, cam);
 ```
@@ -110,11 +115,13 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes) {
 - [ ] **Step 4: Shift camera offset to canvas centre in `main()`**
 
 Find the camera initialization block in `main()`:
+
 ```cpp
     camera.offset   = {SCREEN_W / 2.0f, SCREEN_H / 2.0f};
 ```
 
 Replace with:
+
 ```cpp
     camera.offset   = {CANVAS_W / 2.0f, SCREEN_H / 2.0f};
 ```
@@ -122,12 +129,14 @@ Replace with:
 - [ ] **Step 5: Add canvas mouse guard in main() — gate all canvas input**
 
 In `main()`, find:
+
 ```cpp
         Vector2 screenMouse = GetMousePosition();
         Vector2 worldMouse  = GetScreenToWorld2D(screenMouse, camera);
 ```
 
 Add immediately after:
+
 ```cpp
         bool inCanvas = (screenMouse.x < (float)CANVAS_W);
 ```
@@ -135,6 +144,7 @@ Add immediately after:
 Then wrap every canvas interaction that currently starts with `if (IsKey...` or `if (IsMouseButton...` (spawn keys, ESC, DELETE, camera pan, camera zoom, LMB pressed, LMB held, LMB released) so they only fire when in canvas. Specifically:
 
 Replace:
+
 ```cpp
         // ── Spawn / delete / cancel ────────────────────────────────────
         if (IsKeyPressed(KEY_P)) nodes.push_back(SpawnNode(PC,     worldMouse));
@@ -145,6 +155,7 @@ Replace:
 ```
 
 With:
+
 ```cpp
         // ── Spawn / delete / cancel (canvas only) ─────────────────────
         if (inCanvas) {
@@ -157,67 +168,86 @@ With:
 ```
 
 Replace the camera pan guard:
+
 ```cpp
         if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE)) {
 ```
+
 With:
+
 ```cpp
         if (inCanvas && IsMouseButtonDown(MOUSE_BUTTON_MIDDLE)) {
 ```
 
 Replace the zoom guard:
+
 ```cpp
         float wheel = std::clamp(GetMouseWheelMove(), -3.0f, 3.0f);
         if (wheel != 0.0f) {
 ```
+
 With:
+
 ```cpp
         float wheel = inCanvas ? std::clamp(GetMouseWheelMove(), -3.0f, 3.0f) : 0.0f;
         if (wheel != 0.0f) {
 ```
 
 Replace the LMB pressed guard:
+
 ```cpp
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
 ```
+
 With:
+
 ```cpp
         if (inCanvas && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
 ```
 
 Replace the LMB held guard (both the drag and connecting blocks inside):
+
 ```cpp
         if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
 ```
+
 With:
+
 ```cpp
         if (inCanvas && IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
 ```
 
 Replace the LMB released guard:
+
 ```cpp
         if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
 ```
+
 With:
+
 ```cpp
         if (inCanvas && IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
 ```
 
 The DELETE key guard stays ungated by inCanvas (keyboard shortcut works from anywhere):
+
 ```cpp
         if (IsKeyPressed(KEY_DELETE) && selectedId != -1) {
 ```
+
 This stays as-is.
 
 - [ ] **Step 6: Call DrawPanel in the draw block**
 
 In the draw block, find the HUD line drawn after `EndMode2D()`:
+
 ```cpp
             DrawFPS(SCREEN_W - 80, 10);
             DrawText("P=PC  R=Router ...",
 ```
 
 Update to call DrawPanel before the FPS counter and narrow the hint bar to canvas width:
+
 ```cpp
             DrawPanel(selectedId, nodes);
             DrawFPS(SCREEN_W - 80, 10);
@@ -240,6 +270,7 @@ Expected: zero warnings, binary produced.
 ```
 
 Expected:
+
 - Left 1000px is the canvas with dot grid; right 280px is a dark navy panel with subtle left border
 - Panel header reads "CONFIGURATION" in grey at the top
 - When no node selected: panel centre shows "<- Select a device" in muted grey
@@ -260,6 +291,7 @@ git commit -m "feat(m2.1): fixed right sidebar panel shell with canvas mouse gua
 ## Task 2: M2.2 — IP Address Input + Text Field System
 
 **Files:**
+
 - Modify: `src/main.cpp`
 
 Add `mgmtIp` to `DeviceNode`. Implement `ValidateIP`, `UpdateTextField`, `DrawTextField`, `PanelState`. Wire up panel click-to-focus, typing, backspace, blinking cursor, and validation colour feedback.
@@ -267,6 +299,7 @@ Add `mgmtIp` to `DeviceNode`. Implement `ValidateIP`, `UpdateTextField`, `DrawTe
 - [ ] **Step 1: Add `#include <cstdio>` at the top of the file**
 
 After the existing includes block:
+
 ```cpp
 #include "raylib.h"
 #include <string>
@@ -276,6 +309,7 @@ After the existing includes block:
 ```
 
 Add:
+
 ```cpp
 #include <cstdio>    // sscanf
 ```
@@ -283,12 +317,14 @@ Add:
 - [ ] **Step 2: Extend DeviceNode with `mgmtIp`**
 
 Find the `DeviceNode` struct. It currently ends with:
+
 ```cpp
     bool        selected = false;
 };
 ```
 
 Replace with:
+
 ```cpp
     bool        selected = false;
     std::string mgmtIp;     // "x.x.x.x/xx", empty = unconfigured
@@ -298,6 +334,7 @@ Replace with:
 - [ ] **Step 3: Add PanelState struct above `main()`**
 
 Add immediately before `static int nextId = 1;`:
+
 ```cpp
 // ── Panel UI state ────────────────────────────────────────────────────────
 struct PanelState {
@@ -314,6 +351,7 @@ Rectangle PnlFieldRect(int yOffset) {
 - [ ] **Step 4: Add `ValidateIP` function above `main()`**
 
 Add after the `PanelState` block:
+
 ```cpp
 bool ValidateIP(const std::string& ip) {
     int a, b, c, d, prefix;
@@ -428,6 +466,7 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
 - [ ] **Step 8: Declare PanelState and prevSelectedId in `main()` vars block**
 
 In `main()`, after the existing variable declarations (selectedId, dragging, etc.), add:
+
 ```cpp
     PanelState ps;
     int        prevSelectedId = -2;  // -2 forces a reset on first frame
@@ -476,6 +515,7 @@ Immediately after the panel click-to-focus block, add:
 - [ ] **Step 11: Gate spawn/delete keyboard shortcuts on no active field**
 
 Find the spawn keys block (now inside `if (inCanvas)`):
+
 ```cpp
         if (inCanvas) {
             if (IsKeyPressed(KEY_P)) nodes.push_back(SpawnNode(PC,     worldMouse));
@@ -485,6 +525,7 @@ Find the spawn keys block (now inside `if (inCanvas)`):
 ```
 
 Replace with:
+
 ```cpp
         if (inCanvas && ps.activeField == -1) {
             if (IsKeyPressed(KEY_P)) nodes.push_back(SpawnNode(PC,     worldMouse));
@@ -494,10 +535,13 @@ Replace with:
 ```
 
 Find the DELETE key block:
+
 ```cpp
         if (IsKeyPressed(KEY_DELETE) && selectedId != -1) {
 ```
+
 Replace with:
+
 ```cpp
         if (ps.activeField == -1 && IsKeyPressed(KEY_DELETE) && selectedId != -1) {
 ```
@@ -505,6 +549,7 @@ Replace with:
 - [ ] **Step 12: Update ESC key handling — field takes priority over wire cancel**
 
 Find the current ESC block:
+
 ```cpp
         if (IsKeyPressed(KEY_ESCAPE) && connecting) {
             connecting  = false;
@@ -514,6 +559,7 @@ Find the current ESC block:
 ```
 
 Replace with:
+
 ```cpp
         if (IsKeyPressed(KEY_ESCAPE)) {
             if (ps.activeField != -1) {
@@ -529,11 +575,13 @@ Replace with:
 - [ ] **Step 13: Update DrawPanel call to pass PanelState**
 
 Find the DrawPanel call in the draw block:
+
 ```cpp
             DrawPanel(selectedId, nodes);
 ```
 
 Replace with:
+
 ```cpp
             DrawPanel(selectedId, nodes, ps);
 ```
@@ -553,6 +601,7 @@ Expected: zero warnings.
 ```
 
 Expected:
+
 - Select a PC or Router → panel shows "Hostname" and "Mgmt IP" text fields below the GENERAL section label
 - Click the Hostname field → white border appears, blinking cursor visible
 - Type characters → they appear in the field AND update the node label on the canvas in real time
@@ -578,6 +627,7 @@ git commit -m "feat(m2.2): IP address input fields with validation, PanelState f
 ## Task 3: M2.3 — Per-Port Interface Config
 
 **Files:**
+
 - Modify: `src/main.cpp`
 
 Add `portIp[4]` to DeviceNode and show four interface rows in the panel (one per port), each with a read-only port name and an editable IP field with the same validation as mgmtIp.
@@ -585,12 +635,14 @@ Add `portIp[4]` to DeviceNode and show four interface rows in the panel (one per
 - [ ] **Step 1: Extend DeviceNode with `portIp[4]`**
 
 Find the DeviceNode struct. It currently ends with:
+
 ```cpp
     std::string mgmtIp;     // "x.x.x.x/xx", empty = unconfigured
 };
 ```
 
 Replace with:
+
 ```cpp
     std::string mgmtIp;        // "x.x.x.x/xx", empty = unconfigured
     std::string portIp[4];     // per-port IPs, same format
@@ -600,6 +652,7 @@ Replace with:
 - [ ] **Step 2: Add `PnlPortFieldRect` helper and update `PanelState` comment**
 
 Find the `PnlFieldRect` helper:
+
 ```cpp
 Rectangle PnlFieldRect(int yOffset) {
     return {(float)(CANVAS_W + 12), (float)yOffset, (float)(PANEL_W - 24), 26.0f};
@@ -607,6 +660,7 @@ Rectangle PnlFieldRect(int yOffset) {
 ```
 
 Add immediately after it:
+
 ```cpp
 Rectangle PnlPortFieldRect(int port) {
     return {(float)(CANVAS_W + 80), 240.0f + port * 44, (float)(PANEL_W - 92), 24.0f};
@@ -614,6 +668,7 @@ Rectangle PnlPortFieldRect(int port) {
 ```
 
 Also update the PanelState comment (for clarity — no code change needed):
+
 ```cpp
     // -1=none  0=label(hostname)  1=mgmtIp  2-5=portIp[0-3]
 ```
@@ -621,6 +676,7 @@ Also update the PanelState comment (for clarity — no code change needed):
 - [ ] **Step 3: Add `GetPortName` function above `main()`**
 
 Add after `ValidateIP`:
+
 ```cpp
 std::string GetPortName(DeviceType type, int port) {
     if (type == PC) {
@@ -654,11 +710,13 @@ In `DrawPanel`, after the mgmtIp `DrawTextField` call, add:
 - [ ] **Step 5: Add port field click-to-focus**
 
 In the `// ── Panel click-to-focus` block (added in Task 2), after the existing mgmtIp check:
+
 ```cpp
                 if (CheckCollisionPointRec(screenMouse, PnlFieldRect(178))) ps.activeField = 1;
 ```
 
 Add:
+
 ```cpp
                 for (int i = 0; i < PORTS_PER_NODE; ++i)
                     if (CheckCollisionPointRec(screenMouse, PnlPortFieldRect(i)))
@@ -668,11 +726,13 @@ Add:
 - [ ] **Step 6: Add port field update to the text field update block**
 
 In the `// ── Text field update` block, after the existing mgmtIp UpdateTextField call:
+
 ```cpp
                 if (ps.activeField == 1) UpdateTextField(selNode->mgmtIp, 18);
 ```
 
 Add:
+
 ```cpp
                 for (int i = 0; i < PORTS_PER_NODE; ++i)
                     if (ps.activeField == 2 + i) UpdateTextField(selNode->portIp[i], 18);
@@ -693,6 +753,7 @@ Expected: zero warnings.
 ```
 
 Expected:
+
 - Select any node → panel now shows INTERFACES section with 4 rows below the GENERAL section
 - PC shows "eth0", "eth1", "eth2", "eth3"; Router/Switch shows "Gi0/0" through "Gi0/3"
 - Each row has a port name on the left and a clickable IP field on the right
@@ -716,6 +777,7 @@ git commit -m "feat(m2.3): per-port interface IP config rows in sidebar panel"
 ## Task 4: M2.4 — Right-Click Context Menu
 
 **Files:**
+
 - Modify: `src/main.cpp`
 
 Add right-click context menus: node menu (Rename, Delete), cable menu (Delete Cable), canvas menu (Add PC/Router/Switch Here, Reset View). Bezier cables are hit-tested by sampling 20 points.
@@ -868,6 +930,7 @@ void ExecuteMenuAction(ContextMenu& menu, std::vector<DeviceNode>& nodes,
 - [ ] **Step 5: Declare ContextMenu in `main()` vars block**
 
 In `main()`, after `PanelState ps;`, add:
+
 ```cpp
     ContextMenu contextMenu;
 ```
@@ -914,12 +977,14 @@ After the `// ── LMB released` block and before the panel click-to-focus blo
 - [ ] **Step 7: Update LMB pressed handling — dismiss or execute context menu first**
 
 Find the `// ── LMB pressed` block. It currently starts:
+
 ```cpp
         if (inCanvas && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             int pNode = -1, pPort = -1;
 ```
 
 Replace the opening with:
+
 ```cpp
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             if (contextMenu.visible) {
@@ -931,6 +996,7 @@ Replace the opening with:
 ```
 
 Then add a closing `}` for the new `else if (inCanvas)` block. Find the end of the existing LMB pressed block — after:
+
 ```cpp
                     selectedId = -1;
                     dragging   = false;
@@ -956,6 +1022,7 @@ The outer `}` closes the original `if (IsMouseButtonPressed(...))`. You now need
 - [ ] **Step 8: Add ESC to dismiss context menu**
 
 In the ESC handling block:
+
 ```cpp
         if (IsKeyPressed(KEY_ESCAPE)) {
             if (ps.activeField != -1) {
@@ -964,6 +1031,7 @@ In the ESC handling block:
 ```
 
 Add `contextMenu.visible = false;` at the start so any ESC always closes the menu:
+
 ```cpp
         if (IsKeyPressed(KEY_ESCAPE)) {
             contextMenu.visible = false;
@@ -980,6 +1048,7 @@ Add `contextMenu.visible = false;` at the start so any ESC always closes the men
 - [ ] **Step 9: Call DrawContextMenu in the draw block**
 
 In the draw block, after `DrawPanel(selectedId, nodes, ps);` and before `DrawFPS(...)`:
+
 ```cpp
             DrawContextMenu(contextMenu, screenMouse);
 ```
@@ -999,6 +1068,7 @@ Expected: zero warnings.
 ```
 
 Expected:
+
 - **Node context menu:** Right-click a device node → small dark popup appears with "Rename" and "Delete"; hover items highlight; click elsewhere dismisses
   - "Rename": node selects (if not already) and hostname field in panel activates (white border + cursor)
   - "Delete": node and its cables disappear (same as Delete key)
@@ -1037,6 +1107,7 @@ Then open a PR into `main` and merge after review.
 ## Self-Review
 
 **Spec coverage:**
+
 - ✅ M2.1: Fixed 280px right sidebar, canvas mouse guard, camera offset shift, placeholder/header/badge (Task 1)
 - ✅ M2.2: IP text field system (UpdateTextField, ValidateIP, DrawTextField), hostname + mgmtIp fields, focus management, key gating, ESC priority (Task 2)
 - ✅ M2.3: portIp[4], 4 interface rows with per-device port names, independent focus for each port field (Task 3)
@@ -1045,6 +1116,7 @@ Then open a PR into `main` and merge after review.
 **Placeholder scan:** No TBDs, TODOs, or vague steps. Every step has complete code or an exact command with expected output.
 
 **Type consistency:**
+
 - `PanelState.activeField`: 0=label, 1=mgmtIp, 2-5=portIp[0-3] — consistent across Tasks 2, 3 (panel click, update, draw)
 - `PnlFieldRect(126)`, `PnlFieldRect(178)`, `PnlPortFieldRect(0-3)` — same helper used in both DrawPanel and panel click-to-focus
 - `DrawTextField(r, topLabel, placeholder, value, active, valid)` — 6-arg signature consistent across all call sites

@@ -13,7 +13,7 @@
 ## File Map
 
 | File | Status | Responsibility |
-|---|---|---|
+| --- | --- | --- |
 | `Makefile` | Create | Compile `src/main.cpp` → `./packet-path`, link raylib |
 | `src/main.cpp` | Create | Everything: structs, draw functions, input, game loop |
 
@@ -22,6 +22,7 @@
 ## Task 0: Pre-Phase — Makefile + raylib Window
 
 **Files:**
+
 - Create: `Makefile`
 - Create: `src/main.cpp`
 
@@ -41,10 +42,10 @@ SRC    = src/main.cpp
 all: $(TARGET)
 
 $(TARGET): $(SRC)
-	$(CC) $(CFLAGS) $(INCLUDES) $(SRC) $(LIBS) -o $(TARGET)
+ $(CC) $(CFLAGS) $(INCLUDES) $(SRC) $(LIBS) -o $(TARGET)
 
 clean:
-	rm -f $(TARGET)
+ rm -f $(TARGET)
 
 .PHONY: all clean
 ```
@@ -91,6 +92,7 @@ Expected: compiles with zero warnings, produces `./packet-path`.
 ```
 
 Expected:
+
 - 1280×720 dark navy window opens
 - FPS counter visible in top-left, steady at 60
 - Window closes cleanly on ✕ or Escape key
@@ -107,6 +109,7 @@ git commit -m "feat(pre): raylib window + Makefile build system"
 ## Task 1: M1.1 — Single Draggable DeviceNode
 
 **Files:**
+
 - Modify: `src/main.cpp`
 
 - [ ] **Step 1: Add constants, enum, and struct above `main()`**
@@ -234,6 +237,7 @@ Expected: zero warnings.
 ```
 
 Expected:
+
 - Blue rounded rectangle labelled "PC-1" at screen centre
 - Click and hold the node body → node follows mouse
 - Release → node stays at new position
@@ -252,6 +256,7 @@ git commit -m "feat(m1.1): single draggable DeviceNode with selection"
 ## Task 2: M1.2 — Multiple Nodes + Device Types + Selection
 
 **Files:**
+
 - Modify: `src/main.cpp`
 
 - [ ] **Step 1: Replace the data section and main() with multi-node support**
@@ -425,6 +430,7 @@ Expected: zero warnings.
 ```
 
 Expected:
+
 - One blue PC node at start
 - Press `P` → new blue PC spawns near centre
 - Press `R` → orange Router spawns near centre
@@ -448,6 +454,7 @@ git commit -m "feat(m1.2): multiple nodes, device types, P/R/S spawn, Delete key
 ## Task 3: M1.3 — Camera 2D — Pan & Zoom
 
 **Files:**
+
 - Modify: `src/main.cpp`
 
 - [ ] **Step 1: Add dot-grid draw function above `main()`**
@@ -602,6 +609,7 @@ Expected: zero warnings.
 ```
 
 Expected:
+
 - Dot grid visible across entire canvas
 - Hold middle mouse button + drag → canvas pans smoothly
 - Scroll wheel up/down → zooms in/out, anchored on cursor position (nodes don't jump)
@@ -622,6 +630,7 @@ git commit -m "feat(m1.3): Camera2D pan/zoom with cursor-anchored scroll and dot
 ## Task 4: M1.4 — Cable Draw + Port Snap
 
 **Files:**
+
 - Modify: `src/main.cpp`
 
 - [ ] **Step 1: Add port constants and helper above `DrawDeviceNode()`**
@@ -867,6 +876,7 @@ Expected: zero warnings.
 ```
 
 Expected:
+
 - Small grey circles visible at all 4 port positions (top/right/bottom/left) on every node
 - Click and drag from any port → a live white line follows the mouse
 - Hovering over a valid target port on a different node → green circle highlight appears
@@ -902,6 +912,7 @@ Verify on GitHub: `PiMPStudios/packet-path` → all commits visible on `main`.
 ## Self-Review
 
 **Spec coverage:**
+
 - ✅ M0: Makefile + window (Task 0)
 - ✅ M1.1: Single draggable DeviceNode (Task 1)
 - ✅ M1.2: Multiple nodes + types + selection + spawn keys + delete (Task 2)
@@ -911,6 +922,7 @@ Verify on GitHub: `PiMPStudios/packet-path` → all commits visible on `main`.
 **Placeholder scan:** No TBDs, TODOs, or vague steps. Every step has complete code or an exact command with expected output.
 
 **Type consistency:**
+
 - `DeviceNode` — consistent across all tasks
 - `GetNodeRect()`, `GetDeviceColor()`, `DrawDeviceNode()` — defined Task 1, used consistently
 - `GetPortPosition()` — defined Task 4 Step 1, used in Steps 2, 5, 6, 7

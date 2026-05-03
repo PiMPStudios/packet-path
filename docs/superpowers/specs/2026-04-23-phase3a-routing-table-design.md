@@ -17,7 +17,7 @@ Fix the deferred Phase 2 quality issue (hoverItem computed in draw phase) as hou
 ## Design Decisions (locked)
 
 | Decision | Choice | Rationale |
-|---|---|---|
+| --- | --- | --- |
 | Panel layout | Tab-based (Config / Routes) | Scales to Phase 4+ without layout rework |
 | Connected routes | Auto-derived on-the-fly from portIp + mgmtIp | Always reflects current IP config; never stale |
 | Static route fields | Destination prefix + next-hop IP (no metric) | Sufficient for Phase 3a; metric added in Phase 4 |
@@ -32,7 +32,7 @@ Fix the deferred Phase 2 quality issue (hoverItem computed in draw phase) as hou
 ### What changes
 
 | Symbol | Change |
-|---|---|
+| --- | --- |
 | `UpdateContextMenuHover` | **New** — moves hoverItem computation to input phase (Fix #3) |
 | `DrawContextMenu` | **Modified** — becomes `const`, no longer sets hoverItem |
 | `RouteSource` | **New enum** — `ROUTE_CONNECTED`, `ROUTE_STATIC` |
@@ -197,6 +197,7 @@ struct PanelState {
 ```
 
 **Tab switching rules:**
+
 - Clicking the tab header switches `activeTab` and clears `activeField` / `activeRouteField`
 - Selecting a new device resets `activeTab = TAB_CONFIG`
 - `activeField` is only valid when `activeTab == TAB_CONFIG`
@@ -216,7 +217,7 @@ Extracted verbatim from current `DrawPanel` — hostname, mgmt IP, 4 port IP row
 
 ### Routes tab
 
-```
+```text
 Type  Destination      Next-Hop        Via
 C     10.0.0.0/24      direct          Gi0/0
 C     10.0.1.0/24      direct          Gi0/1
@@ -329,22 +330,26 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
 ## Acceptance Criteria
 
 ### Fix #3
+
 - `DrawContextMenu` compiles with `const ContextMenu&` parameter — confirmed by the build
 - `UpdateContextMenuHover` is called in the input section, before the LMB block
 - Context menu hover highlight still works correctly
 
 ### Routing table display
+
 - Select a Router/Switch/PC with configured interface IPs → Routes tab shows connected routes in green with "C" prefix
 - mgmtIp (if valid) also appears as a connected route
 - Changing an interface IP live (type in Config tab) updates the Routes tab immediately (derived on-the-fly)
 
 ### Static route editing
+
 - Enter a valid destination prefix + valid next-hop IP → `[Add]` button activates
 - Clicking `[Add]` appends route (blue "S" row), clears both fields
 - Clicking `[×]` on a static route removes it
 - Invalid fields (red border) keep `[Add]` inactive
 
 ### Forwarding engine
+
 - `SimulateForward(pc1, "10.0.1.5", nodes, cables)` where PC1 has a default route to a router which has a connected route to 10.0.1.0/24 → `{true, [pc1id, routerid], "delivered"}`
 - No matching route → `{false, [srcid], "no route to X"}`
 - Next-hop not reachable via cables → `{false, [srcid], "next-hop unreachable: X"}`

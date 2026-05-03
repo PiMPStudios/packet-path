@@ -13,7 +13,7 @@
 ## File Map
 
 | File | Change |
-|------|--------|
+| ------ | -------- |
 | `src/Packet.h` | Add `float successPulse = 0.f` to `PacketAnim` |
 | `src/Packet.cpp` | Set `successPulse = 0.5f` on success; decay both pulses in done branch |
 | `src/main.cpp` line 169 | Extend brace-init: add sixth `0.f` for `successPulse` |
@@ -25,6 +25,7 @@
 ### Task 1: Add `successPulse` to `PacketAnim` and wire update logic
 
 **Files:**
+
 - Modify: `src/Packet.h`
 - Modify: `src/Packet.cpp`
 - Modify: `src/main.cpp` (one line)
@@ -172,10 +173,11 @@ git commit -m "feat(m3.3): add successPulse to PacketAnim — set on delivery, d
 ### Task 2: Draw green success ring + extend idle transition guard
 
 **Files:**
+
 - Modify: `src/NetworkCanvas.cpp` (function `DrawPacketAnim`)
 - Modify: `src/main.cpp` (line 403 — done-check)
 
-#### Context
+#### Context — Task 2
 
 `src/NetworkCanvas.cpp` `DrawPacketAnim` currently reads (lines 142–187):
 
@@ -363,6 +365,7 @@ Launch `./packet-path`. Build a two-hop topology:
 5. Right-click PC1 → "Send Packet To…" → click PC2 (enter `10.0.1.1`).
 
 Expected:
+
 - Green dot travels PC1 → Router1 → PC2.
 - On arrival at PC2, a **green expanding ring** pulses outward from PC2's center, fades over ~0.5 seconds.
 - After the ring fades, the mode returns to idle (right-click context menu works again).
@@ -372,6 +375,7 @@ Expected:
 With the same topology, right-click PC1 → send to `10.0.2.1` (no route).
 
 Expected:
+
 - Red dot travels as far as possible, stops at Router1.
 - **Red expanding ring** pulses from Router1 as before.
 - No green ring appears.
@@ -387,6 +391,7 @@ Expected: After a single 0.4s hop, green ring fires at destination. No crash.
 After a successful sim, check the bottom log console.
 
 Expected:
+
 - ARP entries (blue `?` / teal `!` / gray `~`) appear before the routing entry.
 - Success routing entry shows green `✓ PC1 → Router1 → PC2 — delivered`.
 - ARP tab on the right panel populates with the resolved IP→MAC entries.

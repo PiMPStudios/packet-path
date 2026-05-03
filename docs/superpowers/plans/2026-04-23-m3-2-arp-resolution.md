@@ -13,7 +13,7 @@
 ## File Map
 
 | File | Change |
-|------|--------|
+| ------ | -------- |
 | `src/Device.h` | Add `#include <unordered_map>`, `LogType` enum, `ArpEvent` struct, `arpEvents` to `ForwardResult`, `type` to `LogEntry`, `arpTable` to `DeviceNode`, declare `GetDeviceMac` |
 | `src/Device.cpp` | Implement `GetDeviceMac` |
 | `src/SimulationEngine.cpp` | Rewrite forwarding loop to emit ARP events, use mutable `result` local |
@@ -28,10 +28,12 @@
 ## Task 1: Data model — MAC generation, arpTable, ArpEvent, LogType
 
 **Files:**
+
 - Modify: `src/Device.h`
 - Modify: `src/Device.cpp`
 
 ### Context
+
 The current `DeviceNode` has no ARP table. `ForwardResult` has no ARP event output. `LogEntry` has no type field to distinguish ARP entries from routing entries. This task adds all those data model pieces — no behavior changes yet.
 
 - [ ] **Step 1: Replace `src/Device.h` with the new version**
@@ -152,9 +154,11 @@ git commit -m "feat(arp): data model — ArpEvent, LogType, arpTable, GetDeviceM
 ## Task 2: ARP resolution in SimulateForward
 
 **Files:**
+
 - Modify: `src/SimulationEngine.cpp`
 
-### Context
+### Context — Task 2
+
 `SimulateForward` currently uses inline brace-init returns (`return {false, path, "reason"}`). Now that `ForwardResult` has an `arpEvents` vector, those returns would silently drop any accumulated events. This task rewrites the function to build a mutable `result` local and populate it throughout, while adding ARP resolution logic before each static-route next-hop lookup.
 
 The function remains `const`-correct — it reads `cur->arpTable` but never modifies nodes. Events are returned in `result.arpEvents`; the caller (`main.cpp`) applies them to nodes after the call.
@@ -282,15 +286,19 @@ git commit -m "feat(arp): ARP resolution in SimulateForward — emits ArpEvent p
 ## Task 3: Wire ARP events in main.cpp
 
 **Files:**
+
 - Modify: `src/main.cpp`
 
-### Context
+### Context — Task 3
+
 `main.cpp` calls `SimulateForward` and builds one `LogEntry`. After this task it also:
+
 1. Applies ARP cache updates from `fr.arpEvents` to the matching `DeviceNode`'s `arpTable`.
 2. Pushes one or two `LogEntry` records per ARP event (before the routing entry).
 3. Handles clicks on the new ARP tab button.
 
 Three separate edit sites in main.cpp:
+
 - **Site A** (≈ line 124): the `else` branch where `SimulateForward` is called.
 - **Site B** (≈ line 264): the panel tab-click block.
 
@@ -415,12 +423,14 @@ git commit -m "feat(arp): wire ARP events — apply cache updates and push log e
 ## Task 4: ARP tab UI + log console coloring
 
 **Files:**
+
 - Modify: `src/ConfigPanel.h`
 - Modify: `src/ConfigPanel.cpp`
 - Modify: `src/NetworkCanvas.h`
 - Modify: `src/NetworkCanvas.cpp`
 
-### Context
+### Context — Task 4
+
 This task adds the visible ARP tab to the panel and updates the log console to color ARP entries differently from routing entries. Four files change but all changes are additive or small replacements.
 
 #### 4a — ConfigPanel.h: add TAB_ARP and PnlArpTabRect declaration
@@ -428,11 +438,13 @@ This task adds the visible ARP tab to the panel and updates the log console to c
 - [ ] **Step 1: Replace the PanelTab enum in `src/ConfigPanel.h`**
 
 Old:
+
 ```cpp
 enum PanelTab { TAB_CONFIG, TAB_ROUTES };
 ```
 
 New:
+
 ```cpp
 enum PanelTab { TAB_CONFIG, TAB_ROUTES, TAB_ARP };
 ```
@@ -450,11 +462,13 @@ Rectangle PnlArpTabRect();
 - [ ] **Step 3: Update `PnlTabW` in `src/ConfigPanel.cpp` for 3 equal-width tabs**
 
 Old:
+
 ```cpp
 float PnlTabW() { return (PANEL_W - 24 - 4) / 2.0f; }
 ```
 
 New:
+
 ```cpp
 float PnlTabW() { return (PANEL_W - 24 - 8) / 3.0f; }
 ```
@@ -554,6 +568,7 @@ Append the ARP tab block directly after it (before the separator `DrawLineEx`):
 - [ ] **Step 8: Update the tab content switch at the bottom of `DrawPanel`**
 
 Old:
+
 ```cpp
     if (ps.activeTab == TAB_CONFIG)
         DrawConfigTab(n, ps);
@@ -562,6 +577,7 @@ Old:
 ```
 
 New:
+
 ```cpp
     if (ps.activeTab == TAB_CONFIG)
         DrawConfigTab(n, ps);
@@ -637,7 +653,8 @@ git commit -m "feat(arp): ARP tab in config panel + LogType coloring in log cons
 
 **Files:** none (build + runtime check only)
 
-### Context
+### Context — Task 5
+
 Confirm the full feature works end-to-end: ARP events appear in the log, the ARP tab populates on subsequent runs, and cache-hit entries appear on re-runs. Confirm no regressions in routing, cable drawing, or config panel.
 
 - [ ] **Step 1: Full clean build**
@@ -655,11 +672,13 @@ Expected: zero errors, zero warnings.
 ```
 
 Spawn two PCs and a Router:
+
 - Press `P` twice (PC1, PC2), `R` once (Router1) on the canvas
 - Connect PC1 port → Router1 port (drag port dot to port dot)
 - Connect Router1 port → PC2 port
 
 Configure IPs via the Config tab (click each device):
+
 - PC1 — Gi0/0 IP: `10.0.0.1/24`; static route: dest `10.0.1.0/24`, next-hop `10.0.0.254`
 - Router1 — Gi0/0 IP: `10.0.0.254/24`, Gi0/1 IP: `10.0.1.254/24`
 - PC2 — Gi0/0 IP: `10.0.1.1/24`
@@ -669,6 +688,7 @@ Configure IPs via the Config tab (click each device):
 Right-click PC1 → "Send Packet To…" → click PC2.
 
 Expected log console (bottom strip, newest at top):
+
 - `[mm:ss]  ✓  PC1 → Router1 → PC2  —  delivered`  (green, LOG_FORWARD)
 - `[mm:ss]  !  10.0.0.254 is at de:ad:be:ef:00:XX`  (cyan, LOG_ARP_REPLY)
 - `[mm:ss]  ?  ARP who has 10.0.0.254?`              (blue, LOG_ARP_REQ)
@@ -676,7 +696,8 @@ Expected log console (bottom strip, newest at top):
 The log shows 3 lines max (newest at top), so the ARP pair is visible.
 
 Expected ARP tab (click PC1, then click "ARP" tab):
-```
+
+```text
 ARP CACHE
 IP ADDRESS       MAC ADDRESS
 10.0.0.254       de:ad:be:ef:00:XX
@@ -687,6 +708,7 @@ IP ADDRESS       MAC ADDRESS
 Right-click PC1 → "Send Packet To…" → click PC2 again.
 
 Expected log console:
+
 - `[mm:ss]  ✓  PC1 → Router1 → PC2  —  delivered`  (green)
 - `[mm:ss]  ~  ARP cache hit: 10.0.0.254 → de:ad:be:ef:00:XX`  (gray)
 
@@ -699,6 +721,7 @@ Remove the static route from PC1 (Routes tab → [×] on the static route), then
 Run simulation PC1 → PC2.
 
 Expected log:
+
 - `[mm:ss]  ?  ARP who has 10.0.99.1? — no reply`  (blue, failed ARP)
 - `[mm:ss]  ✗  PC1  —  ARP: who has 10.0.99.1? — no reply`  (red)
 
@@ -724,6 +747,7 @@ Expected: last 3–4 commits visible, push succeeds.
 ## Self-Review
 
 **Spec coverage:**
+
 - ✅ ARP table per device (`arpTable` on `DeviceNode`) — Task 1
 - ✅ MAC address generation (`GetDeviceMac`) — Task 1
 - ✅ ARP resolution in forwarding (miss → emit req+reply event, hit → emit hit event) — Task 2
@@ -735,6 +759,7 @@ Expected: last 3–4 commits visible, push succeeds.
 **Placeholder scan:** None found.
 
 **Type consistency:**
+
 - `ArpEvent` fields (`nodeId`, `ip`, `mac`, `cacheHit`) used consistently across Task 2 (population) and Task 3 (consumption).
 - `LogType` enum values (`LOG_FORWARD`, `LOG_ARP_REQ`, `LOG_ARP_REPLY`, `LOG_ARP_HIT`) used consistently in Task 3 (setting) and Task 4 (`DrawLogConsole` switch).
 - `PnlArpTabRect()` declared in `ConfigPanel.h` (Task 4a), defined in `ConfigPanel.cpp` (Task 4b), called in `NetworkCanvas.cpp` (Task 4d) and `main.cpp` (Task 3). ✅

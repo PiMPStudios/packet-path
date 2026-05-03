@@ -14,13 +14,13 @@
 
 ## Locked Phase Map
 
-```
+```text
 PRE  →  P1  →  P2  →  P3 ⭐  →  P4  →  P5  →  P6
 Setup   Skel  Canvas  Playable  Routing  Game   Polish
 ```
 
 | Phase | Name | Key Output | Milestones |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | PRE | Setup | Window opens, Makefile works | 1 |
 | 1 | Skeleton | Draggable nodes + cables on canvas | 4 |
 | 2 | Canvas Engine | Config panel + IP input + delete | 4 |
@@ -29,7 +29,7 @@ Setup   Skel  Canvas  Playable  Routing  Game   Polish
 | 5 | Game Mechanics | 4 playable CCNA scenarios + star rating | 4 |
 | 6 | MVP Polish | Packet trace, log console, SFX | 4 |
 
-**Total: ~26 milestones**
+### Total: ~26 milestones
 
 ---
 
@@ -37,7 +37,7 @@ Setup   Skel  Canvas  Playable  Routing  Game   Polish
 
 ### Phases 1–2: Single-File Era
 
-```
+```text
 packet-path/
 ├── src/
 │   └── main.cpp          ← everything lives here (~300–350 lines at Phase 1 end)
@@ -54,7 +54,7 @@ packet-path/
 
 ### Phase 3+: Multi-File Era
 
-```
+```text
 packet-path/
 ├── src/
 │   ├── main.cpp
@@ -84,12 +84,14 @@ packet-path/
 **Files created:** `Makefile`, `src/main.cpp`
 
 **What to build:**
+
 - `Makefile` — compiles `src/main.cpp`, links raylib, `-std=c++17 -Wall -O2`
 - `src/main.cpp` — `InitWindow(1280, 720, "Packet Path")`, `SetTargetFPS(60)`, game loop, `BeginDrawing` / `EndDrawing` / `CloseWindow`
 - `DrawFPS(10, 10)` in top-left corner
 - `ClearBackground(Color{15, 23, 42, 255})` — dark navy background
 
 **Acceptance criteria:**
+
 - `make` compiles with zero warnings
 - `./packet-path` opens a 1280×720 dark window
 - FPS counter visible and stable at 60
@@ -130,6 +132,7 @@ void DrawDeviceNode(const DeviceNode& node);    // rounded rect + shadow + label
 **Drag logic:** On LMB press over node rect → record `dragOffset = mouse - node.position`. While LMB held → `node.position = mouse - dragOffset`. On LMB release → clear drag state.
 
 **Acceptance criteria:**
+
 - Node renders as a labeled rounded rectangle with drop shadow
 - Click and hold on the node body to drag it
 - Node stays where released
@@ -144,6 +147,7 @@ void DrawDeviceNode(const DeviceNode& node);    // rounded rect + shadow + label
 **Files touched:** `src/main.cpp`
 
 **What to build:**
+
 - `std::vector<DeviceNode> nodes` with auto-incrementing IDs
 - Color per type: PC = `#3b82f6` (blue) · Router = `#f97316` (orange) · Switch = `#22c55e` (green)
 - Hit detection: iterate `nodes` back-to-front, `CheckCollisionPointRec`
@@ -152,6 +156,7 @@ void DrawDeviceNode(const DeviceNode& node);    // rounded rect + shadow + label
 - `Delete` key removes selected node; erases from vector
 
 **Acceptance criteria:**
+
 - Press P/R/S to spawn nodes of each type with correct colors
 - Click a node to select it (highlight border appears)
 - Click canvas background to deselect
@@ -168,6 +173,7 @@ void DrawDeviceNode(const DeviceNode& node);    // rounded rect + shadow + label
 **Files touched:** `src/main.cpp`
 
 **What to build:**
+
 ```cpp
 Camera2D camera = {
     .offset = { SCREEN_WIDTH / 2.0f, SCREEN_HEIGHT / 2.0f },
@@ -179,6 +185,7 @@ Camera2D camera = {
 
 - **Pan:** Middle-mouse held → `camera.target -= GetMouseDelta() / camera.zoom`
 - **Zoom:** Scroll wheel → scale zoom, clamp to [0.15, 4.0], anchor on cursor:
+
   ```cpp
   Vector2 worldBefore = GetScreenToWorld2D(GetMousePosition(), camera);
   camera.zoom *= (1.0f + wheel * 0.1f);
@@ -186,11 +193,13 @@ Camera2D camera = {
   Vector2 worldAfter = GetScreenToWorld2D(GetMousePosition(), camera);
   camera.target += worldBefore - worldAfter;  // re-anchor
   ```
+
 - All nodes drawn inside `BeginMode2D(camera)` / `EndMode2D()`
 - All mouse hit detection uses `GetScreenToWorld2D(GetMousePosition(), camera)`
 - Subtle dot-grid background drawn inside camera to convey infinite canvas
 
 **Acceptance criteria:**
+
 - Middle-mouse drag pans smoothly
 - Scroll wheel zooms anchored on cursor — nodes don't jump
 - Nodes draggable at any zoom level (hit detection correct in world space)
@@ -218,6 +227,7 @@ std::vector<Cable> cables;
 ```
 
 **Connection state machine:**
+
 1. LMB press near a port circle → enter `CONNECTING` state, record `connectFrom`
 2. While dragging → draw a live bezier from start port to mouse position
 3. Hover near valid target port on a different device → highlight it green
@@ -229,6 +239,7 @@ std::vector<Cable> cables;
 **Guards:** Cannot connect a port to itself. Cannot connect a device to itself.
 
 **Acceptance criteria:**
+
 - Small circles visible at all 4 port positions on each device
 - Click-drag from port → live bezier follows mouse
 - Green highlight appears on valid target port on hover
@@ -241,6 +252,7 @@ std::vector<Cable> cables;
 ### Phase 1 Exit Criteria
 
 After M1.4 you have:
+
 - An infinite pan/zoom canvas with a dark navy + dot-grid background
 - Spawnable PC, Router, Switch nodes in distinct colors, draggable anywhere
 - Click-to-select with Delete to remove
@@ -260,7 +272,7 @@ After M1.4 you have:
 ### Milestone overview
 
 | ID | Title | Key addition |
-|---|---|---|
+| --- | --- | --- |
 | M2.1 | Side Config Panel | Right-side panel opens on node click, shows device info |
 | M2.2 | IP Address Input | Text field in panel accepts IP/mask; stored on DeviceNode |
 | M2.3 | Interface Config | Per-port interface name + IP (e.g. `Gi0/0 · 10.0.0.1/30`) |
@@ -274,10 +286,10 @@ After M1.4 you have:
 
 **Exit state:** Press "Test Network" — an animated packet (green dot) travels from source to destination, resolving ARP and forwarding across the link. Success = green flash. Failure = red drop with reason.
 
-### Milestone overview
+### Milestone overview — Phase 3
 
 | ID | Title | Key addition |
-|---|---|---|
+| --- | --- | --- |
 | M3.1 | SimulationEngine skeleton | `SimulationEngine` class, `RunSimulation()` entry point, split to multi-file |
 | M3.2 | ARP resolution | ARP table per device, broadcast → reply → cache |
 | M3.3 | Animated Packet object | `Packet` struct, waypoint movement, `GetFrameTime()` delta |
@@ -293,10 +305,10 @@ After M1.4 you have:
 
 **Exit state:** Configure OSPF on routers → adjacencies form → SPF runs → routing tables populate → packets take the correct path automatically.
 
-### Milestone overview
+### Milestone overview — Phase 4
 
 | ID | Title | Key addition |
-|---|---|---|
+| --- | --- | --- |
 | M4.1 | RIB + FIB + static routes | `RoutingTable` class, `ip route` config, longest-prefix match |
 | M4.2 | Packet forwarding walk | Hop-by-hop forwarding using FIB, TTL decrement, loop guard |
 | M4.3 | OSPF Hello + adjacency FSM | Hello timers, `Down→Init→2-Way→Full` state machine |
@@ -311,10 +323,10 @@ After M1.4 you have:
 
 **Exit state:** 4 beginner CCNA scenarios are playable with clear win conditions and 1–3 star scoring.
 
-### Milestone overview
+### Milestone overview — Phase 5
 
 | ID | Title | Key addition |
-|---|---|---|
+| --- | --- | --- |
 | M5.1 | Level JSON format + loader | `levels/level_01.json` schema, `LoadLevel()`, pre-placed devices |
 | M5.2 | Win condition checker | `WinCondition` struct — "all PCs can ping gateway" — checked after simulation |
 | M5.3 | Star rating UI | 1–3 stars based on efficiency (unused devices, extra hops); end-of-level overlay |
@@ -328,10 +340,10 @@ After M1.4 you have:
 
 **Exit state:** MVP ready to show to real users. Packet trace explains every decision. Log console shows live events. Broken paths highlight red. Basic SFX on key events.
 
-### Milestone overview
+### Milestone overview — Phase 6
 
 | ID | Title | Key addition |
-|---|---|---|
+| --- | --- | --- |
 | M6.1 | Packet trace viewer | Click any packet (or post-run) → step-by-step trace of every hop decision |
 | M6.2 | Bottom log console | Scrollable log: "ARP request sent", "Label 24000 swapped", "Packet dropped — no route" |
 | M6.3 | Broken path highlight | Failed packets turn links red; `Troubleshoot` mode shows exactly where the break is |
@@ -353,7 +365,7 @@ Each milestone session should follow this pattern:
 ### Skill triggers by phase
 
 | Phase | Primary skills |
-|---|---|
+| --- | --- |
 | PRE, P1, P2 | `raylib-development` |
 | P3 | `raylib-development` + `network-sim` (forwarding plane) |
 | P4 | `network-sim` (routing algorithms, protocol state machines) |

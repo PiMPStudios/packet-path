@@ -13,7 +13,7 @@
 ## File Map
 
 | File | Change |
-|------|--------|
+| ------ | -------- |
 | `src/GameUI.h` | Add `GAME_LEVEL_SELECT` to `GameMode` enum; declare 7 new functions + rect helpers |
 | `src/GameUI.cpp` | Implement `DrawSandboxHUD`, `DrawLevelSelectScreen`, 5 rect functions |
 | `src/main.cpp` | Wire startup mode, `goSandbox` lambda, key shortcuts, LMB handlers, draw calls, hint text |
@@ -23,6 +23,7 @@
 ### Task 1: GameUI.h — Enum Extension + Declarations
 
 **Files:**
+
 - Modify: `src/GameUI.h`
 
 - [ ] **Step 1: Add GAME_LEVEL_SELECT to the enum**
@@ -77,6 +78,7 @@ git commit -m "feat: add GAME_LEVEL_SELECT enum + sandbox/level-select HUD decla
 ### Task 2: GameUI.cpp — Rect Helpers + DrawSandboxHUD
 
 **Files:**
+
 - Modify: `src/GameUI.cpp`
 
 - [ ] **Step 1: Insert rect implementations after WinNextBtnRect() and before DrawLevelHUD()**
@@ -145,6 +147,7 @@ git commit -m "feat: add DrawSandboxHUD and rect helpers for sandbox/level-selec
 ### Task 3: GameUI.cpp — DrawLevelSelectScreen
 
 **Files:**
+
 - Modify: `src/GameUI.cpp`
 
 - [ ] **Step 1: Add DrawLevelSelectScreen() after DrawSandboxHUD()**
@@ -221,6 +224,7 @@ git commit -m "feat: add DrawLevelSelectScreen — 4x4 level grid + sandbox card
 ### Task 4: main.cpp — Full Wiring
 
 **Files:**
+
 - Modify: `src/main.cpp`
 
 Changes in order: levelTitles + goSandbox → startup mode → key loop → canvas guard → ESC handler → LMB level-select branch → LMB HUD button handlers → draw section → hint text.
@@ -540,7 +544,7 @@ Expected: zero errors.
 Launch the game and verify each flow manually:
 
 | Action | Expected |
-|--------|----------|
+| -------- | ---------- |
 | Launch | Level-select overlay opens over dimmed canvas |
 | Hover over any card | Card highlights blue |
 | Click Level 1 card | Level 1 loads; level badge + MENU + SANDBOX buttons appear |
@@ -574,7 +578,7 @@ git commit -m "feat: wire level-select, sandbox HUD, key 0 → sandbox, key M �
 **Spec coverage:**
 
 | Requirement | Task / Step |
-|---|---|
+| --- | --- |
 | Dedicated Sandbox mode — no win conditions, no star ratings | Task 4 — GAME_SANDBOX path has no win-check logic |
 | Key `0` → sandbox | Task 4 Step 3 — `if (IsKeyPressed(KEY_ZERO)) goSandbox()` |
 | "Sandbox" button in level HUD | Task 4 Steps 7–8 — `LevelHudSandboxBtnRect` drawn + handled |
@@ -592,6 +596,7 @@ git commit -m "feat: wire level-select, sandbox HUD, key 0 → sandbox, key M �
 **Placeholder scan:** None — every step contains complete, runnable code.
 
 **Type consistency:**
+
 - `goSandbox` lambda captured by reference; used in Steps 3 (key 0), 6 (sandbox card), and 7 (SANDBOX button) — identical callsite, consistent.
 - `LevelSelectCardRect(int i)` declared in Task 1, implemented in Task 2, drawn in Task 3, hit-tested in Task 4 Step 6 — parameter type and usage consistent throughout.
 - `const std::string* levelTitles` in `DrawLevelSelectScreen` accepts `std::string levelTitles[16]` from `main.cpp` via array-to-pointer decay — valid C++.

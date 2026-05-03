@@ -13,7 +13,7 @@
 ## File Map
 
 | File | Change |
-|------|--------|
+| ------ | -------- |
 | `src/Device.h` | New `SubInterface` struct; `subVlanId` field on `RouteEntry`; `subIfaces` vector on `DeviceNode`; `TAB_SUB` enum value; new `PanelState` fields |
 | `src/Device.cpp` | Update `GetRoutingTable` to emit subinterface routes |
 | `src/Level.cpp` | Parse `subIfaces` JSON array |
@@ -30,6 +30,7 @@
 ## Task 1: Data Model — SubInterface Struct + RouteEntry + DeviceNode
 
 **Files:**
+
 - Modify: `src/Device.h` (after `VlanPortConfig`, before the `MPLS types` comment block)
 - Modify: `src/Device.h` (`RouteEntry` struct — add one field)
 - Modify: `src/Device.h` (`DeviceNode` struct — add one field after `vlanPorts`)
@@ -124,6 +125,7 @@ git commit -m "feat: add SubInterface struct, subVlanId on RouteEntry, subIfaces
 ## Task 2: Level JSON Parsing + Level 10
 
 **Files:**
+
 - Modify: `src/Level.cpp` (add subIfaces parsing after vlanPort loop)
 - Create: `levels/level_10.json`
 
@@ -216,6 +218,7 @@ Topology: PC-A (VLAN 10) and PC-B (VLAN 20) connect to SW1. SW1's trunk port con
 ```
 
 Notes on the starting (broken) state:
+
 - SW1 port 2 is `access VLAN 1` — student must change to trunk
 - R1 has no `subIfaces` — student must add them via the Sub tab
 - PC-A and PC-B have static default routes pre-configured so they can send; the gateway IPs (10.10.0.1, 10.20.0.1) are the subinterface IPs the student must create
@@ -240,6 +243,7 @@ git commit -m "feat: parse subIfaces from level JSON; add level 10 RoaS scenario
 ## Task 3: Forwarding Engine — Subinterface-Aware Routing
 
 **Files:**
+
 - Modify: `src/SimulationEngine.cpp`
 
 This task is the core of router-on-a-stick. Three changes:
@@ -507,6 +511,7 @@ git commit -m "feat: FindNodeOwningIp; FindL2Path startVlan; subinterface-aware 
 ## Task 4: Config Panel — "Sub" Tab Declaration
 
 **Files:**
+
 - Modify: `src/ConfigPanel.h`
 - Modify: `src/ConfigPanel.cpp`
 
@@ -626,6 +631,7 @@ git commit -m "feat: TAB_SUB enum, PanelState sub fields, rect helpers, 8-tab Pn
 ## Task 5: Canvas — DrawSubIfaceTab + Tab Bar + Router Port Indicators
 
 **Files:**
+
 - Modify: `src/NetworkCanvas.h`
 - Modify: `src/NetworkCanvas.cpp`
 
@@ -780,6 +786,7 @@ git commit -m "feat: DrawSubIfaceTab, 8-tab bar, router port subinterface indica
 ## Task 6: main.cpp — Click Handlers, Text Input, Level Count
 
 **Files:**
+
 - Modify: `src/main.cpp`
 
 - [ ] **Step 1: Update level count from 9 to 10**
@@ -800,10 +807,12 @@ For the level-key input block, add handling for `KEY_ZERO` → load level 10:
 ```
 
 And the path string:
+
 ```cpp
         std::string lpath = "levels/level_" + (currentLevel < 10 ? "0" : "") +
                             std::to_string(currentLevel) + ".json";
 ```
+
 Wait — the existing levels use `level_09.json` format (two digits). Check:
 
 ```bash
@@ -903,6 +912,7 @@ Find the keyboard text-input section (currently has blocks for `activeField`, `a
 - [ ] **Step 5: Add sub-form field resets on tab switch**
 
 In every existing `ps.activeTab = TAB_XXX` assignment block, add:
+
 ```cpp
 ps.subActiveField = -1;
 ```
@@ -936,6 +946,7 @@ cd /Users/tweaver/Developer/GitRepos/Packet-Path && make 2>&1 | head -20
 ```
 
 Full test sequence:
+
 1. Press `0` → level 10 loads (PC-A, PC-B, SW1, R1 on canvas)
 2. Click SW1 → VLAN tab → set port 2 to trunk
 3. Click R1 → Sub tab → add port=0, VLAN=10, IP=10.10.0.1/24 → click "Add Subinterface" → entry appears in list
@@ -944,6 +955,7 @@ Full test sequence:
 6. Packet should animate: PC-A → SW1 → R1 → SW1 → PC-B → win overlay appears
 
 Regression tests:
+
 - Level 1–9 still work (especially levels with OSPF and BGP)
 - VLAN tab still works on switches (level 9)
 - Delete subinterface works (click × next to a sub entry)

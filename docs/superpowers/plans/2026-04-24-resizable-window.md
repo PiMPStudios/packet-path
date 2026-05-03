@@ -13,7 +13,7 @@
 ## File Map
 
 | Action | File | Responsibility |
-|--------|------|----------------|
+| -------- | ------ | ---------------- |
 | Create | `src/Layout.h` | Single source of truth: 4 `inline constexpr int` constants + 4 `inline int` functions wrapping GetScreenWidth/Height |
 | Modify | `src/NetworkCanvas.h` | Remove 6 static const int layout constants; add `#include "Layout.h"` |
 | Modify | `src/ConfigPanel.cpp` | `CANVAS_W` → `CANVAS_W()` at ~25 call sites (PANEL_W unchanged — it's a constant) |
@@ -27,6 +27,7 @@
 ## Task 1: Create `src/Layout.h` and Update `src/NetworkCanvas.h`
 
 **Files:**
+
 - Create: `src/Layout.h`
 - Modify: `src/NetworkCanvas.h`
 
@@ -105,6 +106,7 @@ git commit -m "feat: add Layout.h with dynamic CANVAS_W/H functions, remove stat
 ## Task 2: Update `src/ConfigPanel.cpp`
 
 **Files:**
+
 - Modify: `src/ConfigPanel.cpp`
 
 This file has ~25 uses of `CANVAS_W` as an integer expression. `PANEL_W` is now a constexpr constant so it needs no parens. The change is purely mechanical: add `()` after every bare `CANVAS_W`.
@@ -125,7 +127,8 @@ grep -n "CANVAS_W" src/ConfigPanel.cpp | head -20
 ```
 
 Every occurrence should now read `CANVAS_W()`. You should see lines like:
-```
+
+```text
 5:    return {(float)(CANVAS_W() + 12), (float)yOffset, (float)(PANEL_W - 24), 26.0f};
 9:    return {(float)(CANVAS_W() + 80), ...
 ```
@@ -153,6 +156,7 @@ git commit -m "refactor: CANVAS_W → CANVAS_W() in ConfigPanel.cpp for dynamic 
 ## Task 3: Update `src/GameUI.cpp` and `src/TraceModal.cpp`
 
 **Files:**
+
 - Modify: `src/GameUI.cpp`
 - Modify: `src/TraceModal.cpp`
 
@@ -166,7 +170,9 @@ Open `src/GameUI.cpp`. The file currently has (lines 6–7 and 56):
     return {(float)(CANVAS_W - 320) / 2.0f,
             (float)(CANVAS_H - 260) / 2.0f,
 ```
+
 and
+
 ```cpp
     DrawRectangle(0, 0, CANVAS_W, CANVAS_H, Color{0, 0, 0, 150});
 ```
@@ -177,11 +183,13 @@ Replace all three uses:
     return {(float)(CANVAS_W() - 320) / 2.0f,
             (float)(CANVAS_H() - 260) / 2.0f,
 ```
+
 ```cpp
     DrawRectangle(0, 0, CANVAS_W(), CANVAS_H(), Color{0, 0, 0, 150});
 ```
 
 Or run:
+
 ```bash
 cd /Users/tweaver/Developer/GitRepos/Packet-Path
 sed -i '' 's/CANVAS_W\b/CANVAS_W()/g; s/CANVAS_H\b/CANVAS_H()/g' src/GameUI.cpp
@@ -205,18 +213,21 @@ The current uses in TraceModal.cpp are at lines 10–11, 18–19, 30, 33–34:
 ```
 
 Run:
+
 ```bash
 cd /Users/tweaver/Developer/GitRepos/Packet-Path
 sed -i '' 's/CANVAS_W\b/CANVAS_W()/g; s/CANVAS_H\b/CANVAS_H()/g; s/SCREEN_W\b/SCREEN_W()/g; s/SCREEN_H\b/SCREEN_H()/g' src/TraceModal.cpp
 ```
 
 After the replacement, verify:
+
 ```bash
 grep -n "CANVAS_W\|CANVAS_H\|SCREEN_W\|SCREEN_H" src/TraceModal.cpp
 ```
 
 Every occurrence should have `()` appended. Expected result (all 7 lines transformed):
-```
+
+```text
 10:    if (mouse.y < (float)CANVAS_H() || mouse.y >= (float)SCREEN_H()) return -1;
 11:    if (mouse.x >= (float)CANVAS_W()) return -1;
 18:        int       lineY = CANVAS_H() + 8 + (shown - 1 - i) * 24;
@@ -247,6 +258,7 @@ git commit -m "refactor: CANVAS_W/H, SCREEN_W/H → function calls in GameUI and
 ## Task 4: Update `src/NetworkCanvas.cpp`
 
 **Files:**
+
 - Modify: `src/NetworkCanvas.cpp`
 
 This is the largest file — 127 uses of layout constants. The change is purely mechanical: add `()` after `CANVAS_W`, `CANVAS_H`, `SCREEN_W`, `SCREEN_H`. `PANEL_W`, `LOG_H`, `MENU_ITEM_H`, `CONTEXT_MENU_W` need no change (they stay as constexpr constants).
@@ -300,7 +312,8 @@ grep -n "CANVAS_W\|SCREEN_H" src/NetworkCanvas.cpp | head -5
 ```
 
 You should see lines like:
-```
+
+```text
 63:    Vector2 botRight = GetScreenToWorld2D({(float)CANVAS_W(), (float)CANVAS_H()}, cam);
 298:    DrawRectangle(0, CANVAS_H(), SCREEN_W(), LOG_H, Color{10, 15, 28, 255});
 1153:    float x = std::min(menu.screenPos.x, (float)(CANVAS_W() - CONTEXT_MENU_W - 4));
@@ -319,6 +332,7 @@ git commit -m "refactor: CANVAS_W/H, SCREEN_W/H → function calls in NetworkCan
 ## Task 5: Update `src/main.cpp` — Enable Resizable Window + Rename Constants
 
 **Files:**
+
 - Modify: `src/main.cpp`
 
 This task wires in the actual resize support and fixes the 10 remaining constant uses.
@@ -422,7 +436,9 @@ Find:
 ```cpp
                 DrawText(hint, (CANVAS_W - tw) / 2, 12, 12,
 ```
+
 Replace with:
+
 ```cpp
                 DrawText(hint, (CANVAS_W() - tw) / 2, 12, 12,
 ```
@@ -432,7 +448,9 @@ Find:
 ```cpp
             DrawFPS(CANVAS_W - 80, 10);
 ```
+
 Replace with:
+
 ```cpp
             DrawFPS(CANVAS_W() - 80, 10);
 ```
@@ -442,7 +460,9 @@ Find:
 ```cpp
                      10, CANVAS_H - 24, 10, Color{100, 116, 139, 255});
 ```
+
 Replace with:
+
 ```cpp
                      10, CANVAS_H() - 24, 10, Color{100, 116, 139, 255});
 ```
@@ -466,11 +486,13 @@ Expected: `Linking packet-path...` then `Build complete.` with zero errors or wa
 - [ ] **Step 9: Smoke test**
 
 Run the game:
+
 ```bash
 cd /Users/tweaver/Developer/GitRepos/Packet-Path && ./packet-path &
 ```
 
 Verify:
+
 1. Window opens at 1280×720 — layout looks identical to before
 2. Drag the window edge to make it larger — panel stays on the right, log console stays at the bottom, canvas fills the center
 3. Shrink the window toward minimum (1024×600) — layout still correct, nothing clips into the panel
@@ -479,6 +501,7 @@ Verify:
 6. T-key troubleshoot overlay renders correctly at different window sizes
 
 Kill the background process when done:
+
 ```bash
 pkill packet-path
 ```
@@ -512,6 +535,7 @@ Run after all 5 tasks are complete:
 ## Self-Review
 
 **Spec coverage:**
+
 - `SetWindowResizable(true)` + `SetWindowMinSize(MIN_W, MIN_H)` — Task 5 Step 1 ✓
 - `IsWindowResized()` camera update every frame — Task 5 Step 3 ✓
 - `CANVAS_W`, `CANVAS_H`, `SCREEN_W`, `SCREEN_H` become functions — Task 1 ✓

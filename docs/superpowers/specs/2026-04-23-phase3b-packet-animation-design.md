@@ -15,7 +15,7 @@ Animate packets along the forwarding paths computed by `SimulateForward`. Add a 
 ## Design Decisions (locked)
 
 | Decision | Choice | Rationale |
-|---|---|---|
+| --- | --- | --- |
 | Simulation trigger | Right-click node → "Send Packet To…" → click destination | Spatial, consistent with existing right-click UX |
 | Packet appearance | Glowing dot (green = success, red = failure) | Clean, immediately readable |
 | Failure behavior | Stop at last reachable node + red pulse on that node | Shows exactly where forwarding broke |
@@ -48,7 +48,7 @@ The canvas viewport shrinks from 720px to 630px tall. The log strip occupies the
 ### What changes
 
 | Symbol | Change |
-|---|---|
+| --- | --- |
 | `LOG_H` / `CANVAS_H` | **New constants** — layout |
 | `LogEntry` | **New struct** — one entry per simulation result |
 | `SimMode` | **New enum** — `SIM_IDLE`, `SIM_SELECTING_DST`, `SIM_ANIMATING` |
@@ -326,9 +326,11 @@ While in `SIM_SELECTING_DST` mode, draw inside `BeginMode2D` (after all nodes):
 2. A bright ring around `simState.srcId` to confirm it's the source
 
 In screen space (outside `EndMode2D`), draw a status label:
-```
+
+```text
 "Click destination node  —  ESC to cancel"
 ```
+
 at the top-center of the canvas in dim text.
 
 ### Destination click
@@ -402,7 +404,7 @@ if (simState.mode == SIM_ANIMATING &&
 
 ## Draw Order
 
-```
+```text
 BeginDrawing()
   ClearBackground(BG_COLOR)
   BeginMode2D(camera)
@@ -424,29 +426,34 @@ EndDrawing()
 ## Acceptance Criteria
 
 ### Layout
+
 - Log strip visible at bottom 90px, full width, dark background, "LOG" label
 - Dot grid stops at y=630 (does not bleed into log strip)
 - Context menus clamp to `CANVAS_H` — never open inside the log strip
 
 ### Simulation trigger
+
 - Right-click a node → context menu shows "Rename", "Delete", "Send Packet To…"
 - Click "Send Packet To…" → nodes get blue rings, src node gets bright ring, status label appears
 - ESC cancels selecting mode, returns to idle
 - Click a different node → simulation runs
 
 ### Packet animation
+
 - Green glowing dot travels from node to node along bezier curves at 0.4s per hop
 - Reaching destination: dot arrives, animation completes, log entry pushed
 - Failure: red dot stops at last reachable node, red pulse ring expands on that node, animation completes
 - No animation if path.size() == 1 (connected at source, delivers immediately)
 
 ### Log console
+
 - Each simulation pushes one entry: timestamp, ✓/✗ icon, path string, reason
 - Up to 3 entries visible, newest at top
 - Green text for success, red for failure
 - "No simulations run yet" placeholder when empty
 
 ### Forwarding engine
+
 - Existing `SimulateForward` behavior unchanged (tested in Phase 3a)
 
 ---

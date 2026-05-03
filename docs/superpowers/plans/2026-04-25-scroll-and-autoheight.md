@@ -13,7 +13,7 @@
 ## File Map
 
 | File | Task | Change |
-|---|---|---|
+| --- | --- | --- |
 | `src/GameUI.h` | 1 | Add `cardHeight` to `BriefingCardState`; add `BriefingComputeHeight`; update `BriefingCardBounds` + `BriefingGotItBtnRect` signatures |
 | `src/GameUI.cpp` | 1 | Add `BriefingComputeHeight`; remove `BC_H` constant; update rect helpers + `DrawBriefingCard` |
 | `src/NetworkCanvas.h` | 2 | Add `scrollOffset` param to `DrawLogConsole` |
@@ -27,6 +27,7 @@
 ## Task 1: Auto-Height Briefing Card
 
 **Files:**
+
 - Modify: `src/GameUI.h` (~lines 53–68, the briefing card block)
 - Modify: `src/GameUI.cpp` (~lines 367–492, the briefing card section)
 - Modify: `src/main.cpp` (4 level-load init sites + 3 rect-helper call sites)
@@ -103,6 +104,7 @@ Rectangle BriefingCardBounds(Vector2 pos, bool collapsed) {
 ```
 
 And `BriefingGotItBtnRect` currently reads:
+
 ```cpp
 Rectangle BriefingGotItBtnRect(Vector2 pos) {
     return {pos.x + BC_W - 92.f, pos.y + BC_H - 34.f, 82.f, 26.f};
@@ -159,6 +161,7 @@ Rectangle BriefingGotItBtnRect(Vector2 pos, float cardHeight) {
 Find the `DrawBriefingCard` function body. Make these changes inside it:
 
 1. In the `if (!col)` block, update `BriefingCardBounds` call:
+
 ```cpp
     if (!col) {
         Rectangle bounds = BriefingCardBounds(pos, col, state.cardHeight);
@@ -167,7 +170,8 @@ Find the `DrawBriefingCard` function body. Make these changes inside it:
     }
 ```
 
-2. In the expanded body, remove the clip guard on briefing text lines. The current loop is:
+1. In the expanded body, remove the clip guard on briefing text lines. The current loop is:
+
 ```cpp
     auto lines = WordWrap(def.briefing, maxW, 11);
     for (const auto& ln : lines) {
@@ -176,7 +180,9 @@ Find the `DrawBriefingCard` function body. Make these changes inside it:
         py += 16;
     }
 ```
+
 Change to (remove the `break` guard):
+
 ```cpp
     auto lines = WordWrap(def.briefing, maxW, 11);
     for (const auto& ln : lines) {
@@ -187,19 +193,23 @@ Change to (remove the `break` guard):
     }
 ```
 
-3. Remove the clip guard on win conditions. The current loop is:
+1. Remove the clip guard on win conditions. The current loop is:
+
 ```cpp
         for (const auto& wc : def.winConditions) {
             if (py > (int)(pos.y + BC_H - 44)) break;
             std::string bullet = "\xE2\x96\xB8 " + wc.description;
 ```
+
 Change to (remove the `break` guard):
+
 ```cpp
         for (const auto& wc : def.winConditions) {
             std::string bullet = "\xE2\x96\xB8 " + wc.description;
 ```
 
-4. Update the `BriefingGotItBtnRect` call near the bottom of the function:
+1. Update the `BriefingGotItBtnRect` call near the bottom of the function:
+
 ```cpp
     Rectangle gotit  = BriefingGotItBtnRect(pos, state.cardHeight);
 ```
@@ -216,11 +226,13 @@ Expected: errors in `main.cpp` about wrong argument counts for `BriefingCardBoun
 - [ ] **Step 4 — Update `src/main.cpp`: add `cardHeight` init at all 4 level-load sites**
 
 Search for every occurrence of `briefingCard.dragging  = false;` — there are exactly 4 (at the end of each level-load block). After each one, add:
+
 ```cpp
                     briefingCard.cardHeight = BriefingComputeHeight(activeLevelDef);
 ```
 
 So each level-load block ends like:
+
 ```cpp
                     briefingCard.pos       = BriefingDefaultPos();
                     briefingCard.collapsed = false;
@@ -265,13 +277,14 @@ git commit -m "feat: auto-height briefing card — expands to fit content, max 5
 ## Task 2: Log Console Mouse-Wheel Scroll
 
 **Files:**
+
 - Modify: `src/NetworkCanvas.h` (line 74: `DrawLogConsole` declaration)
 - Modify: `src/NetworkCanvas.cpp` (~lines 311–379: `DrawLogConsole` implementation)
 - Modify: `src/TraceModal.h` (line 8: `LogConsoleHitTest` declaration)
 - Modify: `src/TraceModal.cpp` (~lines 9–27: `LogConsoleHitTest` implementation)
 - Modify: `src/main.cpp` (new variables, wheel handler, updated calls)
 
-### Context
+### Context — Task 2
 
 `DrawLogConsole` is in `src/NetworkCanvas.cpp:311`. It shows the last 3 entries, newest at top (y = `CANVAS_H + 8`, stride 24px per row). `LogConsoleHitTest` in `src/TraceModal.cpp:9` mirrors that geometry exactly. The log area occupies `y ∈ [CANVAS_H(), SCREEN_H())` and `x < CANVAS_W()`. `LOG_H = 90` from `src/Layout.h`. `GetMouseWheelMove()` returns positive for wheel-up.
 
@@ -280,11 +293,13 @@ git commit -m "feat: auto-height briefing card — expands to fit content, max 5
 - [ ] **Step 1 — Update `src/NetworkCanvas.h`: add `scrollOffset` param**
 
 Find line 74:
+
 ```cpp
 void DrawLogConsole(const std::vector<LogEntry>& entries);
 ```
 
 Change to:
+
 ```cpp
 void DrawLogConsole(const std::vector<LogEntry>& entries, int scrollOffset = 0);
 ```
@@ -380,11 +395,13 @@ void DrawLogConsole(const std::vector<LogEntry>& entries, int scrollOffset) {
 - [ ] **Step 3 — Update `src/TraceModal.h`: add `scrollOffset` param**
 
 Find in `src/TraceModal.h`:
+
 ```cpp
 int  LogConsoleHitTest(Vector2 screenMouse, const std::vector<LogEntry>& entries);
 ```
 
 Change to:
+
 ```cpp
 int  LogConsoleHitTest(Vector2 screenMouse, const std::vector<LogEntry>& entries, int scrollOffset = 0);
 ```
@@ -440,6 +457,7 @@ Find the OSPF engine tick section. It begins with `// ── OSPF engine tick` a
 - [ ] **Step 7 — Update `src/main.cpp`: add mouse-wheel handler for log area**
 
 Find the camera zoom / mouse-wheel section. It currently reads:
+
 ```cpp
         float wheel = inCanvas ? std::clamp(GetMouseWheelMove(), -3.0f, 3.0f) : 0.0f;
         if (wheel != 0.0f) {
@@ -467,19 +485,25 @@ Immediately after the closing `}` of that camera-zoom block, add the log scroll 
 - [ ] **Step 8 — Update `src/main.cpp`: pass `logScrollOffset` to `DrawLogConsole` and `LogConsoleHitTest`**
 
 Find:
+
 ```cpp
             DrawLogConsole(logEntries);
 ```
+
 Change to:
+
 ```cpp
             DrawLogConsole(logEntries, logScrollOffset);
 ```
 
 Find:
+
 ```cpp
                 int hitIdx = LogConsoleHitTest(screenMouse, logEntries);
 ```
+
 Change to:
+
 ```cpp
                 int hitIdx = LogConsoleHitTest(screenMouse, logEntries, logScrollOffset);
 ```
@@ -505,6 +529,7 @@ git commit -m "feat: log console mouse-wheel scroll with auto-reset on new entri
 ## Self-Review
 
 **Spec coverage:**
+
 - [x] Briefing card auto-heights to fit content — `BriefingComputeHeight` + `cardHeight` field (Task 1)
 - [x] Max height cap (500px) prevents card overflowing canvas — `std::min(h, 500.f)` in `BriefingComputeHeight`
 - [x] Content clip guards removed — both `break` guards removed in `DrawBriefingCard` (Task 1, Step 2B)
@@ -518,6 +543,7 @@ git commit -m "feat: log console mouse-wheel scroll with auto-reset on new entri
 **Placeholder scan:** No TBDs or incomplete steps. All code blocks are complete.
 
 **Type consistency:**
+
 - `BriefingComputeHeight` returns `float`; `BriefingCardState.cardHeight` is `float`; all callers pass `float` ✓
 - `BriefingCardBounds(pos, collapsed, cardHeight)` — signature matches all call sites ✓
 - `BriefingGotItBtnRect(pos, cardHeight)` — signature matches all call sites ✓

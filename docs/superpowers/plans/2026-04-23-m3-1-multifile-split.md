@@ -13,7 +13,7 @@
 ## File Map
 
 | File | Owns |
-|---|---|
+| --- | --- |
 | `src/Device.h/cpp` | `DeviceType`, `DeviceNode`, `RouteEntry`, `ForwardResult`, `LogEntry`; IP utilities; device geometry helpers (no draw calls) |
 | `src/Cable.h/cpp` | `Cable` struct; `FindNode`, `BezierCtrl` |
 | `src/Packet.h/cpp` | `SimMode`, `PacketAnim`, `SimState`; animation update logic; bezier evaluation |
@@ -25,7 +25,7 @@
 
 ### Include dependency tree (headers only — no cycles)
 
-```
+```text
 raylib.h (external)
 Device.h  → raylib.h, string, vector, cstdint, cstdio, cmath
 Cable.h   → Device.h
@@ -43,6 +43,7 @@ main.cpp  → NetworkCanvas.h   (single include; gets everything transitively)
 ## Task 1: Update Makefile for Multi-File Compilation
 
 **Files:**
+
 - Modify: `Makefile`
 
 This must be done first. The wildcard rule picks up every `.cpp` added in later tasks automatically.
@@ -65,10 +66,10 @@ SRC    = $(wildcard src/*.cpp)
 all: $(TARGET)
 
 $(TARGET): $(SRC)
-	$(CC) $(CFLAGS) $(INCLUDES) $(SRC) $(LIBS) -o $(TARGET)
+ $(CC) $(CFLAGS) $(INCLUDES) $(SRC) $(LIBS) -o $(TARGET)
 
 clean:
-	rm -f $(TARGET)
+ rm -f $(TARGET)
 
 .PHONY: all clean
 ```
@@ -101,6 +102,7 @@ git commit -m "build: switch Makefile to wildcard src/*.cpp for multi-file split
 ## Task 2: Device Module
 
 **Files:**
+
 - Create: `src/Device.h`
 - Create: `src/Device.cpp`
 - Modify: `src/main.cpp`
@@ -210,6 +212,7 @@ Then all ten functions follow verbatim. No other changes to the function bodies.
 ```
 
 3b. Delete from main.cpp (search by content, remove the entire blocks):
+
 - The five device geometry constants: `PORTS_PER_NODE`, `NODE_W`, `NODE_H`, `NODE_FONT_SZ`, `PORT_RADIUS`
 - The `RouteSource` enum and `RouteEntry` struct
 - The `ForwardResult` struct
@@ -255,6 +258,7 @@ git commit -m "refactor: extract Device module (DeviceNode, IP utilities, geomet
 ## Task 3: Cable Module
 
 **Files:**
+
 - Create: `src/Cable.h`
 - Create: `src/Cable.cpp`
 - Modify: `src/main.cpp`
@@ -311,6 +315,7 @@ Note: remove `static` from `BezierCtrl` — it must be externally visible now.
 ```
 
 3b. Delete from main.cpp:
+
 - The `Cable` struct definition (the 4-field struct: `fromId`, `fromPort`, `toId`, `toPort`)
 - `FindNode` function
 - `BezierCtrl` function (including its `static` keyword)
@@ -343,6 +348,7 @@ git commit -m "refactor: extract Cable module (Cable struct, FindNode, BezierCtr
 ## Task 4: Packet Module
 
 **Files:**
+
 - Create: `src/Packet.h`
 - Create: `src/Packet.cpp`
 - Modify: `src/main.cpp`
@@ -413,6 +419,7 @@ Then the five functions follow verbatim. Note that `UpdatePacketAnim` references
 ```
 
 3b. Delete from main.cpp:
+
 - `HOP_DURATION` constant
 - `SimMode` enum
 - `PacketAnim` struct
@@ -447,6 +454,7 @@ git commit -m "refactor: extract Packet module (SimState, PacketAnim, animation 
 ## Task 5: SimulationEngine Module
 
 **Files:**
+
 - Create: `src/SimulationEngine.h`
 - Create: `src/SimulationEngine.cpp`
 - Modify: `src/main.cpp`
@@ -517,6 +525,7 @@ git commit -m "refactor: extract SimulationEngine module (SimulateForward)"
 ## Task 6: ConfigPanel Module
 
 **Files:**
+
 - Create: `src/ConfigPanel.h`
 - Create: `src/ConfigPanel.cpp`
 - Modify: `src/main.cpp`
@@ -622,6 +631,7 @@ Then the eleven functions follow verbatim after the constants block. Remember to
 ```
 
 3b. Delete from main.cpp:
+
 - `PanelTab` enum
 - `PanelState` struct
 - All nine layout rect helpers (`PnlFieldRect`, `PnlPortFieldRect`, `PnlTabW`, `PnlConfigTabRect`, `PnlRoutesTabRect`, `PnlRouteDeleteRect`, `PnlRouteDestRect`, `PnlRouteNextRect`, `PnlRouteAddBtnRect`)
@@ -656,6 +666,7 @@ git commit -m "refactor: extract ConfigPanel module (PanelState, layout helpers,
 ## Task 7: UI Module
 
 **Files:**
+
 - Create: `src/UI.h`
 - Create: `src/UI.cpp`
 - Modify: `src/main.cpp`
@@ -719,6 +730,7 @@ static int nextId = 1;
 Then `SpawnNode`, `UpdateContextMenuHover`, and `ExecuteMenuAction` verbatim.
 
 Notes on `ExecuteMenuAction`:
+
 - The function already references `SIM_ANIMATING`, `SIM_IDLE`, `SIM_SELECTING_DST` — these come from `Packet.h` via `UI.h`.
 - It references `TAB_CONFIG` — comes from `ConfigPanel.h` via `UI.h`.
 - It references `SpawnNode`, `FindNode` — both available via `UI.h`.
@@ -732,6 +744,7 @@ Notes on `ExecuteMenuAction`:
 ```
 
 3b. Delete from main.cpp:
+
 - `ContextType` enum
 - `ContextMenu` struct
 - `static int nextId = 1;`
@@ -769,6 +782,7 @@ git commit -m "refactor: extract UI module (ContextMenu, SpawnNode, ExecuteMenuA
 ## Task 8: NetworkCanvas Module
 
 **Files:**
+
 - Create: `src/NetworkCanvas.h`
 - Create: `src/NetworkCanvas.cpp`
 - Modify: `src/ConfigPanel.cpp` (replace temp constants with include)
@@ -908,6 +922,7 @@ Delete the temporary block. `SpawnNode`, `UpdateContextMenuHover`, `ExecuteMenuA
 (NetworkCanvas.h transitively provides raylib, Device, Cable, Packet, SimulationEngine, ConfigPanel, UI, and all standard headers used by the game loop.)
 
 5b. Delete these remaining functions from main.cpp (they are now in NetworkCanvas.cpp):
+
 - `DrawDotGrid`
 - `DrawDeviceNode`
 - `DrawAllCables`
@@ -922,6 +937,7 @@ Delete the temporary block. `SpawnNode`, `UpdateContextMenuHover`, `ExecuteMenuA
 - `DrawLogConsole`
 
 5c. Delete the remaining screen/layout constants from main.cpp (they are now in NetworkCanvas.h):
+
 - `SCREEN_W`, `SCREEN_H`, `BG_COLOR`, `PANEL_W`, `CANVAS_W`, `PANEL_BG`, `PANEL_BORDER`
 - `MENU_ITEM_H`, `CONTEXT_MENU_W`, `LOG_H`, `CANVAS_H`
 - All `CFG_*` constants
@@ -944,6 +960,7 @@ Expected: zero errors, zero warnings. If there are redefinition warnings for the
 ```
 
 Verify the full feature set works:
+
 - Dot grid renders, pan (middle mouse) and zoom (scroll) work
 - Spawn PC/Router/Switch via right-click context menu
 - Drag nodes, bezier cables form between ports, cables follow nodes
@@ -965,6 +982,7 @@ git commit -m "refactor: extract NetworkCanvas module — all draw functions cen
 ## Task 9: Final Cleanup and Line Count Verification
 
 **Files:**
+
 - Verify: `src/main.cpp` (should be ~200 lines or fewer)
 - Verify: all module files compile cleanly
 
@@ -979,7 +997,7 @@ wc -l src/*.h src/*.cpp
 Expected approximate distribution:
 
 | File | Approx lines |
-|---|---|
+| --- | --- |
 | `Device.h` | ~70 |
 | `Device.cpp` | ~90 |
 | `Cable.h` | ~15 |
@@ -1013,6 +1031,7 @@ Expected: no output (zero errors, zero warnings).
 ```
 
 Run through the complete verification checklist:
+
 1. Window opens at 1280×720, dark navy background, dot grid
 2. Right-click → Add PC, Add Router, Add Switch → all three types spawn
 3. Drag nodes around — cables follow if connected
@@ -1038,6 +1057,7 @@ git commit -m "refactor: M3.1 multi-file split complete — 1379-line main.cpp s
 ## Self-Review Checklist
 
 **Spec coverage:**
+
 - [x] Device module extracts all data structs and IP utilities
 - [x] Cable module extracts Cable struct and bezier helpers
 - [x] Packet module extracts sim state and animation logic
@@ -1053,6 +1073,7 @@ git commit -m "refactor: M3.1 multi-file split complete — 1379-line main.cpp s
 - [x] All screen/layout constants centralised in NetworkCanvas.h
 
 **Type consistency:**
+
 - `BezierCtrl` declared in Cable.h, called in NetworkCanvas.cpp ✓
 - `FindNode` declared in Cable.h, called in SimulationEngine.cpp + NetworkCanvas.cpp ✓
 - `UpdateContextMenuHover` declared in UI.h, called in main.cpp game loop ✓

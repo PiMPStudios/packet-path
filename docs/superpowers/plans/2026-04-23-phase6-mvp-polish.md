@@ -13,7 +13,7 @@
 ## File Map
 
 | Action | File | Responsibility |
-|--------|------|----------------|
+| -------- | ------ | ---------------- |
 | Modify | `src/Device.h` | Add `HopDecision` struct; add `hops` field to `ForwardResult`; add `traceResult` field to `LogEntry` |
 | Modify | `src/SimulationEngine.cpp` | Populate `result.hops` at each forwarding decision (connected + non-connected routes) |
 | Create | `src/TraceModal.h` | Declare `LogConsoleHitTest`, `DrawTraceModal` |
@@ -29,6 +29,7 @@
 ## Task 1: Data model — HopDecision, ForwardResult.hops, LogEntry.traceResult
 
 **Files:**
+
 - Modify: `src/Device.h`
 - Modify: `src/SimulationEngine.cpp`
 - Modify: `src/main.cpp`
@@ -38,6 +39,7 @@
 - [ ] **Step 1: Add `HopDecision` struct to `src/Device.h`**
 
 Open `src/Device.h`. Find the block (lines 56–68):
+
 ```cpp
 struct ArpEvent {
     int         nodeId   = 0;
@@ -55,6 +57,7 @@ struct ForwardResult {
 ```
 
 Replace it with:
+
 ```cpp
 struct ArpEvent {
     int         nodeId   = 0;
@@ -86,6 +89,7 @@ struct ForwardResult {
 - [ ] **Step 2: Add `traceResult` to `LogEntry` in `src/Device.h`**
 
 In the same file, find the `LogEntry` struct (lines 70–76):
+
 ```cpp
 struct LogEntry {
     bool        success   = false;
@@ -97,6 +101,7 @@ struct LogEntry {
 ```
 
 Replace it with:
+
 ```cpp
 struct LogEntry {
     bool          success     = false;
@@ -113,6 +118,7 @@ struct LogEntry {
 - [ ] **Step 3: Populate `result.hops` for connected routes in `src/SimulationEngine.cpp`**
 
 Open `src/SimulationEngine.cpp`. Find the `ROUTE_CONNECTED` branch (around line 36):
+
 ```cpp
             if (route.src == ROUTE_CONNECTED) {
                 result.success = true;
@@ -122,6 +128,7 @@ Open `src/SimulationEngine.cpp`. Find the `ROUTE_CONNECTED` branch (around line 
 ```
 
 Replace it with:
+
 ```cpp
             if (route.src == ROUTE_CONNECTED) {
                 HopDecision hd;
@@ -143,6 +150,7 @@ Replace it with:
 - [ ] **Step 4: Populate `result.hops` for forwarded routes in `src/SimulationEngine.cpp`**
 
 In the same file, find the block just before `visited.insert(neighborId)` (around lines 90–94):
+
 ```cpp
             visited.insert(neighborId);
             result.path.push_back(neighborId);
@@ -152,6 +160,7 @@ In the same file, find the block just before `visited.insert(neighborId)` (aroun
 ```
 
 Replace it with:
+
 ```cpp
             {
                 HopDecision hd;
@@ -178,6 +187,7 @@ Replace it with:
 - [ ] **Step 5: Store `traceResult` in the `LOG_FORWARD` log entry in `src/main.cpp`**
 
 Open `src/main.cpp`. Find the block in the `SIM_SELECTING_DST` handler that assigns `le` fields (around lines 248–255). The block currently reads:
+
 ```cpp
                         simState.anim = PacketAnim{.result = fr};
                         le.success    = fr.success;
@@ -189,6 +199,7 @@ Open `src/main.cpp`. Find the block in the `SIM_SELECTING_DST` handler that assi
 ```
 
 Replace it with:
+
 ```cpp
                         simState.anim  = PacketAnim{.result = fr};
                         le.success     = fr.success;
@@ -224,6 +235,7 @@ git commit -m "feat(M6): data model — HopDecision, ForwardResult.hops, LogEntr
 ## Task 2: M6.1 — Packet Trace Modal
 
 **Files:**
+
 - Create: `src/TraceModal.h`
 - Create: `src/TraceModal.cpp`
 - Modify: `src/main.cpp`
@@ -353,11 +365,13 @@ void DrawTraceModal(const ForwardResult& trace) {
 - [ ] **Step 3: Add `TraceModal.h` include and state variables to `src/main.cpp`**
 
 At the top of `src/main.cpp`, after the existing four includes, add:
+
 ```cpp
 #include "TraceModal.h"
 ```
 
 Inside `main()`, after `int lastConditionsPassed = 0;`, add:
+
 ```cpp
 bool traceModalOpen = false;
 int  selectedLogIdx = -1;
@@ -368,6 +382,7 @@ int  selectedLogIdx = -1;
 - [ ] **Step 4: Guard ESC handler with `traceModalOpen` check in `src/main.cpp`**
 
 Find the **entire** `if (IsKeyPressed(KEY_ESCAPE))` block (around lines 85–102):
+
 ```cpp
         if (IsKeyPressed(KEY_ESCAPE)) {
             contextMenu.visible = false;
@@ -390,6 +405,7 @@ Find the **entire** `if (IsKeyPressed(KEY_ESCAPE))` block (around lines 85–102
 ```
 
 Replace it entirely with:
+
 ```cpp
         if (IsKeyPressed(KEY_ESCAPE)) {
             if (traceModalOpen) {
@@ -420,6 +436,7 @@ Replace it entirely with:
 - [ ] **Step 5: Add `traceModalOpen` intercept in the LMB handler in `src/main.cpp`**
 
 Find the LMB pressed block (around line 139):
+
 ```cpp
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             if (gameMode == GAME_WIN) {
@@ -431,6 +448,7 @@ Find the LMB pressed block (around line 139):
 ```
 
 Change `} else {` to:
+
 ```cpp
             } else if (traceModalOpen) {
                 const float MW = 480.f, MH = 360.f;
@@ -446,6 +464,7 @@ Change `} else {` to:
 - [ ] **Step 6: Add log console hit test inside the `else` block in `src/main.cpp`**
 
 Inside the `else` block added in Step 5, find the chain (around lines 178–299):
+
 ```cpp
             if (contextMenu.visible) {
                 ...
@@ -456,6 +475,7 @@ Inside the `else` block added in Step 5, find the chain (around lines 178–299)
 ```
 
 Insert a new branch before `} else if (inCanvas) {`:
+
 ```cpp
             } else if (screenMouse.y >= (float)CANVAS_H &&
                        screenMouse.y <  (float)SCREEN_H  &&
@@ -475,11 +495,13 @@ Insert a new branch before `} else if (inCanvas) {`:
 - [ ] **Step 7: Guard the panel click handler against `traceModalOpen` in `src/main.cpp`**
 
 Find the panel click handler (around line 386):
+
 ```cpp
         if (gameMode != GAME_WIN && !inCanvas && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
 ```
 
 Replace it with:
+
 ```cpp
         if (gameMode != GAME_WIN && !traceModalOpen && !inCanvas && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
 ```
@@ -489,6 +511,7 @@ Replace it with:
 - [ ] **Step 8: Add `DrawTraceModal` draw call in `src/main.cpp`**
 
 Find the draw section, after `DrawLogConsole(logEntries);` (around line 638):
+
 ```cpp
             DrawLogConsole(logEntries);
 
@@ -496,6 +519,7 @@ Find the draw section, after `DrawLogConsole(logEntries);` (around line 638):
 ```
 
 Insert between them:
+
 ```cpp
             DrawLogConsole(logEntries);
             if (traceModalOpen && selectedLogIdx >= 0 &&
@@ -531,6 +555,7 @@ git commit -m "feat(M6.1): packet trace modal — click log entry to see per-hop
 ## Task 3: M6.3 — On-Canvas Break Annotation
 
 **Files:**
+
 - Modify: `src/NetworkCanvas.h`
 - Modify: `src/NetworkCanvas.cpp`
 - Modify: `src/main.cpp`
@@ -540,11 +565,13 @@ git commit -m "feat(M6.1): packet trace modal — click log entry to see per-hop
 - [ ] **Step 1: Declare `DrawBrokenPath` in `src/NetworkCanvas.h`**
 
 Open `src/NetworkCanvas.h`. Find the last draw function declaration:
+
 ```cpp
 void DrawLogConsole(const std::vector<LogEntry>& entries);
 ```
 
 Add after it:
+
 ```cpp
 void DrawBrokenPath(const std::vector<DeviceNode>& nodes,
                     const std::vector<Cable>& cables,
@@ -600,6 +627,7 @@ void DrawBrokenPath(const std::vector<DeviceNode>& nodes,
 - [ ] **Step 3: Add annotation state to `src/main.cpp`**
 
 Inside `main()`, after `int selectedLogIdx = -1;` (added in Task 2), add:
+
 ```cpp
 float         failAnnotationTimer = 0.f;
 ForwardResult lastFailedTrace;
@@ -610,6 +638,7 @@ ForwardResult lastFailedTrace;
 - [ ] **Step 4: Set/clear annotation timer in the simulation result handler in `src/main.cpp`**
 
 Find the block modified in Task 1 Step 5 (around line 248–258):
+
 ```cpp
                         simState.anim  = PacketAnim{.result = fr};
                         le.success     = fr.success;
@@ -622,6 +651,7 @@ Find the block modified in Task 1 Step 5 (around line 248–258):
 ```
 
 Replace it with:
+
 ```cpp
                         simState.anim  = PacketAnim{.result = fr};
                         le.success     = fr.success;
@@ -644,12 +674,14 @@ Replace it with:
 - [ ] **Step 5: Decrement annotation timer each frame in `src/main.cpp`**
 
 Find the OSPF engine tick section (around line 558):
+
 ```cpp
         // ── OSPF engine tick ─────────────────────────────────────────────
         {
 ```
 
 Add the timer decrement immediately before that comment:
+
 ```cpp
         if (failAnnotationTimer > 0.f)
             failAnnotationTimer -= dt;
@@ -663,6 +695,7 @@ Add the timer decrement immediately before that comment:
 - [ ] **Step 6: Add `DrawBrokenPath` call inside `BeginMode2D` in `src/main.cpp`**
 
 Find the BeginMode2D draw section (around line 589):
+
 ```cpp
             BeginMode2D(camera);
                 DrawDotGrid(camera);
@@ -671,6 +704,7 @@ Find the BeginMode2D draw section (around line 589):
 ```
 
 Replace it with:
+
 ```cpp
             BeginMode2D(camera);
                 DrawDotGrid(camera);
@@ -706,6 +740,7 @@ git commit -m "feat(M6.3): on-canvas break annotation — red path glow + badge 
 ## Task 4: M6.4 — Procedural SFX
 
 **Files:**
+
 - Create: `src/SoundEngine.h`
 - Create: `src/SoundEngine.cpp`
 - Modify: `src/main.cpp`
@@ -820,6 +855,7 @@ void PlayPacketFail()   { PlaySound(sndFail);   }
 - [ ] **Step 3: Add `SoundEngine.h` include to `src/main.cpp`**
 
 At the top of `src/main.cpp`, after `#include "TraceModal.h"`, add:
+
 ```cpp
 #include "SoundEngine.h"
 ```
@@ -829,12 +865,14 @@ At the top of `src/main.cpp`, after `#include "TraceModal.h"`, add:
 - [ ] **Step 4: Initialize audio in `src/main.cpp`**
 
 Find the start of `main()`:
+
 ```cpp
     InitWindow(SCREEN_W, SCREEN_H, "Packet Path");
     SetTargetFPS(60);
 ```
 
 Replace with:
+
 ```cpp
     InitWindow(SCREEN_W, SCREEN_H, "Packet Path");
     SetTargetFPS(60);
@@ -847,6 +885,7 @@ Replace with:
 - [ ] **Step 5: Add sound triggers to the simulation handler in `src/main.cpp`**
 
 **5a — empty destIp branch:** Find the `if (destIp.empty())` block (around line 200):
+
 ```cpp
                     if (destIp.empty()) {
                         le.success   = false;
@@ -860,6 +899,7 @@ Replace with:
 ```
 
 Replace it with:
+
 ```cpp
                     if (destIp.empty()) {
                         PlayPacketSend();
@@ -875,6 +915,7 @@ Replace it with:
 ```
 
 **5b — non-empty destIp branch:** Find the line:
+
 ```cpp
                     } else {
                         ForwardResult fr = SimulateForward(simState.srcId, destIp,
@@ -882,6 +923,7 @@ Replace it with:
 ```
 
 Replace with:
+
 ```cpp
                     } else {
                         PlayPacketSend();
@@ -890,6 +932,7 @@ Replace with:
 ```
 
 Then find the if/else block added in Task 3 Step 4:
+
 ```cpp
                         if (fr.success) {
                             failAnnotationTimer = 0.f;
@@ -900,6 +943,7 @@ Then find the if/else block added in Task 3 Step 4:
 ```
 
 Replace it with:
+
 ```cpp
                         if (fr.success) {
                             PlayPacketArrive();
@@ -916,6 +960,7 @@ Replace it with:
 - [ ] **Step 6: Shut down audio in `src/main.cpp`**
 
 Find the shutdown at the end of `main()`:
+
 ```cpp
     CloseWindow();
     return 0;
@@ -923,6 +968,7 @@ Find the shutdown at the end of `main()`:
 ```
 
 Replace with:
+
 ```cpp
     UnloadSounds();
     CloseAudioDevice();

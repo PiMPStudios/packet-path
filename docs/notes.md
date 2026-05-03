@@ -1,6 +1,8 @@
+# Notes
+
 ⏺ Here's where we stand:
 
-  ---                                          
+  ---
   Development Plan (Development_Plan.md) — Status
 
   The plan defined 6 phases ending at "MVP Polish." We completed all 6 phases and went well beyond.
@@ -21,60 +23,60 @@
   │ P5    │ 4 CCNA levels + win conditions + star rating          │ ✅ Done (16 levels, not 4) │
   ├───────┼───────────────────────────────────────────────────────┼────────────────────────────┤
   │ P6    │ Packet trace, log console, broken path highlight, SFX │ ✅ Done                    │
-  └───────┴───────────────────────────────────────────────────────┴────────────────────────────┘                                                                                                             
-                                                                                     
+  └───────┴───────────────────────────────────────────────────────┴────────────────────────────┘
+
   Extras shipped beyond the plan: multi-area OSPF, BGP + route reflectors, MPLS/LDP, ACLs, NAT, VXLAN/EVPN, level-select screen, sandbox/free-play, save/load, failure injection (crashed devices, broken links), slow-motion replay.
 
   ---
   Roadmap (packet-path-game-roadmap.md) — Status
 
-  ┌──────────────┬───────────────────────────────────────┬──────────────┐            
+  ┌──────────────┬───────────────────────────────────────┬──────────────┐
   │   Category   │                 Item                  │    Status    │
   ├──────────────┼───────────────────────────────────────┼──────────────┤
   │ Routing      │ OSPF                                  │ ✅           │
-  ├──────────────┼───────────────────────────────────────┼──────────────┤            
+  ├──────────────┼───────────────────────────────────────┼──────────────┤
   │              │ BGP (eBGP, route reflectors)          │ ✅           │
   ├──────────────┼───────────────────────────────────────┼──────────────┤
   │              │ Static routing                        │ ✅           │
   ├──────────────┼───────────────────────────────────────┼──────────────┤
-  │              │ IS-IS                                 │ ❌ Not built │            
+  │              │ IS-IS                                 │ ❌ Not built │
   ├──────────────┼───────────────────────────────────────┼──────────────┤
   │ Switching    │ VLANs + 802.1Q + trunking             │ ✅           │
   ├──────────────┼───────────────────────────────────────┼──────────────┤
-  │              │ VXLAN                                 │ ✅           │            
+  │              │ VXLAN                                 │ ✅           │
   ├──────────────┼───────────────────────────────────────┼──────────────┤
   │              │ BGP EVPN                              │ ✅           │
   ├──────────────┼───────────────────────────────────────┼──────────────┤
-  │ MPLS         │ MPLS architecture + LDP               │ ✅           │            
+  │ MPLS         │ MPLS architecture + LDP               │ ✅           │
   ├──────────────┼───────────────────────────────────────┼──────────────┤
   │              │ RSVP-TE                               │ ❌ Not built │
   ├──────────────┼───────────────────────────────────────┼──────────────┤
-  │              │ Segment Routing (SR-MPLS / SRv6)      │ ❌ Not built │            
+  │              │ Segment Routing (SR-MPLS / SRv6)      │ ❌ Not built │
   ├──────────────┼───────────────────────────────────────┼──────────────┤
   │ Security     │ ACLs                                  │ ✅           │
   ├──────────────┼───────────────────────────────────────┼──────────────┤
-  │              │ NAT                                   │ ✅           │            
+  │              │ NAT                                   │ ✅           │
   ├──────────────┼───────────────────────────────────────┼──────────────┤
   │ Modern       │ SD-WAN                                │ ❌ Not built │
   ├──────────────┼───────────────────────────────────────┼──────────────┤
   │ UI/Mechanics │ Animated packets + slow-motion replay │ ✅           │
   ├──────────────┼───────────────────────────────────────┼──────────────┤
-  │              │ Troubleshoot mode                     │ ✅           │            
+  │              │ Troubleshoot mode                     │ ✅           │
   ├──────────────┼───────────────────────────────────────┼──────────────┤
-  │              │ Star rating                           │ ✅           │            
+  │              │ Star rating                           │ ✅           │
   ├──────────────┼───────────────────────────────────────┼──────────────┤
   │              │ Log console                           │ ✅           │
   ├──────────────┼───────────────────────────────────────┼──────────────┤
   │              │ Packet trace viewer                   │ ✅           │
   ├──────────────┼───────────────────────────────────────┼──────────────┤
-  │              │ Sandbox mode                          │ ✅           │            
+  │              │ Sandbox mode                          │ ✅           │
   ├──────────────┼───────────────────────────────────────┼──────────────┤
   │              │ Failure injection                     │ ✅           │
   ├──────────────┼───────────────────────────────────────┼──────────────┤
   │              │ "Build your own ISP" campaign         │ ❌ Not built │
-  └──────────────┴───────────────────────────────────────┴──────────────┘                                                                                                                                    
-                                                                                     
-  Level progression:                           
+  └──────────────┴───────────────────────────────────────┴──────────────┘
+
+  Level progression:
 
   ┌──────────────┬─────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────┐
   │     Tier     │                           Roadmap                           │                         Built                         │
@@ -88,5 +90,5 @@
   │ Bonus        │ Sandbox + failure injection + campaign mode                 │ ✅ Sandbox + failure injection; ❌ campaign mode      │
   └──────────────┴─────────────────────────────────────────────────────────────┴───────────────────────────────────────────────────────┘
 
-  ---                                                                                                                                                                                                        
+  ---
   Bottom line: The development plan is complete and retired. The roadmap has three meaningful gaps left: RSVP-TE (level 10), Segment Routing (level 11), and SD-WAN (level 13). Everything else is shipped.
