@@ -376,7 +376,43 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
                     const Cable* c = FindCableL2(cables, l2nh[0], l2nh[1]);
                     if (c) hd.outPort = (c->fromId == l2nh[0]) ? c->fromPort : c->toPort;
                 }
-                // MPLS label operation (preserve existing MPLS logic verbatim)
+                // ── TE tunnel head-end: impose tunnel label stack ──────────
+                if (cur->rsvpEnabled && currentLabel == 0) {
+                    for (const auto& tun : cur->teTunnels) {
+                        if (!tun.isUp || tun.destIp.empty()) continue;
+                        auto slash = destIp.find('/');
+                        std::string plainDest = (slash != std::string::npos)
+                                                ? destIp.substr(0, slash) : destIp;
+                        if (tun.destIp == plainDest) {
+                            hd.labelOp   = LABEL_PUSH;
+                            hd.inLabel   = 0;
+                            hd.outLabel  = tun.headLabel;
+                            hd.tunnelId  = tun.id;
+                            currentLabel = tun.headLabel;
+                            break;
+                        }
+                    }
+                }
+                // MPLS: TE teLfib takes priority over LDP lfib
+                if (cur->rsvpEnabled && currentLabel != 0) {
+                    auto it = cur->teLfib.find(currentLabel);
+                    if (it != cur->teLfib.end()) {
+                        const TeLfibEntry& te = it->second;
+                        hd.tunnelId = te.tunnelId;
+                        if (te.outLabel == MPLS_IMPLICIT_NULL) {
+                            hd.labelOp   = LABEL_POP;
+                            hd.inLabel   = currentLabel;
+                            hd.outLabel  = 0;
+                            currentLabel = 0;
+                        } else {
+                            hd.labelOp   = LABEL_SWAP;
+                            hd.inLabel   = currentLabel;
+                            hd.outLabel  = te.outLabel;
+                            currentLabel = te.outLabel;
+                        }
+                        goto done_mpls;
+                    }
+                }
                 if (cur->ldpEnabled) {
                     auto it = cur->lfib.find(NetworkAddress(route.dest));
                     if (it != cur->lfib.end()) {
@@ -403,6 +439,7 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
                 } else if (currentLabel != 0) {
                     currentLabel = 0;
                 }
+                done_mpls:;
                 // ── ACL outbound check ─────────────────────────────────────
                 if (!cur->aclRules.empty() && cur->aclOutPort >= 0
                     && cur->aclOutPort == hd.outPort) {
