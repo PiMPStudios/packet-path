@@ -163,9 +163,45 @@ The simulator is built against published RFCs. Key references in `docs/RFCs/`:
 
 ---
 
-## Status
+## Roadmap
 
-Active development. The core simulation engine, 16 levels, and all UI features listed above are implemented and working. On the roadmap: RSVP-TE, Segment Routing levels, IS-IS, additional failure scenarios, and Windows/Linux build support.
+The core engine, 16 levels, and all UI features listed above are implemented and working on macOS. Active development continues.
+
+### Protocol engine
+
+- [x] IPv4 forwarding, ARP, static routes
+- [x] OSPF (single-area and multi-area, SPF, adjacency FSM)
+- [x] BGP (eBGP, iBGP, route reflection)
+- [x] MPLS / LDP (label push/swap/pop, LSP)
+- [x] 802.1Q VLANs and trunking
+- [x] VXLAN + BGP EVPN
+- [x] ACLs and NAT
+- [ ] RSVP-TE — explicit path computation, bandwidth constraints
+- [ ] Segment Routing — SR-MPLS (SID allocation, label stack) and SRv6
+- [ ] IS-IS — L1/L2, TLVs, SPF
+- [ ] SD-WAN — policy-based path selection, SLA thresholds
+
+### Levels & content
+
+- [x] Levels 1–16 (beginner through advanced, see table above)
+- [ ] Level 17: RSVP-TE traffic engineering
+- [ ] Level 18: Segment Routing SR-MPLS
+- [ ] Level 19: SRv6
+- [ ] Level 20: SD-WAN dual-WAN policy
+- [ ] Level 21: Complex multi-failure troubleshooting
+- [ ] Campaign mode — "Build your own ISP" narrative arc
+
+### Platform
+
+- [x] macOS (primary dev platform, tested on 13+)
+- [ ] Windows build
+- [ ] Linux build
+
+### Launch
+
+- [ ] Steam store page, capsule art, and screenshots
+- [ ] Steam achievements and Steamworks SDK integration
+- [ ] Launch trailer
 
 ---
 
