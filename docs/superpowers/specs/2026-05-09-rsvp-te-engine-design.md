@@ -16,7 +16,7 @@
 
 ## New Files
 
-- `src/RsvpEngine.h` — `UpdateRsvp` declaration only (includes `Device.h`)
+- `src/RsvpEngine.h` — `UpdateRsvp` and `ResolveExplicitHops` declarations (includes `Device.h`)
 - `src/RsvpEngine.cpp` — CSPF, tunnel state computation, label allocation
 
 ## Data Structures
@@ -59,8 +59,8 @@ struct TeTunnel {
 
 ```cpp
 bool        rsvpEnabled  = false;
-uint32_t    portBw[PORTS_PER_NODE] = {1000, 1000, 1000, 1000};  // Mbps per port
-uint32_t    nextTeLabel  = 16000;   // label allocator; increments per tunnel
+uint32_t    portBandwidth[PORTS_PER_NODE] = {1000, 1000, 1000, 1000};  // Mbps per port
+uint32_t    nextTeLabel  = 16000;   // monotonic label allocator — never resets between ticks
 std::vector<TeTunnel>   teTunnels;
 std::unordered_map<uint32_t, TeLfibEntry> teLfib;  // key = inLabel
 
@@ -75,8 +75,8 @@ std::vector<TeTunnel>   pendingTunnels;
 For every cable, compute:
 
 ```
-availableBw(cable) = min(nodeA.portBw[portA], nodeB.portBw[portB])
-                   − sum of headLabel tunnel BW reservations on this cable
+availableBw(cable) = min(nodeA.portBandwidth[portA], nodeB.portBandwidth[portB])
+                   − sum of active tunnel BW reservations on this cable
 ```
 
 Build a `map<pair<int,int>, uint32_t>` keyed by `{minId, maxId}` node pair.
@@ -93,16 +93,16 @@ Otherwise → assign labels, populate `teLfib`, set `isUp = true`.
 
 ### Label Allocation
 
-At the top of each `UpdateRsvp` call, each router's `nextTeLabel` resets to 16000. Tunnels are processed in `teTunnels` order, so label assignment is deterministic each tick:
+`nextTeLabel` is a **monotonic counter** on each router — it never resets between ticks, only on device creation (starts at 16000). A new label is allocated only when a tunnel first comes Up or its path changes:
 
 ```
-headLabel = node.nextTeLabel++
+if (!tunnel.isUp || pathChanged)
+    tunnel.headLabel = node.nextTeLabel++;
 ```
 
-Transit nodes: `inLabel = upstream's outLabel`, `outLabel = node.nextTeLabel++`.
-Egress (penultimate) node: `outLabel = MPLS_IMPLICIT_NULL` (PHP).
+This prevents label flapping: an Up tunnel keeps its label until torn down or rerouted. Transit and egress labels are computed from the head label at signaling time using a deterministic offset (`headLabel + hopIndex`), so no additional allocator state is needed at intermediate nodes.
 
-This matches the LDP pattern — full LFIB rebuilt from scratch each tick.
+The `teLfib` is rebuilt from active tunnel state each tick (same as LDP), using the stable head labels.
 
 ### `teLfib` Population
 
@@ -160,15 +160,19 @@ TE Tunnels:
   [+ Add Tunnel]
 ```
 
-Fields stored in `TeTunnel`. Expand/collapse state is UI-only (not persisted). The `explicitHopIps` field stores the raw hop text; the engine resolves it to `explicitHops` (node IDs) at compute time.
+Fields stored in `TeTunnel`. Expand/collapse state is UI-only (not persisted). The `explicitHopIps` field stores the raw hop text. Resolution to `explicitHops` (node IDs) happens via `ResolveExplicitHops()` — called only when the user edits the hop string or toggles Explicit mode, not every tick.
 
 ## "Simulate Setup" Replay
 
 When the user clicks **Simulate Setup** on an Up tunnel:
 
-1. Spawn PATH packets (blue, `PacketType::RSVP_PATH`) one per hop along `activePath`, head→tail. Each carries metadata text: `"PATH Tunnel-N BW=XMbps"`.
+1. Spawn PATH packets (blue, `PacketType::RSVP_PATH`) one per hop along `activePath`, head→tail. Inter-hop delay is `RSVP_PATH_HOP_DELAY` (default 250ms, tunable for playtesting). Each packet carries: `"PATH Tunnel-N BW=XMbps"`.
 2. Wait 0.8s after the final PATH packet reaches the tail-end.
-3. Spawn RESV packets (green, `PacketType::RSVP_RESV`) one per hop, tail→head. Each carries: `"RESV Tunnel-N Label=XXXXX"`.
+3. Spawn RESV packets (green, `PacketType::RSVP_RESV`) one per hop, tail→head, same inter-hop delay. Each carries: `"RESV Tunnel-N Label=XXXXX"`.
+
+```cpp
+inline constexpr float RSVP_PATH_HOP_DELAY = 0.25f;  // seconds; tune during playtesting
+```
 
 Reuses the existing `Packet` animation engine with no new state machine. The 0.8s hold is a simple timer in the replay sequence.
 
