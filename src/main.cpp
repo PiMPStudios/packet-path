@@ -11,6 +11,19 @@
 #include "Font.h"
 #include <sstream>
 
+// ── RSVP replay state ─────────────────────────────────────────────────────
+struct RsvpReplayState {
+    enum Phase { PATH_PHASE, HOLD_PHASE, RESV_PHASE };
+    bool        active    = false;
+    Phase       phase     = PATH_PHASE;
+    int         hop       = 0;
+    float       holdTimer = 0.f;
+    std::vector<int> path;
+    PacketAnim  pkt;
+    bool        pktActive = false;
+    uint32_t    headLabel = 0;
+};
+
 // ── Main ──────────────────────────────────────────────────────────────────
 int main() {
     InitWindow(1280, 720, "Packet Path");
@@ -47,6 +60,7 @@ int main() {
     ContextMenu contextMenu;
     std::vector<LogEntry> logEntries;
     SimState simState;
+    RsvpReplayState rsvpReplay;
     GameMode    gameMode             = GAME_LEVEL_SELECT;
     int         currentLevel         = 0;
     LevelDef    activeLevelDef;
@@ -1284,7 +1298,13 @@ int main() {
                             Rectangle delR = {(float)(CANVAS_W() + 12 + PANEL_W - 24 - delW), fy, delW, 22.0f};
 
                             if (t.isUp && CheckCollisionPointRec(screenMouse, simR)) {
-                                // Simulate Setup -- wired in Task 11
+                                rsvpReplay           = RsvpReplayState{};
+                                rsvpReplay.active    = true;
+                                rsvpReplay.phase     = RsvpReplayState::PATH_PHASE;
+                                rsvpReplay.path      = t.activePath;
+                                rsvpReplay.headLabel = t.headLabel;
+                                rsvpReplay.hop       = 0;
+                                rsvpReplay.pktActive = false;
                             }
                             if (CheckCollisionPointRec(screenMouse, delR)) {
                                 selNode->teTunnels.erase(selNode->teTunnels.begin() + ps.teExpandedIdx);
@@ -1657,6 +1677,60 @@ int main() {
             }
         }
 
+        // ── RSVP replay tick ──────────────────────────────────────────────
+        if (rsvpReplay.active) {
+            if (rsvpReplay.pktActive) {
+                UpdatePacketAnim(rsvpReplay.pkt, dt, nodes, cables);
+                if (rsvpReplay.pkt.done) rsvpReplay.pktActive = false;
+            }
+
+            if (!rsvpReplay.pktActive) {
+                const auto& rpath = rsvpReplay.path;
+                int  n = (int)rpath.size();
+
+                if (rsvpReplay.phase == RsvpReplayState::PATH_PHASE) {
+                    if (rsvpReplay.hop < n - 1) {
+                        // Spawn PATH packet for this hop (blue)
+                        ForwardResult fr;
+                        fr.path    = {rpath[rsvpReplay.hop], rpath[rsvpReplay.hop+1]};
+                        fr.success = true;
+                        rsvpReplay.pkt             = PacketAnim{};
+                        rsvpReplay.pkt.result      = fr;
+                        rsvpReplay.pkt.overrideColor = Color{59, 130, 246, 255};
+                        rsvpReplay.pktActive       = true;
+                        ++rsvpReplay.hop;
+                    } else {
+                        rsvpReplay.phase     = RsvpReplayState::HOLD_PHASE;
+                        rsvpReplay.holdTimer = 0.8f;
+                    }
+                } else if (rsvpReplay.phase == RsvpReplayState::HOLD_PHASE) {
+                    rsvpReplay.holdTimer -= dt;
+                    if (rsvpReplay.holdTimer <= 0.f) {
+                        rsvpReplay.phase = RsvpReplayState::RESV_PHASE;
+                        rsvpReplay.hop   = 0;
+                    }
+                } else if (rsvpReplay.phase == RsvpReplayState::RESV_PHASE) {
+                    if (rsvpReplay.hop < n - 1) {
+                        // Spawn RESV packet tail→head (default green)
+                        int from = rpath[n - 1 - rsvpReplay.hop];
+                        int to   = rpath[n - 2 - rsvpReplay.hop];
+                        ForwardResult fr;
+                        fr.path    = {from, to};
+                        fr.success = true;
+                        rsvpReplay.pkt              = PacketAnim{};
+                        rsvpReplay.pkt.result       = fr;
+                        rsvpReplay.pkt.currentLabel = rsvpReplay.headLabel
+                                                      + (uint32_t)(n - 2 - rsvpReplay.hop);
+                        // overrideColor left at {0,0,0,0} → default green
+                        rsvpReplay.pktActive = true;
+                        ++rsvpReplay.hop;
+                    } else {
+                        rsvpReplay.active = false;
+                    }
+                }
+            }
+        }
+
         // ── Draw ───────────────────────────────────────────────────────
         BeginDrawing();
             ClearBackground(BG_COLOR);
@@ -1671,6 +1745,8 @@ int main() {
                 if (troubleshootMode)
                     DrawTroubleshootOverlay(nodes, cables);
                 DrawPacketAnim(simState.anim, nodes, cables);
+                if (rsvpReplay.active && rsvpReplay.pktActive)
+                    DrawPacketAnim(rsvpReplay.pkt, nodes, cables);
 
                 if (connecting) {
                     const DeviceNode* fromNode = FindNode(nodes, connectFromId);
