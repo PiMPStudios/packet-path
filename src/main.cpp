@@ -1,6 +1,7 @@
 #include "NetworkCanvas.h"
 #include "OspfEngine.h"
 #include "LdpEngine.h"
+#include "RsvpEngine.h"
 #include "BgpEngine.h"
 #include "EvpnEngine.h"
 #include "Level.h"
@@ -1483,6 +1484,7 @@ int main() {
         {
             auto ospfEvents = UpdateOspf(dt, nodes, cables);
             UpdateLdp(nodes, cables);   // recompute LFIB after each OSPF tick
+            UpdateRsvp(nodes, cables);
             UpdateBgp(nodes, cables);   // recompute BGP RIB every frame
             BuildEvpnRoutes(nodes);
             auto pushLog = [&](LogEntry entry) {
