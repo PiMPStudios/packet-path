@@ -189,6 +189,7 @@ std::vector<std::string> UpdateRsvp(std::vector<DeviceNode>& nodes,
                     t.headLabel = n.nextTeLabel;
                     n.nextTeLabel += 10;  // reserve 10 labels per tunnel (max 9 hops)
                 }
+                bool wasNewTunnel = (t.activePath.empty() && !t.isUp);
                 t.activePath = newPath;
                 t.isUp       = true;
                 t.statusMsg  = "Up";
@@ -203,7 +204,7 @@ std::vector<std::string> UpdateRsvp(std::vector<DeviceNode>& nodes,
                     std::snprintf(buf, sizeof(buf),
                                   "RSVP-TE: %s Tunnel-%d %s (label %u)",
                                   n.label.c_str(), t.id,
-                                  pathChanged ? "rerouted" : "up", t.headLabel);
+                                  wasNewTunnel ? "up" : "rerouted", t.headLabel);
                     log.push_back(buf);
                 }
             } else {
@@ -216,8 +217,8 @@ std::vector<std::string> UpdateRsvp(std::vector<DeviceNode>& nodes,
                     // First tick without path: hold current state one more tick
                     n.pendingTunnels.push_back(t);
                     BuildTeLfib(t, nodes, cables);  // keep forwarding for one tick
-                } else {
-                    // Second tick: go Down
+                } else if (t.isUp || alreadyPending) {
+                    // Second tick (or first tick for pending): go Down
                     t.isUp      = false;
                     t.activePath.clear();
                     t.statusMsg = t.explicitHops.empty()
