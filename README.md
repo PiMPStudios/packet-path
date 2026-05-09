@@ -2,6 +2,8 @@
 
 A visual, interactive network simulator that teaches real networking concepts — from basic IP forwarding through OSPF, BGP, MPLS, VLANs, VXLANs, ACLs, and beyond. Built in C++17 with [raylib](https://www.raylib.com/).
 
+> **Under active development.** Features are being added rapidly and things may break between commits. Not recommended for production use — but great for poking around.
+
 ---
 
 ![MPLS Label Switching — PC-A to PC-B across a 4-router MPLS core](docs/screenshots/gameplay-mpls.png)
@@ -176,7 +178,7 @@ The core engine, 16 levels, and all UI features listed above are implemented and
 - [x] 802.1Q VLANs and trunking
 - [x] VXLAN + BGP EVPN
 - [x] ACLs and NAT
-- [ ] RSVP-TE — explicit path computation, bandwidth constraints
+- [x] RSVP-TE — explicit path computation, bandwidth constraints (in testing)
 - [ ] Segment Routing — SR-MPLS (SID allocation, label stack) and SRv6
 - [ ] IS-IS — L1/L2, TLVs, SPF
 - [ ] SD-WAN — policy-based path selection, SLA thresholds
