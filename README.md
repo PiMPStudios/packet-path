@@ -197,12 +197,6 @@ The core engine, 16 levels, and all UI features listed above are implemented and
 - [ ] Windows build
 - [ ] Linux build
 
-### Launch
-
-- [ ] Steam store page, capsule art, and screenshots
-- [ ] Steam achievements and Steamworks SDK integration
-- [ ] Launch trailer
-
 ---
 
 ## Contributors
