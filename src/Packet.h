@@ -20,6 +20,7 @@ struct PacketAnim {
     uint32_t currentVni   = 0;
     bool     paused       = false;
     float    speedMult    = 1.f;
+    Color    overrideColor = {0, 0, 0, 0};  // {0,0,0,0} = use default green
 };
 
 struct SimState {

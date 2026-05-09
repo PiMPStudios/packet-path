@@ -302,9 +302,12 @@ void DrawPacketAnim(const PacketAnim& anim,
         DrawTextEx(GFont(), vnibuf, {(float)(int)(bx + 5.f), (float)(int)(by + 3.f)}, FS(10), Sp(FS(10)), WHITE);
     }
 
-    // Green glow (outer) + core dot — always green during travel
-    DrawCircleV(pos, 14.f, Color{34, 197, 94, 55});
-    DrawCircleV(pos, 7.f,  Color{34, 197, 94, 255});
+    // Core dot color: use overrideColor if set (alpha != 0), else default green
+    Color core  = (anim.overrideColor.a != 0) ? anim.overrideColor
+                                               : Color{34, 197, 94, 255};
+    Color glow  = {core.r, core.g, core.b, 55};
+    DrawCircleV(pos, 14.f, glow);
+    DrawCircleV(pos, 7.f,  core);
 }
 
 // ── Log console (drawn outside BeginMode2D, full-width bottom strip) ─────
