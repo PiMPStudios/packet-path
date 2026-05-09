@@ -23,9 +23,9 @@
 ### Constants (in `Device.h`)
 
 ```cpp
-constexpr uint32_t SRGB_BASE = 1000;
+constexpr uint32_t SRGB_BASE = 17000;  // above LDP (n.id*100) and RSVP-TE (16000+)
 constexpr uint32_t SRGB_SIZE = 1000;
-constexpr uint32_t SRGB_END  = SRGB_BASE + SRGB_SIZE;  // exclusive upper bound
+constexpr uint32_t SRGB_END  = SRGB_BASE + SRGB_SIZE;  // exclusive upper bound (17999)
 ```
 
 ### `SrLfibEntry` (new, in `Device.h` alongside `TeLfibEntry`)
@@ -49,7 +49,7 @@ struct SrPolicy {
     std::vector<std::string> segmentIps;   // hop IPs as typed (UI storage)
     std::vector<int>         segmentHops;  // resolved node IDs (engine use)
     std::vector<uint32_t>    labelStack;   // computed label stack, innermost first / outermost at back
-                                           // e.g. segment list [R2→R4] → labelStack = {1004, 1002}
+                                           // e.g. segment list [R2→R4] → labelStack = {17004, 17002}
                                            // back() = first segment's label = outermost (processed first)
     bool             segmentsResolved = false;  // cleared on topology change; set by ResolveSrSegments
 
@@ -75,7 +75,7 @@ std::unordered_map<int, uint32_t>         adjSids;  // key = port index; value =
 ```cpp
 std::vector<uint32_t> srLabelStack;  // SR label stack stored innermost-first, outermost at back
                                      // back() = current top label (next to be processed)
-                                     // e.g. segment list [R2→R4] → srLabelStack = {1004, 1002}
+                                     // e.g. segment list [R2→R4] → srLabelStack = {17004, 17002}
 int                   srSegmentIdx = 0;   // which segment of the active SR policy we are on
 int                   srPolicyId   = 0;   // ID of the active SR policy (0 = no SR policy)
 ```
@@ -223,7 +223,7 @@ For each SR-enabled node → each active `srPolicy`:
 3. At the head-end router position, draw the **label stack badge**:
    ```
    Policy-N push
-   [ 1002 | 1004 ]
+   [ 17002 | 17004 ]
    ```
    Positioned above the router node, font size 10, background `#0f172a`, border in policy color.
 4. Mid-cable badge: `"Policy-N"` only (no BW — SR has no bandwidth constraint).
@@ -232,7 +232,7 @@ For each SR-enabled node → each active `srPolicy`:
 
 ### New `TAB_SR` entry
 
-Appended after `TAB_TE` in `PanelTab` enum. `PnlTabCount` for ROUTER goes from 12 to 13.
+Appended after `TAB_TE` in `PanelTab` enum. `PnlTabCount` for ROUTER goes from 11 to 12.
 
 ### New `PanelState` fields
 
@@ -251,7 +251,7 @@ std::string srSegsBuf;
 ```
 [sr-mpls]  [ON / OFF]
 
-Node SID:  [__]   → label: 1NNN     SRGB: 1000–1999 (global)
+Node SID:  [__]   → label: 17NNN     SRGB: 17000–17999 (global)
 
 Adj SIDs (auto):
   Gi0/0  adj: 5NNN
@@ -263,7 +263,7 @@ SR Policies:
   ▼ Policy-2  → 10.0.9.1     [DOWN]
        Dest:  [_________]
        Segs:  [_________________]
-              → SID:2·label:1002  SID:5·label:1005  ← live, updates on each keystroke
+              → SID:2·label:17002  SID:5·label:17005  ← live, updates on each keystroke
        [✕ Del]
 [+ Add Policy]
 ```
@@ -272,17 +272,14 @@ SR Policies:
 
 ## Build Integration
 
-Add to `Makefile`:
-
-```makefile
-SRCS += src/SrEngine.cpp
-```
+No `Makefile` changes needed. The project uses `$(wildcard src/*.cpp)` — `SrEngine.cpp` is picked
+up automatically.
 
 `main.cpp` calls `UpdateSr(nodes, cables)` in the simulation update loop, after `UpdateRsvp`.
 
 ## Out of Scope
 
-- Per-router SRGB configuration (fixed global default 1000–1999 is sufficient for the simulator)
+- Per-router SRGB configuration (fixed global default 17000–17999 is sufficient for the simulator)
 - Flex-Algo (algorithm-based path computation)
 - TI-LFA (topology-independent loop-free alternate) fast reroute
 - SR-TE with bandwidth constraints (that's RSVP-TE's job)
