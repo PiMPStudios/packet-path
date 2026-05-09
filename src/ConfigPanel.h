@@ -5,7 +5,7 @@
 #include <vector>
 
 enum PanelTab { TAB_CONFIG, TAB_ROUTES, TAB_ARP, TAB_OSPF, TAB_MPLS, TAB_BGP,
-                TAB_VLAN, TAB_SUB, TAB_VXLAN, TAB_ACL, TAB_NAT };
+                TAB_VLAN, TAB_SUB, TAB_VXLAN, TAB_ACL, TAB_NAT, TAB_TE };
 
 struct TabInfo {
     PanelTab    tab;
@@ -52,6 +52,15 @@ struct PanelState {
     // NAT tab
     int         natField       = -1;   // 0=inside prefix editing, -1=none
     std::string natInsideBuf;          // edit buffer for inside prefix CIDR
+
+    // TE tab
+    int         teExpandedIdx   = -1;   // index in teTunnels currently expanded (-1=none)
+    int         teActiveField   = -1;   // 0=dest, 1=bw, 2=hops
+    std::string teDestBuf;
+    std::string teBwBuf;
+    std::string teHopsBuf;
+    int         tePbwActivePort = -1;   // 0-3: which port BW field is active
+    std::string tePbwBuf;               // edit buffer for port BW
 };
 
 // Layout rect helpers
@@ -101,6 +110,17 @@ Rectangle PnlNatToggleRect();
 Rectangle PnlNatInsidePortBtnRect(int port);   // port 0-3
 Rectangle PnlNatOutsidePortBtnRect(int port);
 Rectangle PnlNatInsidePrefixRect();
+// TE tab
+float TeListBaseY();
+float TeRowH();
+float TeFormH();
+Rectangle PnlTeTabRect();
+Rectangle PnlTeToggleRect();
+Rectangle PnlTePbwRect(int port);
+Rectangle PnlTeTunnelRowRect(int idx);
+Rectangle PnlTeAddBtnRect(int tunnelCount);
+Rectangle PnlTeSimBtnRect();
+Rectangle PnlTeDelBtnRect();
 Rectangle PnlRouteDeleteRect(int rowIdx);
 Rectangle PnlRouteDestRect();
 Rectangle PnlRouteNextRect();

@@ -9,6 +9,7 @@
 #include "TraceModal.h"
 #include "SoundEngine.h"
 #include "Font.h"
+#include <sstream>
 
 // ── Main ──────────────────────────────────────────────────────────────────
 int main() {
@@ -1213,6 +1214,99 @@ int main() {
                         }
                     }
                 }
+                // ── TE tab input ───────────────────────────────────────────
+                if (ps.activeTab == TAB_TE && selectedId != -1) {
+                    DeviceNode* selNode = nullptr;
+                    for (auto& nd : nodes) if (nd.id == selectedId) { selNode = &nd; break; }
+                    if (selNode && selNode->type == ROUTER) {
+                        // Toggle rsvp-te
+                        if (CheckCollisionPointRec(screenMouse, PnlTeToggleRect())) {
+                            selNode->rsvpEnabled = !selNode->rsvpEnabled;
+                            if (!selNode->rsvpEnabled) {
+                                selNode->teLfib.clear();
+                                selNode->teTunnels.clear();
+                                selNode->pendingTunnels.clear();
+                            }
+                        }
+                        if (!selNode->rsvpEnabled) goto te_input_done;
+
+                        // Per-port BW field activation
+                        for (int p = 0; p < PORTS_PER_NODE; ++p) {
+                            if (selNode->portIp[p].empty()) continue;
+                            if (CheckCollisionPointRec(screenMouse, PnlTePbwRect(p))) {
+                                ps.tePbwActivePort = (ps.tePbwActivePort == p) ? -1 : p;
+                                ps.tePbwBuf = std::to_string(selNode->portBandwidth[p]);
+                            }
+                        }
+
+                        // Tunnel row click -> expand/collapse
+                        for (int i = 0; i < (int)selNode->teTunnels.size(); ++i) {
+                            if (CheckCollisionPointRec(screenMouse, PnlTeTunnelRowRect(i))) {
+                                ps.teExpandedIdx = (ps.teExpandedIdx == i) ? -1 : i;
+                                ps.teActiveField = -1;
+                                if (ps.teExpandedIdx == i) {
+                                    ps.teDestBuf = selNode->teTunnels[i].destIp;
+                                    ps.teBwBuf   = std::to_string(selNode->teTunnels[i].bandwidth);
+                                    std::string hops;
+                                    for (const auto& h : selNode->teTunnels[i].explicitHopIps)
+                                        hops += h + " ";
+                                    ps.teHopsBuf = hops;
+                                }
+                            }
+                        }
+
+                        // Expanded form field clicks
+                        if (ps.teExpandedIdx >= 0 && ps.teExpandedIdx < (int)selNode->teTunnels.size()) {
+                            auto& t   = selNode->teTunnels[ps.teExpandedIdx];
+                            float fy  = TeListBaseY() + (float)ps.teExpandedIdx * TeRowH() + TeRowH();
+
+                            Rectangle destR = {(float)(CANVAS_W()+56), fy - 2.0f, (float)(PANEL_W-60), 20.0f};
+                            if (CheckCollisionPointRec(screenMouse, destR)) ps.teActiveField = 0;
+                            fy += 24.0f;
+                            Rectangle bwR = {(float)(CANVAS_W()+56), fy - 2.0f, (float)(PANEL_W-60), 20.0f};
+                            if (CheckCollisionPointRec(screenMouse, bwR))   ps.teActiveField = 1;
+                            fy += 24.0f;
+                            Rectangle modeR = {(float)(CANVAS_W()+56), fy, 80.0f, 20.0f};
+                            if (CheckCollisionPointRec(screenMouse, modeR)) {
+                                t.useExplicit = !t.useExplicit;
+                                t.headLabel   = 0;
+                            }
+                            fy += 24.0f;
+                            if (t.useExplicit) {
+                                Rectangle hopR = {(float)(CANVAS_W()+56), fy-2.0f, (float)(PANEL_W-60), 20.0f};
+                                if (CheckCollisionPointRec(screenMouse, hopR)) ps.teActiveField = 2;
+                                fy += 24.0f;
+                            }
+
+                            float btnW = (float)(PANEL_W - 8) * 0.55f;
+                            float delW = (float)(PANEL_W - 8) * 0.40f;
+                            Rectangle simR = {(float)(CANVAS_W()+12), fy, btnW, 22.0f};
+                            Rectangle delR = {(float)(CANVAS_W() + 12 + PANEL_W - 24 - delW), fy, delW, 22.0f};
+
+                            if (t.isUp && CheckCollisionPointRec(screenMouse, simR)) {
+                                // Simulate Setup -- wired in Task 11
+                            }
+                            if (CheckCollisionPointRec(screenMouse, delR)) {
+                                selNode->teTunnels.erase(selNode->teTunnels.begin() + ps.teExpandedIdx);
+                                ps.teExpandedIdx = -1;
+                                ps.teActiveField = -1;
+                            }
+                        }
+
+                        {
+                            // Add Tunnel button
+                            int visCount = (int)selNode->teTunnels.size() + (ps.teExpandedIdx >= 0 ? 1 : 0);
+                            if (CheckCollisionPointRec(screenMouse, PnlTeAddBtnRect(visCount))) {
+                                TeTunnel nt;
+                                nt.id = selNode->teTunnels.empty()
+                                        ? 1 : selNode->teTunnels.back().id + 1;
+                                selNode->teTunnels.push_back(nt);
+                            }
+                        }
+
+                        te_input_done:;
+                    }
+                }
             }
         }
 
@@ -1446,6 +1540,52 @@ int main() {
                 } else if (IsKeyPressed(KEY_ESCAPE)) {
                     ps.natField = -1;
                     ps.natInsideBuf.clear();
+                }
+            }
+        }
+
+        // TE tab text field updates
+        if (ps.activeTab == TAB_TE && selectedId != -1) {
+            DeviceNode* sn = nullptr;
+            for (auto& nd : nodes) if (nd.id == selectedId) { sn = &nd; break; }
+            if (sn) {
+                if (ps.tePbwActivePort >= 0) {
+                    UpdateTextField(ps.tePbwBuf, 7);
+                    if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_TAB)) {
+                        int p = ps.tePbwActivePort;
+                        uint32_t bw = (uint32_t)std::max(1, std::atoi(ps.tePbwBuf.c_str()));
+                        sn->portBandwidth[p] = bw;
+                        ps.tePbwActivePort = -1;
+                    }
+                }
+                if (ps.teExpandedIdx >= 0 && ps.teExpandedIdx < (int)sn->teTunnels.size()) {
+                    auto& t = sn->teTunnels[ps.teExpandedIdx];
+                    if (ps.teActiveField == 0) {
+                        UpdateTextField(ps.teDestBuf, 15);
+                        if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_TAB)) {
+                            t.destIp = ps.teDestBuf;
+                            t.headLabel = 0;
+                            ps.teActiveField = -1;
+                        }
+                    } else if (ps.teActiveField == 1) {
+                        UpdateTextField(ps.teBwBuf, 7);
+                        if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_TAB)) {
+                            t.bandwidth = (uint32_t)std::max(0, std::atoi(ps.teBwBuf.c_str()));
+                            t.headLabel = 0;
+                            ps.teActiveField = -1;
+                        }
+                    } else if (ps.teActiveField == 2) {
+                        UpdateTextField(ps.teHopsBuf, 120);
+                        if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_TAB)) {
+                            t.explicitHopIps.clear();
+                            std::istringstream ss(ps.teHopsBuf);
+                            std::string tok;
+                            while (ss >> tok) t.explicitHopIps.push_back(tok);
+                            ResolveExplicitHops(t, nodes);
+                            t.headLabel = 0;
+                            ps.teActiveField = -1;
+                        }
+                    }
                 }
             }
         }

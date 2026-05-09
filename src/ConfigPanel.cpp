@@ -204,12 +204,13 @@ static const TabInfo kRtTabs[] = {
     {TAB_VXLAN,  "VXL",  Color{20,184,166,255}, Color{20,184,166,255}},
     {TAB_ACL,    "ACL",  Color{59,130,246,255}, Color{239,68,68,255}},
     {TAB_NAT,    "NAT",  Color{59,130,246,255}, Color{234,179,8,255}},
+    {TAB_TE,     "TE",   Color{251,191,36,255}, Color{251,191,36,255}},
 };
 
 int PnlTabCount(DeviceType t) {
     if (t == PC)     return 3;
     if (t == SWITCH) return 3;
-    return 10;
+    return 11;
 }
 float PnlTabWFor(DeviceType t) {
     int n = PnlTabCount(t);
@@ -223,4 +224,34 @@ const TabInfo* PnlTabList(DeviceType t) {
 Rectangle PnlTabRect(DeviceType t, int visIdx) {
     float w = PnlTabWFor(t);
     return {(float)(CANVAS_W() + 12) + (float)visIdx * (w + 4.0f), 88.0f, w, 26.0f};
+}
+
+// ── TE tab helpers and rects ──────────────────────────────────────────────
+float TeListBaseY() { return 260.0f; }
+float TeRowH()      { return 28.0f;  }
+float TeFormH()     { return 128.0f; }
+
+Rectangle PnlTeTabRect() {
+    return {(float)(CANVAS_W() + 12) + 10.0f * (PnlTabW() + 4.0f), 88.0f, PnlTabW(), 26.0f};
+}
+Rectangle PnlTeToggleRect() {
+    return {(float)(CANVAS_W() + 12), 120.0f, (float)(PANEL_W - 24), 26.0f};
+}
+Rectangle PnlTePbwRect(int port) {
+    float y = 152.0f + (float)port * 26.0f;
+    return {(float)(CANVAS_W() + PANEL_W - 80), y, 60.0f, 22.0f};
+}
+Rectangle PnlTeTunnelRowRect(int idx) {
+    return {(float)(CANVAS_W() + 12), TeListBaseY() + (float)idx * TeRowH(),
+            (float)(PANEL_W - 24), TeRowH() - 2.0f};
+}
+Rectangle PnlTeAddBtnRect(int tunnelCount) {
+    float y = TeListBaseY() + (float)tunnelCount * TeRowH() + 4.0f;
+    return {(float)(CANVAS_W() + 12), y, (float)(PANEL_W - 24), 26.0f};
+}
+Rectangle PnlTeSimBtnRect() {
+    return {0.0f, 0.0f, (float)(PANEL_W - 24) * 0.6f, 22.0f};
+}
+Rectangle PnlTeDelBtnRect() {
+    return {0.0f, 0.0f, (float)(PANEL_W - 24) * 0.35f, 22.0f};
 }

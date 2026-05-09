@@ -1270,6 +1270,128 @@ void DrawNatTab(const DeviceNode* n, const PanelState& ps) {
     }
 }
 
+void DrawTeTab(const DeviceNode* n, const PanelState& ps)
+{
+    float px = (float)(CANVAS_W() + 12);
+    float pw = (float)(PANEL_W - 24);
+    Color DIM  = {100, 116, 139, 255};
+    Color WHT  = WHITE;
+    Color ON   = {34,  197, 94,  255};
+    Color OFF  = {100, 116, 139, 255};
+
+    if (!n) { DrawTextEx(GFont(), "No device selected", {px, 130.0f}, FS(11), Sp(FS(11)), DIM); return; }
+    if (n->type != ROUTER) { DrawTextEx(GFont(), "TE: routers only", {px, 130.0f}, FS(11), Sp(FS(11)), DIM); return; }
+
+    // Toggle row
+    const char* lbl = n->rsvpEnabled ? "rsvp-te  ON" : "rsvp-te  OFF";
+    Color       tcol = n->rsvpEnabled ? ON : OFF;
+    DrawRectangleRoundedLines(PnlTeToggleRect(), 0.4f, 4, tcol);
+    float tw = TW(lbl, 12);
+    DrawTextEx(GFont(), lbl,
+               {px + (pw - tw) * 0.5f, 126.0f}, FS(12), Sp(FS(12)), tcol);
+
+    if (!n->rsvpEnabled) return;
+
+    // Per-port bandwidth rows
+    DrawTextEx(GFont(), "Interface Bandwidth", {px, 150.0f}, FS(10), Sp(FS(10)), DIM);
+    for (int p = 0; p < PORTS_PER_NODE; ++p) {
+        if (n->portIp[p].empty()) continue;
+        float y = 152.0f + (float)p * 26.0f;
+        std::string portName = GetPortName(n->type, p);
+        DrawTextEx(GFont(), portName.c_str(), {px, y + 4.0f}, FS(11), Sp(FS(11)), WHT);
+
+        Rectangle bwRect = PnlTePbwRect(p);
+        bool active = (ps.tePbwActivePort == p);
+        DrawRectangleRec(bwRect, Color{30, 41, 59, 255});
+        DrawRectangleLinesEx(bwRect, 1.0f, active ? Color{59,130,246,255} : Color{51,65,85,255});
+        const std::string& txt = active ? ps.tePbwBuf
+                                        : std::to_string(n->portBandwidth[p]);
+        DrawTextEx(GFont(), txt.c_str(), {bwRect.x + 4.0f, bwRect.y + 4.0f},
+                   FS(11), Sp(FS(11)), WHT);
+        DrawTextEx(GFont(), "Mbps", {bwRect.x + bwRect.width + 4.0f, bwRect.y + 4.0f},
+                   FS(10), Sp(FS(10)), DIM);
+    }
+
+    // Tunnel list header
+    DrawTextEx(GFont(), "TE Tunnels",
+               {px, TeListBaseY() - 18.0f}, FS(10), Sp(FS(10)), DIM);
+
+    float listY = TeListBaseY();
+    for (int i = 0; i < (int)n->teTunnels.size(); ++i) {
+        const auto& t  = n->teTunnels[i];
+        bool expanded  = (ps.teExpandedIdx == i);
+        float rowY     = listY;
+        listY         += TeRowH();
+
+        Color statusColor = t.isUp ? ON : Color{239,68,68,255};
+        Color rowBg       = Color{21, 30, 47, 255};
+        DrawRectangleRounded({px, rowY, pw, TeRowH() - 2.0f}, 0.3f, 4, rowBg);
+        DrawRectangle((int)px, (int)rowY, 3, (int)(TeRowH() - 2.0f), Color{251,191,36,200});
+
+        char rowLabel[64];
+        std::snprintf(rowLabel, sizeof(rowLabel),
+                      "%s Tunnel-%d  ->%s  %uMbps  %s",
+                      expanded ? "v" : ">",
+                      t.id,
+                      t.destIp.empty() ? "?" : t.destIp.c_str(),
+                      t.bandwidth,
+                      t.useExplicit ? "Explicit" : "CSPF");
+        DrawTextEx(GFont(), rowLabel, {px + 8.0f, rowY + 7.0f}, FS(10), Sp(FS(10)), WHT);
+        const char* statusTxt = t.isUp ? "UP" : "DOWN";
+        float sw = TW(statusTxt, 10);
+        DrawTextEx(GFont(), statusTxt, {px + pw - sw - 4.0f, rowY + 7.0f},
+                   FS(10), Sp(FS(10)), statusColor);
+
+        if (!expanded) continue;
+        listY += TeFormH();
+
+        float fy = rowY + TeRowH();
+        auto field = [&](const char* flbl, float y, const std::string& val, bool act) {
+            DrawTextEx(GFont(), flbl, {px + 4.0f, y}, FS(10), Sp(FS(10)), DIM);
+            Rectangle r = {px + 52.0f, y - 2.0f, pw - 56.0f, 20.0f};
+            DrawRectangleRec(r, Color{30, 41, 59, 255});
+            DrawRectangleLinesEx(r, 1.0f, act ? Color{59,130,246,255} : Color{51,65,85,255});
+            DrawTextEx(GFont(), val.c_str(), {r.x + 4.0f, r.y + 3.0f}, FS(10), Sp(FS(10)), WHT);
+        };
+        bool destAct = (ps.teActiveField == 0);
+        bool bwAct   = (ps.teActiveField == 1);
+        bool hopAct  = (ps.teActiveField == 2);
+
+        field("Dest:", fy, destAct ? ps.teDestBuf : t.destIp,                      destAct); fy += 24.0f;
+        field("BW:",   fy, bwAct   ? ps.teBwBuf   : std::to_string(t.bandwidth),   bwAct);   fy += 24.0f;
+
+        DrawTextEx(GFont(), "Mode:", {px + 4.0f, fy}, FS(10), Sp(FS(10)), DIM);
+        const char* modeTxt = t.useExplicit ? "[Explicit]" : "[CSPF    ]";
+        DrawTextEx(GFont(), modeTxt, {px + 52.0f, fy}, FS(10), Sp(FS(10)), Color{251,191,36,255});
+        fy += 24.0f;
+
+        if (t.useExplicit) {
+            std::string hopsStr;
+            for (const auto& h : t.explicitHopIps) hopsStr += h + " ";
+            field("Hops:", fy, hopAct ? ps.teHopsBuf : hopsStr, hopAct);
+            fy += 24.0f;
+        }
+
+        float btnW = (pw - 8.0f) * 0.55f;
+        float delW = (pw - 8.0f) * 0.40f;
+        bool canSim = t.isUp;
+        Color simCol = canSim ? Color{59,130,246,255} : Color{51,65,85,255};
+        DrawRectangleRounded({px, fy, btnW, 22.0f}, 0.4f, 4, simCol);
+        DrawTextEx(GFont(), "Simulate Setup", {px + 4.0f, fy + 4.0f}, FS(10), Sp(FS(10)), WHT);
+        DrawRectangleRounded({px + pw - delW, fy, delW, 22.0f}, 0.4f, 4, Color{127,29,29,255});
+        DrawTextEx(GFont(), "Del", {px + pw - delW + 4.0f, fy + 4.0f}, FS(10), Sp(FS(10)), WHT);
+    }
+
+    // Add Tunnel button
+    int visCount = (int)n->teTunnels.size() + (ps.teExpandedIdx >= 0 ? 1 : 0);
+    Rectangle addBtn = PnlTeAddBtnRect(visCount);
+    DrawRectangleRounded(addBtn, 0.4f, 4, Color{21,128,61,200});
+    float atw = TW("+ Add Tunnel", 11);
+    DrawTextEx(GFont(), "+ Add Tunnel",
+               {addBtn.x + (addBtn.width - atw) * 0.5f, addBtn.y + 6.0f},
+               FS(11), Sp(FS(11)), WHT);
+}
+
 void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
                const PanelState& ps)
 {
@@ -1344,6 +1466,7 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
     else if (ps.activeTab == TAB_VXLAN) DrawVxlanTab(n, ps);
     else if (ps.activeTab == TAB_ACL)  DrawAclTab(n, ps);
     else if (ps.activeTab == TAB_NAT)  DrawNatTab(n, ps);
+    else if (ps.activeTab == TAB_TE)   DrawTeTab(n, ps);
 }
 
 // ── Context menu draw ────────────────────────────────────────────────────
