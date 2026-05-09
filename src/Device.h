@@ -31,6 +31,30 @@ struct LdpBinding {
     uint32_t outLabel   = 0;  // label expected by next-hop router (or IMPLICIT_NULL)
 };
 
+struct TeLfibEntry {
+    uint32_t inLabel  = 0;
+    uint32_t outLabel = 0;   // MPLS_IMPLICIT_NULL = PHP at penultimate hop
+    int      outPort  = -1;
+    int      tunnelId = 0;
+};
+
+struct TeTunnel {
+    int         id          = 0;       // 1–255, unique per router
+    std::string destIp;                // tail-end router IP (no mask)
+
+    uint32_t    bandwidth   = 0;       // required Mbps
+
+    bool        useExplicit = false;
+    std::vector<std::string> explicitHopIps;  // human-readable (UI storage)
+    std::vector<int>         explicitHops;    // resolved node IDs (engine use)
+
+    // computed each tick by UpdateRsvp — do not set from UI
+    bool             isUp      = false;
+    std::vector<int> activePath;        // node IDs head→tail
+    uint32_t         headLabel = 0;     // 0 = not yet allocated
+    std::string      statusMsg;         // "Up" / "No CSPF path" / "BW insufficient"
+};
+
 // ── BGP types ─────────────────────────────────────────────────────────────
 struct BgpNeighbor {
     std::string neighborIp;        // peer's port IP on shared cable (no mask)
@@ -131,6 +155,7 @@ struct HopDecision {
     uint32_t vxlanVni = 0;   // non-zero = hop is inside a VXLAN tunnel
     std::string aclResult;   // non-empty = ACL matched this hop, e.g. "PERMIT seq:10"
     std::string natResult;   // non-empty = NAT translated this hop, e.g. "192.168.1.2 → 10.0.0.1"
+    int tunnelId = 0;   // non-zero = this hop is inside a named TE tunnel
 };
 
 struct ForwardResult {
@@ -201,6 +226,13 @@ struct DeviceNode {
     int         natInsidePort   = -1;          // port facing inside network (-1 = not set)
     int         natOutsidePort  = -1;          // port facing outside / ISP  (-1 = not set)
     std::string natInsidePrefix;               // CIDR of inside subnet, e.g. "192.168.1.0/24"
+    // RSVP-TE (routers only)
+    bool        rsvpEnabled  = false;
+    uint32_t    portBandwidth[PORTS_PER_NODE] = {1000, 1000, 1000, 1000};  // Mbps
+    uint32_t    nextTeLabel  = 16000;   // monotonic allocator — never resets between ticks
+    std::vector<TeTunnel>   teTunnels;
+    std::unordered_map<uint32_t, TeLfibEntry> teLfib;  // key = inLabel
+    std::vector<TeTunnel>   pendingTunnels;  // MBB hold buffer
 };
 
 // ── Device geometry helpers (no draw calls) ───────────────────────────────
