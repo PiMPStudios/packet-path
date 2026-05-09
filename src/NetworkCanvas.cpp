@@ -125,6 +125,82 @@ void DrawAllCables(const std::vector<Cable>& cables,
     }
 }
 
+// ── TE tunnel overlays (drawn in world space after cables) ────────────────
+void DrawTeTunnelOverlays(const std::vector<DeviceNode>& nodes,
+                          const std::vector<Cable>&      cables)
+{
+    static const Color kTePalette[] = {
+        {251, 191,  36, 200},   // amber
+        { 34, 211, 238, 200},   // cyan
+        {232, 121, 249, 200},   // magenta
+        {163, 230,  53, 200},   // lime
+        {251, 113, 133, 200},   // rose
+        { 56, 189, 248, 200},   // sky
+    };
+    static const int kPaletteSize = 6;
+
+    int tunnelColorIdx = 0;
+    for (const auto& n : nodes) {
+        if (!n.rsvpEnabled) continue;
+        for (const auto& t : n.teTunnels) {
+            if (!t.isUp || t.activePath.size() < 2) { ++tunnelColorIdx; continue; }
+            Color col = kTePalette[tunnelColorIdx % kPaletteSize];
+            ++tunnelColorIdx;
+
+            for (size_t i = 0; i + 1 < t.activePath.size(); ++i) {
+                int aId = t.activePath[i];
+                int bId = t.activePath[i + 1];
+
+                const DeviceNode* nodeA = FindNode(nodes, aId);
+                const DeviceNode* nodeB = FindNode(nodes, bId);
+                if (!nodeA || !nodeB) continue;
+
+                // Find the cable between aId and bId and resolve port indices
+                const Cable* cab = FindCable(cables, aId, bId);
+                if (!cab) continue;
+
+                int aPort = (cab->fromId == aId) ? cab->fromPort : cab->toPort;
+                int bPort = (cab->fromId == bId) ? cab->fromPort : cab->toPort;
+
+                Vector2 p0 = GetPortPosition(*nodeA, aPort);
+                Vector2 p3 = GetPortPosition(*nodeB, bPort);
+                Vector2 c1 = BezierCtrl(p0, aPort);
+                Vector2 c2 = BezierCtrl(p3, bPort);
+
+                // Perpendicular offset to separate stacked tunnels
+                float   off  = (float)(((tunnelColorIdx - 1) % 3) - 1) * 3.0f;
+                Vector2 dir  = {p3.x - p0.x, p3.y - p0.y};
+                float   len  = sqrtf(dir.x * dir.x + dir.y * dir.y);
+                Vector2 perp = (len > 0.001f) ? Vector2{-dir.y / len, dir.x / len}
+                                              : Vector2{0.f, 0.f};
+                Vector2 o    = {perp.x * off, perp.y * off};
+
+                Vector2 op0 = {p0.x + o.x, p0.y + o.y};
+                Vector2 op3 = {p3.x + o.x, p3.y + o.y};
+                Vector2 oc1 = {c1.x + o.x, c1.y + o.y};
+                Vector2 oc2 = {c2.x + o.x, c2.y + o.y};
+
+                DrawSplineSegmentBezierCubic(op0, oc1, oc2, op3, 3.0f, col);
+
+                // Midpoint label badge — cubic Bezier at t=0.5:
+                // B(0.5) = (1/8)(p0 + 3*c1 + 3*c2 + p3)
+                Vector2 mid = {
+                    (op0.x + 3.0f * oc1.x + 3.0f * oc2.x + op3.x) * 0.125f,
+                    (op0.y + 3.0f * oc1.y + 3.0f * oc2.y + op3.y) * 0.125f
+                };
+                char badge[32];
+                std::snprintf(badge, sizeof(badge), "T%d.%uM", t.id, t.bandwidth);
+                float bw = TW(badge, 9) + 8.0f;
+                DrawRectangleRounded({mid.x - bw * 0.5f, mid.y - 9.0f, bw, 14.0f},
+                                     0.5f, 4, Color{15, 23, 42, 210});
+                DrawTextEx(GFont(), badge,
+                           {mid.x - bw * 0.5f + 4.0f, mid.y - 7.0f},
+                           FS(9), Sp(FS(9)), col);
+            }
+        }
+    }
+}
+
 // Returns true and sets outNode/outPort if worldMouse is near any port.
 // excludeId: skip this node's ports (prevents self-connect during connect mode).
 bool HitTestPort(const std::vector<DeviceNode>& nodes, Vector2 worldMouse,

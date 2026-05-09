@@ -52,6 +52,8 @@ void DrawDotGrid(const Camera2D& cam);
 void DrawDeviceNode(const DeviceNode& n);
 void DrawAllCables(const std::vector<Cable>& cables,
                    const std::vector<DeviceNode>& nodes);
+void DrawTeTunnelOverlays(const std::vector<DeviceNode>& nodes,
+                          const std::vector<Cable>&      cables);
 void DrawPacketAnim(const PacketAnim& anim,
                     const std::vector<DeviceNode>& nodes,
                     const std::vector<Cable>& cables);

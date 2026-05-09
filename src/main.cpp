@@ -1664,6 +1664,7 @@ int main() {
             BeginMode2D(camera);
                 DrawDotGrid(camera);
                 DrawAllCables(cables, nodes);
+                DrawTeTunnelOverlays(nodes, cables);
                 // Annotation first (background layer) — packet anim renders on top
                 if (failAnnotationTimer > 0.f)
                     DrawBrokenPath(nodes, cables, lastFailedTrace);
