@@ -120,7 +120,11 @@ Clear `node.srFib` before rebuilding. For every label in `labelToNodeId`, for ev
 2. Determine hop role:
    - **Egress** (I am the destination): no `srFib` entry needed — label was PHP'd by penultimate.
    - **Penultimate** (my OSPF next-hop IS the destination): `srFib[label] = { label, MPLS_IMPLICIT_NULL, outPort, 0 }`.
-   - **Transit**: `srFib[label] = { label, label, outPort, 0 }` — same in/out label, forward via OSPF. SR shortest-path uses PHP, so only the penultimate hop modifies the label.
+   - **Transit**: `srFib[label] = { label, label, outPort, 0 }` — same in/out label, forward via OSPF.
+     ```cpp
+     // SR shortest-path is PHP by default — the penultimate hop pops (MPLS_IMPLICIT_NULL).
+     // Transit hops forward with the same label (no swap needed).
+     ```
 3. If no OSPF route to the destination: skip (node is isolated from that SID).
 
 ### Phase 4 — Compute SR Policies
