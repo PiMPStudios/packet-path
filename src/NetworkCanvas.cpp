@@ -218,6 +218,7 @@ void DrawSrPolicyOverlays(const std::vector<DeviceNode>& nodes,
         if (!n.srEnabled) continue;
         for (const auto& policy : n.srPolicies) {
             if (!policy.isActive || policy.activePath.size() < 2) continue;
+            if (policy.id < 1) continue;  // id==0 is uninitialized sentinel
 
             Color col = SR_COLORS[(policy.id - 1) % 6];
 
