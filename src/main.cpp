@@ -2,6 +2,7 @@
 #include "OspfEngine.h"
 #include "LdpEngine.h"
 #include "RsvpEngine.h"
+#include "SrEngine.h"
 #include "BgpEngine.h"
 #include "EvpnEngine.h"
 #include "Level.h"
@@ -1327,6 +1328,109 @@ int main() {
                         te_input_done:;
                     }
                 }
+                // ── SR tab input ───────────────────────────────────────────
+                if (ps.activeTab == TAB_SR && selectedId != -1) {
+                    DeviceNode* sel = nullptr;
+                    for (auto& nd : nodes) if (nd.id == selectedId) { sel = &nd; break; }
+                    if (sel && sel->type == ROUTER) {
+                        // Toggle SR-MPLS
+                        if (CheckCollisionPointRec(screenMouse, PnlSrToggleRect())) {
+                            sel->srEnabled = !sel->srEnabled;
+                            goto sr_input_done;
+                        }
+
+                        // Node SID field click
+                        if (CheckCollisionPointRec(screenMouse, PnlSrNodeSidRect())) {
+                            ps.srNodeSidEditing = true;
+                            ps.srNodeSidBuf = sel->nodeSid > 0 ? std::to_string(sel->nodeSid) : "";
+                            goto sr_input_done;
+                        }
+
+                        // Policy row click -> expand/collapse
+                        for (int i = 0; i < (int)sel->srPolicies.size(); ++i) {
+                            int   expansionAbove = (ps.srExpandedIdx >= 0 && ps.srExpandedIdx < i) ? 1 : 0;
+                            float rowY = PnlSrPolicyRowRect(i).y + expansionAbove * SrFormH();
+                            Rectangle rowRect = { PnlSrPolicyRowRect(i).x, rowY,
+                                                  PnlSrPolicyRowRect(i).width, PnlSrPolicyRowRect(i).height };
+                            if (CheckCollisionPointRec(screenMouse, rowRect)) {
+                                if (ps.srExpandedIdx == i) {
+                                    ps.srExpandedIdx = -1;
+                                    ps.srActiveField = -1;
+                                } else {
+                                    ps.srExpandedIdx = i;
+                                    ps.srActiveField = -1;
+                                    ps.srDestBuf = sel->srPolicies[i].destIp;
+                                    ps.srSegsBuf.clear();
+                                    for (int j = 0; j < (int)sel->srPolicies[i].segmentIps.size(); ++j) {
+                                        if (j > 0) ps.srSegsBuf += ", ";
+                                        ps.srSegsBuf += sel->srPolicies[i].segmentIps[j];
+                                    }
+                                }
+                                goto sr_input_done;
+                            }
+                        }
+
+                        // Expanded form field clicks
+                        if (ps.srExpandedIdx >= 0 && ps.srExpandedIdx < (int)sel->srPolicies.size()) {
+                            // The expanded row is never displaced by a row above it expanding,
+                            // because only one row can be expanded at a time (this one).
+                            float rowY = PnlSrPolicyRowRect(ps.srExpandedIdx).y;
+                            float fy   = rowY + 28.0f; // SrRowH() = 28.0f
+
+                            float px = (float)(CANVAS_W() + 12);
+                            float pw = (float)(PANEL_W - 24);
+
+                            // Dest field rect (matches srField lambda: {px+52, y-2, pw-56, 20})
+                            Rectangle destR = { px + 52.0f, fy - 2.0f, pw - 56.0f, 20.0f };
+                            if (CheckCollisionPointRec(screenMouse, destR)) {
+                                ps.srActiveField = 0;
+                                goto sr_input_done;
+                            }
+                            fy += 24.0f;
+
+                            // Segs field rect
+                            Rectangle segsR = { px + 52.0f, fy - 2.0f, pw - 56.0f, 20.0f };
+                            if (CheckCollisionPointRec(screenMouse, segsR)) {
+                                ps.srActiveField = 1;
+                                goto sr_input_done;
+                            }
+                            fy += 24.0f;
+
+                            // Skip label preview row (variable height — check both with and without it)
+                            // Del button appears after segs + optional 16px preview line
+                            const auto& pol = sel->srPolicies[ps.srExpandedIdx];
+                            if (!pol.labelStack.empty() || !pol.segmentIps.empty()) {
+                                fy += 16.0f;
+                            }
+
+                            float delW = (pw - 8.0f) * 0.40f;
+                            Rectangle delR = { px + pw - delW, fy, delW, 22.0f };
+                            if (CheckCollisionPointRec(screenMouse, delR)) {
+                                sel->srPolicies.erase(sel->srPolicies.begin() + ps.srExpandedIdx);
+                                ps.srExpandedIdx = -1;
+                                ps.srActiveField = -1;
+                                goto sr_input_done;
+                            }
+                        }
+
+                        // Add Policy button
+                        {
+                            int visCount = (int)sel->srPolicies.size() + (ps.srExpandedIdx >= 0 ? 1 : 0);
+                            if (CheckCollisionPointRec(screenMouse, PnlSrAddBtnRect(visCount))) {
+                                SrPolicy newPolicy;
+                                newPolicy.id = (int)sel->srPolicies.size() + 1;
+                                sel->srPolicies.push_back(newPolicy);
+                                ps.srExpandedIdx = (int)sel->srPolicies.size() - 1;
+                                ps.srActiveField = 0;
+                                ps.srDestBuf.clear();
+                                ps.srSegsBuf.clear();
+                                goto sr_input_done;
+                            }
+                        }
+
+                        sr_input_done:;
+                    }
+                }
             }
         }
 
@@ -1610,6 +1714,93 @@ int main() {
             }
         }
 
+        // SR tab text field updates
+        if (ps.activeTab == TAB_SR && selectedId != -1) {
+            DeviceNode* sn = nullptr;
+            for (auto& nd : nodes) if (nd.id == selectedId) { sn = &nd; break; }
+            if (sn) {
+                if (ps.srNodeSidEditing) {
+                    int key = GetCharPressed();
+                    while (key > 0) {
+                        if (key >= '0' && key <= '9' && (int)ps.srNodeSidBuf.size() < 3) {
+                            ps.srNodeSidBuf += (char)key;
+                        }
+                        key = GetCharPressed();
+                    }
+                    if (IsKeyPressed(KEY_BACKSPACE) && !ps.srNodeSidBuf.empty()) {
+                        ps.srNodeSidBuf.pop_back();
+                    }
+                    if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_ESCAPE)) {
+                        if (!ps.srNodeSidBuf.empty()) {
+                            uint32_t sid = (uint32_t)std::stoul(ps.srNodeSidBuf);
+                            if (sid < 1) sid = 1;
+                            if (sid >= SRGB_SIZE) sid = SRGB_SIZE - 1;
+                            sn->nodeSid = sid;
+                        }
+                        ps.srNodeSidEditing = false;
+                    }
+                } else if (ps.srExpandedIdx >= 0 && ps.srExpandedIdx < (int)sn->srPolicies.size()
+                           && ps.srActiveField >= 0) {
+                    auto& pol = sn->srPolicies[ps.srExpandedIdx];
+                    if (ps.srActiveField == 0) {
+                        // Dest field editing
+                        int key = GetCharPressed();
+                        while (key > 0) {
+                            if (key >= 32 && key <= 126 && (int)ps.srDestBuf.size() < 15) {
+                                ps.srDestBuf += (char)key;
+                            }
+                            key = GetCharPressed();
+                        }
+                        if (IsKeyPressed(KEY_BACKSPACE) && !ps.srDestBuf.empty()) {
+                            ps.srDestBuf.pop_back();
+                        }
+                        if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_TAB)) {
+                            pol.destIp = ps.srDestBuf;
+                            ps.srActiveField = 1; // advance to Segs
+                        }
+                        if (IsKeyPressed(KEY_ESCAPE)) {
+                            pol.destIp = ps.srDestBuf;
+                            ps.srActiveField = -1;
+                        }
+                    } else if (ps.srActiveField == 1) {
+                        // Segs field editing
+                        int key = GetCharPressed();
+                        while (key > 0) {
+                            if (key >= 32 && key <= 126) {
+                                ps.srSegsBuf += (char)key;
+                            }
+                            key = GetCharPressed();
+                        }
+                        if (IsKeyPressed(KEY_BACKSPACE) && !ps.srSegsBuf.empty()) {
+                            ps.srSegsBuf.pop_back();
+                        }
+                        // Parse segments on every keystroke for live preview
+                        {
+                            pol.segmentIps.clear();
+                            std::istringstream ss(ps.srSegsBuf);
+                            std::string tok;
+                            while (std::getline(ss, tok, ',')) {
+                                // trim leading/trailing whitespace
+                                size_t start = tok.find_first_not_of(" \t");
+                                size_t end   = tok.find_last_not_of(" \t");
+                                if (start != std::string::npos) {
+                                    pol.segmentIps.push_back(tok.substr(start, end - start + 1));
+                                }
+                            }
+                            pol.segmentsResolved = false;
+                            ResolveSrSegments(pol, nodes);
+                        }
+                        if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_TAB)) {
+                            ps.srActiveField = -1;
+                        }
+                        if (IsKeyPressed(KEY_ESCAPE)) {
+                            ps.srActiveField = -1;
+                        }
+                    }
+                }
+            }
+        }
+
         // Reset active field when selection changes
         if (selectedId != prevSelectedId) {
             ps.activeField         = -1;
@@ -1634,6 +1825,12 @@ int main() {
             ps.natField            = -1;
             ps.natInsideBuf.clear();
             ps.aclFormAction       = 0;
+            ps.srNodeSidEditing    = false;
+            ps.srNodeSidBuf.clear();
+            ps.srExpandedIdx       = -1;
+            ps.srActiveField       = -1;
+            ps.srDestBuf.clear();
+            ps.srSegsBuf.clear();
             prevSelectedId         = selectedId;
         }
 
@@ -1645,6 +1842,7 @@ int main() {
             auto ospfEvents = UpdateOspf(dt, nodes, cables);
             UpdateLdp(nodes, cables);   // recompute LFIB after each OSPF tick
             UpdateRsvp(nodes, cables);
+            UpdateSr(nodes, cables);
             UpdateBgp(nodes, cables);   // recompute BGP RIB every frame
             BuildEvpnRoutes(nodes);
             auto pushLog = [&](LogEntry entry) {
