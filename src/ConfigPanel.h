@@ -5,7 +5,7 @@
 #include <vector>
 
 enum PanelTab { TAB_CONFIG, TAB_ROUTES, TAB_ARP, TAB_OSPF, TAB_MPLS, TAB_BGP,
-                TAB_VLAN, TAB_SUB, TAB_VXLAN, TAB_ACL, TAB_NAT, TAB_TE };
+                TAB_VLAN, TAB_SUB, TAB_VXLAN, TAB_ACL, TAB_NAT, TAB_TE, TAB_SR };
 
 struct TabInfo {
     PanelTab    tab;
@@ -61,6 +61,14 @@ struct PanelState {
     std::string teHopsBuf;
     int         tePbwActivePort = -1;   // 0-3: which port BW field is active
     std::string tePbwBuf;               // edit buffer for port BW
+
+    // SR tab
+    bool        srNodeSidEditing = false;
+    std::string srNodeSidBuf;
+    int         srExpandedIdx    = -1;
+    int         srActiveField    = -1;
+    std::string srDestBuf;
+    std::string srSegsBuf;
 };
 
 // Layout rect helpers
@@ -121,6 +129,15 @@ Rectangle PnlTeTunnelRowRect(int idx);
 Rectangle PnlTeAddBtnRect(int tunnelCount);
 Rectangle PnlTeSimBtnRect();
 Rectangle PnlTeDelBtnRect();
+// SR tab
+float SrListBaseY();
+float SrRowH();
+float SrFormH();
+Rectangle PnlSrTabRect();
+Rectangle PnlSrToggleRect();
+Rectangle PnlSrNodeSidRect();
+Rectangle PnlSrPolicyRowRect(int idx);
+Rectangle PnlSrAddBtnRect(int count);
 Rectangle PnlRouteDeleteRect(int rowIdx);
 Rectangle PnlRouteDestRect();
 Rectangle PnlRouteNextRect();
