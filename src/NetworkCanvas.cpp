@@ -201,6 +201,96 @@ void DrawTeTunnelOverlays(const std::vector<DeviceNode>& nodes,
     }
 }
 
+// ── SR policy overlays (drawn in world space after TE overlays) ──────────
+void DrawSrPolicyOverlays(const std::vector<DeviceNode>& nodes,
+                           const std::vector<Cable>&      cables)
+{
+    static const Color SR_COLORS[6] = {
+        Color{59,  130, 246, 204},   // electric-blue
+        Color{139,  92, 246, 204},   // violet
+        Color{ 16, 185, 129, 204},   // emerald
+        Color{249, 115,  22, 204},   // orange
+        Color{236,  72, 153, 204},   // pink
+        Color{234, 179,   8, 204},   // yellow
+    };
+
+    for (const auto& n : nodes) {
+        if (!n.srEnabled) continue;
+        for (const auto& policy : n.srPolicies) {
+            if (!policy.isActive || policy.activePath.size() < 2) continue;
+
+            Color col = SR_COLORS[(policy.id - 1) % 6];
+
+            // Draw dashed bezier overlay for each hop pair in the active path
+            for (size_t i = 0; i + 1 < policy.activePath.size(); ++i) {
+                int aId = policy.activePath[i];
+                int bId = policy.activePath[i + 1];
+
+                const DeviceNode* nodeA = FindNode(nodes, aId);
+                const DeviceNode* nodeB = FindNode(nodes, bId);
+                if (!nodeA || !nodeB) continue;
+
+                const Cable* cab = FindCable(cables, aId, bId);
+                if (!cab) continue;
+
+                int aPort = (cab->fromId == aId) ? cab->fromPort : cab->toPort;
+                int bPort = (cab->fromId == bId) ? cab->fromPort : cab->toPort;
+
+                Vector2 p0 = GetPortPosition(*nodeA, aPort);
+                Vector2 p3 = GetPortPosition(*nodeB, bPort);
+                Vector2 c1 = BezierCtrl(p0, aPort);
+                Vector2 c2 = BezierCtrl(p3, bPort);
+
+                // Dashed bezier: 24 segments, draw every other one
+                const int SEGS = 24;
+                for (int s = 0; s < SEGS; s += 2) {
+                    float t0 = (float)s / SEGS;
+                    float t1 = (float)(s + 1) / SEGS;
+                    Vector2 seg0 = EvaluateCubicBezier(p0, c1, c2, p3, t0);
+                    Vector2 seg1 = EvaluateCubicBezier(p0, c1, c2, p3, t1);
+                    DrawLineEx(seg0, seg1, 5.0f, col);
+                }
+            }
+
+            // Label stack badge near head-end node (drawn in world space)
+            if (!policy.labelStack.empty()) {
+                const DeviceNode* head = FindNode(nodes, policy.activePath[0]);
+                if (head) {
+                    // Build label string: outermost first (reverse order)
+                    std::string labStr = "[ ";
+                    for (int k = (int)policy.labelStack.size() - 1; k >= 0; --k) {
+                        if (k < (int)policy.labelStack.size() - 1) labStr += " | ";
+                        labStr += std::to_string(policy.labelStack[k]);
+                    }
+                    labStr += " ]";
+
+                    char badge[128];
+                    std::snprintf(badge, sizeof(badge), "Policy-%d push", policy.id);
+
+                    // Position above head-end node
+                    float bx = head->position.x;
+                    float by = head->position.y - NODE_H * 0.5f - 36.0f;
+
+                    float lineW  = std::max(TW(badge, 10), TW(labStr.c_str(), 10)) + 10.0f;
+                    float lineH  = 26.0f;
+                    DrawRectangleRounded({bx - lineW * 0.5f, by, lineW, lineH},
+                                        0.4f, 4, Color{15, 23, 42, 230});
+                    DrawRectangleRoundedLinesEx({bx - lineW * 0.5f, by, lineW, lineH},
+                                               0.4f, 4, 1.5f, col);
+                    DrawTextEx(GFont(), badge,
+                               {(float)(int)(bx - TW(badge, 10) * 0.5f),
+                                (float)(int)(by + 3.0f)},
+                               FS(10), Sp(FS(10)), col);
+                    DrawTextEx(GFont(), labStr.c_str(),
+                               {(float)(int)(bx - TW(labStr.c_str(), 10) * 0.5f),
+                                (float)(int)(by + 14.0f)},
+                               FS(10), Sp(FS(10)), WHITE);
+                }
+            }
+        }
+    }
+}
+
 // Returns true and sets outNode/outPort if worldMouse is near any port.
 // excludeId: skip this node's ports (prevents self-connect during connect mode).
 bool HitTestPort(const std::vector<DeviceNode>& nodes, Vector2 worldMouse,

@@ -54,6 +54,8 @@ void DrawAllCables(const std::vector<Cable>& cables,
                    const std::vector<DeviceNode>& nodes);
 void DrawTeTunnelOverlays(const std::vector<DeviceNode>& nodes,
                           const std::vector<Cable>&      cables);
+void DrawSrPolicyOverlays(const std::vector<DeviceNode>& nodes,
+                           const std::vector<Cable>&      cables);
 void DrawPacketAnim(const PacketAnim& anim,
                     const std::vector<DeviceNode>& nodes,
                     const std::vector<Cable>& cables);
