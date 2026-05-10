@@ -24,6 +24,10 @@ struct SubInterface {
 // ── MPLS types ────────────────────────────────────────────────────────────
 static const uint32_t MPLS_IMPLICIT_NULL = 3;  // RFC 3032 §2.1
 
+constexpr uint32_t SRGB_BASE = 17000;   // above LDP (n.id*100) and RSVP-TE (16000+)
+constexpr uint32_t SRGB_SIZE = 1000;
+constexpr uint32_t SRGB_END  = SRGB_BASE + SRGB_SIZE;   // exclusive upper bound
+
 enum LabelOp { LABEL_NONE, LABEL_PUSH, LABEL_SWAP, LABEL_POP };
 
 struct LdpBinding {
@@ -36,6 +40,13 @@ struct TeLfibEntry {
     uint32_t outLabel = 0;   // MPLS_IMPLICIT_NULL = PHP at penultimate hop
     int      outPort  = -1;
     int      tunnelId = 0;
+};
+
+struct SrLfibEntry {
+    uint32_t inLabel  = 0;
+    uint32_t outLabel = 0;   // MPLS_IMPLICIT_NULL = PHP/self-pop; same as inLabel = transit
+    int      outPort  = -1;  // -1 = egress self-pop (let IP routing determine outPort)
+    int      policyId = 0;   // always 0 in srFib; carried on PacketAnim for display
 };
 
 struct TeTunnel {
@@ -53,6 +64,22 @@ struct TeTunnel {
     std::vector<int> activePath;        // node IDs head→tail
     uint32_t         headLabel = 0;     // 0 = not yet allocated
     std::string      statusMsg;         // "Up" / "No CSPF path" / "BW insufficient"
+};
+
+struct SrPolicy {
+    int         id          = 0;        // 1–255, unique per router
+    std::string destIp;                 // tail-end destination IP (no mask)
+
+    std::vector<std::string> segmentIps;    // hop IPs as typed (UI storage)
+    std::vector<int>         segmentHops;   // resolved node IDs (engine use)
+    std::vector<uint32_t>    labelStack;    // innermost first, outermost at back()
+                                            // e.g. segs [R2→R4]: {17004, 17002}
+                                            // back() = 17002 (R2's label, processed first)
+    bool             segmentsResolved = false;   // cleared on edit; set by ResolveSrSegments
+
+    bool             isActive  = false;
+    std::vector<int> activePath;    // full OSPF path head→tail through all waypoints
+    std::string      statusMsg;     // "Active" / "Segment N unreachable" / "No SID for X"
 };
 
 // ── BGP types ─────────────────────────────────────────────────────────────
@@ -156,6 +183,8 @@ struct HopDecision {
     std::string aclResult;   // non-empty = ACL matched this hop, e.g. "PERMIT seq:10"
     std::string natResult;   // non-empty = NAT translated this hop, e.g. "192.168.1.2 → 10.0.0.1"
     int tunnelId = 0;   // non-zero = this hop is inside a named TE tunnel
+    int policyId     = 0;   // non-zero = this hop is inside a named SR policy
+    int segmentIndex = 0;   // which segment of the policy this hop belongs to (0-based)
 };
 
 struct ForwardResult {
@@ -233,6 +262,12 @@ struct DeviceNode {
     std::vector<TeTunnel>   teTunnels;
     std::unordered_map<uint32_t, TeLfibEntry> teLfib;  // key = inLabel
     std::vector<TeTunnel>   pendingTunnels;  // MBB hold buffer
+    // SR-MPLS (routers only)
+    bool     srEnabled = false;
+    uint32_t nodeSid   = 0;      // 1–(SRGB_SIZE-1); 0 = not configured
+    std::unordered_map<uint32_t, SrLfibEntry> srFib;      // key = inLabel
+    std::vector<SrPolicy>                     srPolicies;
+    std::unordered_map<int, uint32_t>         adjSids;    // key = port index; value = adj SID label
 };
 
 // ── Device geometry helpers (no draw calls) ───────────────────────────────
