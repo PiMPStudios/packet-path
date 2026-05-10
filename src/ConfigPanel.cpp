@@ -15,7 +15,7 @@ Rectangle PnlPortAreaFieldRect(int port) {
             44.0f, 24.0f};
 }
 
-float PnlTabW() { return (PANEL_W - 24.0f - 10.0f * 4.0f) / 11.0f; }
+float PnlTabW() { return (PANEL_W - 24.0f - 11.0f * 4.0f) / 12.0f; }
 Rectangle PnlConfigTabRect() {
     return {(float)(CANVAS_W() + 12), 88.0f, PnlTabW(), 26.0f};
 }
@@ -192,7 +192,7 @@ static const TabInfo kSwTabs[] = {
     {TAB_VLAN,   "VLAN", Color{245,158,11,255}, Color{245,158,11,255}},
     {TAB_ACL,    "ACL",  Color{59,130,246,255}, Color{239,68,68,255}},
 };
-// Router: 10 tabs (VLAN omitted — routers use Sub-ifaces for inter-VLAN)
+// Router: 12 tabs (VLAN omitted — routers use Sub-ifaces for inter-VLAN)
 static const TabInfo kRtTabs[] = {
     {TAB_CONFIG, "Cfg",  Color{59,130,246,255}, WHITE},
     {TAB_ROUTES, "Rte",  Color{59,130,246,255}, WHITE},
@@ -205,12 +205,13 @@ static const TabInfo kRtTabs[] = {
     {TAB_ACL,    "ACL",  Color{59,130,246,255}, Color{239,68,68,255}},
     {TAB_NAT,    "NAT",  Color{59,130,246,255}, Color{234,179,8,255}},
     {TAB_TE,     "TE",   Color{251,191,36,255}, Color{251,191,36,255}},
+    {TAB_SR,     "SR",   Color{59,130,246,255}, Color{59,130,246,255}},
 };
 
 int PnlTabCount(DeviceType t) {
     if (t == PC)     return 3;
     if (t == SWITCH) return 3;
-    return 11;
+    return 12;
 }
 float PnlTabWFor(DeviceType t) {
     int n = PnlTabCount(t);
@@ -254,4 +255,27 @@ Rectangle PnlTeSimBtnRect() {
 }
 Rectangle PnlTeDelBtnRect() {
     return {0.0f, 0.0f, (float)(PANEL_W - 24) * 0.35f, 22.0f};
+}
+
+// ── SR tab helpers and rects ──────────────────────────────────────────────
+float SrListBaseY() { return 316.0f; }
+float SrRowH()      { return 28.0f;  }
+float SrFormH()     { return 132.0f; }
+
+Rectangle PnlSrTabRect() {
+    return {(float)(CANVAS_W() + 12) + 11.0f * (PnlTabW() + 4.0f), 88.0f, PnlTabW(), 26.0f};
+}
+Rectangle PnlSrToggleRect() {
+    return {(float)(CANVAS_W() + 12), 120.0f, (float)(PANEL_W - 24), 26.0f};
+}
+Rectangle PnlSrNodeSidRect() {
+    return {(float)(CANVAS_W() + 12), 152.0f, 40.0f, 20.0f};
+}
+Rectangle PnlSrPolicyRowRect(int idx) {
+    return {(float)(CANVAS_W() + 12), SrListBaseY() + (float)idx * SrRowH(),
+            (float)(PANEL_W - 24), SrRowH() - 2.0f};
+}
+Rectangle PnlSrAddBtnRect(int count) {
+    float y = SrListBaseY() + (float)count * SrRowH() + 4.0f;
+    return {(float)(CANVAS_W() + 12), y, (float)(PANEL_W - 24), 22.0f};
 }
