@@ -380,41 +380,41 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
                     if (c) hd.outPort = (c->fromId == l2nh[0]) ? c->fromPort : c->toPort;
                 }
                 // ── SR head-end: unlabeled packet, check SR policies first ──
-                if (cur->srEnabled && currentLabel == 0) {
-                    auto slash = destIp.find('/');
-                    std::string plainDest = (slash != std::string::npos)
-                                           ? destIp.substr(0, slash) : destIp;
-                    for (auto& p : cur->srPolicies) {
-                        if (!p.isActive || p.destIp.empty() || p.labelStack.empty()) continue;
-                        if (p.destIp == plainDest) {
-                            srLabelStack    = p.labelStack;
-                            currentLabel    = srLabelStack.back();
-                            srSegmentIdx    = 0;
-                            srPolicyId      = p.id;
-                            hd.labelOp      = LABEL_PUSH;
-                            hd.inLabel      = 0;
-                            hd.outLabel     = currentLabel;
-                            hd.policyId     = p.id;
-                            hd.segmentIndex = 0;
-                            goto done_mpls;
+                {
+                    auto slash2 = destIp.find('/');
+                    std::string plainDest = (slash2 != std::string::npos)
+                                           ? destIp.substr(0, slash2) : destIp;
+                    if (cur->srEnabled && currentLabel == 0) {
+                        for (auto& p : cur->srPolicies) {
+                            if (!p.isActive || p.destIp.empty() || p.labelStack.empty()) continue;
+                            if (p.destIp == plainDest) {
+                                srLabelStack    = p.labelStack;
+                                currentLabel    = srLabelStack.back();
+                                srSegmentIdx    = 0;
+                                srPolicyId      = p.id;
+                                hd.labelOp      = LABEL_PUSH;
+                                hd.inLabel      = 0;
+                                hd.outLabel     = currentLabel;
+                                hd.policyId     = p.id;
+                                hd.segmentIndex = 0;
+                                goto done_mpls;
+                            }
                         }
                     }
-                }
-                // ── TE tunnel head-end: impose tunnel label stack ──────────
-                if (cur->rsvpEnabled && currentLabel == 0) {
-                    for (const auto& tun : cur->teTunnels) {
-                        if (!tun.isUp || tun.destIp.empty()) continue;
-                        auto slash = destIp.find('/');
-                        std::string plainDest = (slash != std::string::npos)
-                                                ? destIp.substr(0, slash) : destIp;
-                        if (tun.destIp == plainDest) {
-                            hd.labelOp   = LABEL_PUSH;
-                            hd.inLabel   = 0;
-                            hd.outLabel  = tun.headLabel;
-                            hd.tunnelId  = tun.id;
-                            currentLabel = tun.headLabel;
-                            break;
+                    // ── TE tunnel head-end: impose tunnel label stack ──────────
+                    if (cur->rsvpEnabled && currentLabel == 0) {
+                        for (const auto& tun : cur->teTunnels) {
+                            if (!tun.isUp || tun.destIp.empty()) continue;
+                            if (tun.destIp == plainDest) {
+                                hd.labelOp   = LABEL_PUSH;
+                                hd.inLabel   = 0;
+                                hd.outLabel  = tun.headLabel;
+                                hd.tunnelId  = tun.id;
+                                currentLabel = tun.headLabel;
+                                break;
+                            }
                         }
+                        if (currentLabel != 0) goto done_mpls;  // TE head-end matched
                     }
                 }
                 // SR transit: labeled packet, check srFib
