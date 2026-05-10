@@ -1,5 +1,6 @@
 #include "SrEngine.h"
 #include <unordered_map>
+#include <unordered_set>
 #include <algorithm>
 #include <cstdint>
 
@@ -40,8 +41,10 @@ static std::vector<int> OspfPath(int srcId, int destId,
                                   const std::vector<DeviceNode>& nodes,
                                   const std::vector<Cable>& cables) {
     std::vector<int> path;
+    std::unordered_set<int> visited;
     int cur = srcId;
     for (int hop = 0; hop < 16; ++hop) {
+        if (!visited.insert(cur).second) return {};  // cycle detected
         path.push_back(cur);
         if (cur == destId) return path;
 
@@ -86,6 +89,10 @@ void ResolveSrSegments(SrPolicy& policy, const std::vector<DeviceNode>& nodes) {
 
         if (!found || !found->srEnabled || found->nodeSid == 0) {
             policy.statusMsg = "No Node SID for " + ip;
+            return;
+        }
+        if (found->nodeSid >= SRGB_SIZE) {
+            policy.statusMsg = "SID out of range for " + ip;
             return;
         }
 
