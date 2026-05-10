@@ -148,6 +148,9 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
 
     uint32_t currentLabel = 0;
     int lastIngressPort = -1;   // port on currentId where packet arrived
+    std::vector<uint32_t> srLabelStack;   // SR label stack (innermost first, outermost at back())
+    int  srSegmentIdx = 0;
+    int  srPolicyId   = 0;
 
     for (int i = 0; i < MAX_HOPS; ++i) {
         const DeviceNode* cur = FindNode(nodes, currentId);
@@ -376,6 +379,27 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
                     const Cable* c = FindCableL2(cables, l2nh[0], l2nh[1]);
                     if (c) hd.outPort = (c->fromId == l2nh[0]) ? c->fromPort : c->toPort;
                 }
+                // ── SR head-end: unlabeled packet, check SR policies first ──
+                if (cur->srEnabled && currentLabel == 0) {
+                    auto slash = destIp.find('/');
+                    std::string plainDest = (slash != std::string::npos)
+                                           ? destIp.substr(0, slash) : destIp;
+                    for (auto& p : cur->srPolicies) {
+                        if (!p.isActive || p.destIp.empty() || p.labelStack.empty()) continue;
+                        if (p.destIp == plainDest) {
+                            srLabelStack    = p.labelStack;
+                            currentLabel    = srLabelStack.back();
+                            srSegmentIdx    = 0;
+                            srPolicyId      = p.id;
+                            hd.labelOp      = LABEL_PUSH;
+                            hd.inLabel      = 0;
+                            hd.outLabel     = currentLabel;
+                            hd.policyId     = p.id;
+                            hd.segmentIndex = 0;
+                            goto done_mpls;
+                        }
+                    }
+                }
                 // ── TE tunnel head-end: impose tunnel label stack ──────────
                 if (cur->rsvpEnabled && currentLabel == 0) {
                     for (const auto& tun : cur->teTunnels) {
@@ -391,6 +415,31 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
                             currentLabel = tun.headLabel;
                             break;
                         }
+                    }
+                }
+                // SR transit: labeled packet, check srFib
+                if (cur->srEnabled && currentLabel != 0) {
+                    auto it = cur->srFib.find(currentLabel);
+                    if (it != cur->srFib.end()) {
+                        const SrLfibEntry& se = it->second;
+                        hd.policyId      = srPolicyId;
+                        hd.segmentIndex  = srSegmentIdx;
+                        if (se.outLabel == MPLS_IMPLICIT_NULL) {
+                            hd.labelOp   = LABEL_POP;
+                            hd.inLabel   = currentLabel;
+                            hd.outLabel  = 0;
+                            if (!srLabelStack.empty()) srLabelStack.pop_back();
+                            currentLabel = srLabelStack.empty() ? 0 : srLabelStack.back();
+                            srSegmentIdx++;
+                            if (se.outPort >= 0) hd.outPort = se.outPort;
+                        } else {
+                            hd.labelOp   = LABEL_SWAP;
+                            hd.inLabel   = currentLabel;
+                            hd.outLabel  = se.outLabel;
+                            hd.outPort   = se.outPort;
+                            currentLabel = se.outLabel;
+                        }
+                        goto done_mpls;
                     }
                 }
                 // MPLS: TE teLfib takes priority over LDP lfib
