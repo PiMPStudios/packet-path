@@ -1544,12 +1544,14 @@ void DrawSrTab(const DeviceNode* n, const PanelState& ps)
     DrawTextEx(GFont(), "SR Policies",
                {px, SrListBaseY() - 18.0f}, FS(10), Sp(FS(10)), DIM);
 
-    float listY = SrListBaseY();
     for (int i = 0; i < (int)n->srPolicies.size(); ++i) {
-        const SrPolicy& pol    = n->srPolicies[i];
-        bool            exp    = (ps.srExpandedIdx == i);
-        float           rowY   = listY;
-        listY += SrRowH();
+        const SrPolicy& pol = n->srPolicies[i];
+        bool            exp = (ps.srExpandedIdx == i);
+
+        // Derive rowY from PnlSrPolicyRowRect so click detection in main.cpp
+        // can use the same formula: PnlSrPolicyRowRect(i).y + expansionAbove * SrFormH().
+        int   expansionAbove = (ps.srExpandedIdx >= 0 && ps.srExpandedIdx < i) ? 1 : 0;
+        float rowY           = PnlSrPolicyRowRect(i).y + expansionAbove * SrFormH();
 
         // Row background + left accent (electric-blue)
         Color rowBg = {21, 30, 47, 255};
@@ -1576,7 +1578,6 @@ void DrawSrTab(const DeviceNode* n, const PanelState& ps)
                    FS(10), Sp(FS(10)), statusColor);
 
         if (!exp) continue;
-        listY += SrFormH();
 
         // ── Expanded form ─────────────────────────────────────────────
         float fy = rowY + SrRowH();
