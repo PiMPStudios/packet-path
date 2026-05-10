@@ -277,5 +277,5 @@ Rectangle PnlSrPolicyRowRect(int idx) {
 }
 Rectangle PnlSrAddBtnRect(int count) {
     float y = SrListBaseY() + (float)count * SrRowH() + 4.0f;
-    return {(float)(CANVAS_W() + 12), y, (float)(PANEL_W - 24), 22.0f};
+    return {(float)(CANVAS_W() + 12), y, (float)(PANEL_W - 24), 26.0f};
 }
