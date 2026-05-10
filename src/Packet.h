@@ -21,6 +21,9 @@ struct PacketAnim {
     bool     paused       = false;
     float    speedMult    = 1.f;
     Color    overrideColor = {0, 0, 0, 0};  // {0,0,0,0} = use default green
+    std::vector<uint32_t> srLabelStack;   // innermost first, outermost at back()
+    int                   srSegmentIdx = 0;
+    int                   srPolicyId   = 0;
 };
 
 struct SimState {
