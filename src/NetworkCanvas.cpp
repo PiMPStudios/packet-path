@@ -1697,7 +1697,7 @@ void DrawSrTab(const DeviceNode* n, const PanelState& ps)
             segsDisplay = ps.srSegsBuf;
         } else {
             for (size_t k = 0; k < pol.segmentIps.size(); ++k) {
-                if (k) segsDisplay += ' ';
+                if (k) segsDisplay += ", ";
                 segsDisplay += pol.segmentIps[k];
             }
         }

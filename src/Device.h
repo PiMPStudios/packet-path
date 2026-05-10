@@ -46,7 +46,7 @@ struct SrLfibEntry {
     uint32_t inLabel  = 0;
     uint32_t outLabel = 0;   // MPLS_IMPLICIT_NULL = PHP/self-pop; same as inLabel = transit
     int      outPort  = -1;  // -1 = egress self-pop (let IP routing determine outPort)
-    int      policyId = 0;   // always 0 in srFib; carried on PacketAnim for display
+    int      policyId = 0;   // always 0 in srFib; carried on HopDecision for display
 };
 
 struct TeTunnel {
