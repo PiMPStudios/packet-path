@@ -5,6 +5,12 @@ bin/
 *.a
 *.out
 packet-path
+packet-path-tests
+build/
+CMakeUserPresets.json
+_CPack_Packages/
+PacketPath-*.zip
+*.dSYM/
 
 # macOS
 .DS_Store

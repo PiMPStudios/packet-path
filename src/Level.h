@@ -21,11 +21,6 @@ struct LevelDef {
     std::vector<WinCondition> winConditions;
 };
 
-bool LoadLevel(const std::string& path, LevelDef& out);
-bool SaveScene(const std::string& path,
-               const std::vector<DeviceNode>& nodes,
-               const std::vector<Cable>& cables);
-
 void ApplyLevel(const LevelDef& def,
                 std::vector<DeviceNode>& nodes,
                 std::vector<Cable>& cables,

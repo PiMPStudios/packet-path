@@ -7,6 +7,8 @@ LIBS     = $(shell pkg-config --libs   raylib 2>/dev/null || echo "-L/usr/local/
 
 TARGET = packet-path
 SRC    = $(wildcard src/*.cpp)
+TEST_TARGET = packet-path-tests
+TEST_SRC    = $(filter-out src/main.cpp,$(SRC)) tests/simulator_tests.cpp
 
 all: $(TARGET)
 
@@ -14,6 +16,13 @@ $(TARGET): $(SRC)
 	$(CC) $(CFLAGS) $(INCLUDES) $(SRC) $(LIBS) -o $(TARGET)
 
 clean:
-	rm -f $(TARGET)
+	rm -f $(TARGET) $(TEST_TARGET)
+	rm -rf $(TARGET).dSYM $(TEST_TARGET).dSYM
 
-.PHONY: all clean
+test: $(TEST_TARGET)
+	./$(TEST_TARGET)
+
+$(TEST_TARGET): $(TEST_SRC)
+	$(CC) $(CFLAGS) -I./src $(INCLUDES) $(TEST_SRC) $(LIBS) -o $(TEST_TARGET)
+
+.PHONY: all clean test

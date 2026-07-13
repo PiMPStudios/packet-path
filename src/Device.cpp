@@ -1,5 +1,51 @@
 #include "Device.h"
 
+#include <charconv>
+#include <string_view>
+
+namespace {
+
+bool ParseIpv4(const std::string& text, uint32_t& value) {
+    const std::string_view input(text);
+    uint32_t result = 0;
+    std::size_t start = 0;
+    for (int octetIndex = 0; octetIndex < 4; ++octetIndex) {
+        const std::size_t end = input.find('.', start);
+        if ((octetIndex < 3 && end == std::string_view::npos) ||
+            (octetIndex == 3 && end != std::string_view::npos)) return false;
+        const std::size_t partEnd = end == std::string_view::npos ? input.size() : end;
+        if (partEnd == start) return false;
+
+        unsigned int octet = 0;
+        const char* first = input.data() + start;
+        const char* last  = input.data() + partEnd;
+        const auto parsed = std::from_chars(first, last, octet);
+        if (parsed.ec != std::errc{} || parsed.ptr != last || octet > 255) return false;
+        result = (result << 8) | octet;
+        start = partEnd + 1;
+    }
+    value = result;
+    return true;
+}
+
+bool ParseCidr(const std::string& text, uint32_t& address, int& prefix) {
+    const auto slash = text.find('/');
+    if (slash == std::string::npos || text.find('/', slash + 1) != std::string::npos)
+        return false;
+    if (!ParseIpv4(text.substr(0, slash), address)) return false;
+    const char* first = text.data() + slash + 1;
+    const char* last  = text.data() + text.size();
+    if (first == last) return false;
+    const auto parsed = std::from_chars(first, last, prefix);
+    return parsed.ec == std::errc{} && parsed.ptr == last && prefix >= 0 && prefix <= 32;
+}
+
+uint32_t PrefixMask(int prefix) {
+    return prefix == 0 ? 0u : (~0u << (32 - prefix));
+}
+
+}  // namespace
+
 Color GetDeviceColor(DeviceType t) {
     switch (t) {
         case PC:     return {59,  130, 246, 255};
@@ -27,13 +73,10 @@ Vector2 GetPortPosition(const DeviceNode& n, int port) {
 }
 
 std::string NetworkAddress(const std::string& cidr) {
-    int a, b, c, d, prefix;
-    if (std::sscanf(cidr.c_str(), "%d.%d.%d.%d/%d", &a, &b, &c, &d, &prefix) != 5)
-        return cidr;
-    uint32_t ip   = ((uint32_t)a << 24) | ((uint32_t)b << 16) |
-                    ((uint32_t)c <<  8) |  (uint32_t)d;
-    uint32_t mask = prefix ? (~0u << (32 - prefix)) : 0u;
-    uint32_t net  = ip & mask;
+    uint32_t ip = 0;
+    int prefix = 0;
+    if (!ParseCidr(cidr, ip, prefix)) return cidr;
+    const uint32_t net = ip & PrefixMask(prefix);
     return std::to_string((net >> 24) & 0xFF) + "." +
            std::to_string((net >> 16) & 0xFF) + "." +
            std::to_string((net >>  8) & 0xFF) + "." +
@@ -42,39 +85,28 @@ std::string NetworkAddress(const std::string& cidr) {
 }
 
 bool IpInSubnet(const std::string& ip, const std::string& subnet) {
-    int a1, b1, c1, d1, a2, b2, c2, d2, prefix;
-    if (std::sscanf(ip.c_str(),     "%d.%d.%d.%d",    &a1,&b1,&c1,&d1) != 4) return false;
-    if (std::sscanf(subnet.c_str(), "%d.%d.%d.%d/%d", &a2,&b2,&c2,&d2,&prefix) != 5) return false;
-    uint32_t ipBits  = ((uint32_t)a1 << 24) | ((uint32_t)b1 << 16) |
-                       ((uint32_t)c1 <<  8) |  (uint32_t)d1;
-    uint32_t netBits = ((uint32_t)a2 << 24) | ((uint32_t)b2 << 16) |
-                       ((uint32_t)c2 <<  8) |  (uint32_t)d2;
-    uint32_t mask    = prefix ? (~0u << (32 - prefix)) : 0u;
+    uint32_t ipBits = 0, netBits = 0;
+    int prefix = 0;
+    if (!ParseIpv4(ip, ipBits) || !ParseCidr(subnet, netBits, prefix)) return false;
+    const uint32_t mask = PrefixMask(prefix);
     return (ipBits & mask) == (netBits & mask);
 }
 
 bool ValidateIPOnly(const std::string& ip) {
-    if (ip.empty()) return false;
-    int a, b, c, d, consumed = 0;
-    std::sscanf(ip.c_str(), "%d.%d.%d.%d%n", &a, &b, &c, &d, &consumed);
-    return (consumed == (int)ip.size() &&
-            a >= 0 && a <= 255 && b >= 0 && b <= 255 &&
-            c >= 0 && c <= 255 && d >= 0 && d <= 255);
+    uint32_t value = 0;
+    return ParseIpv4(ip, value);
 }
 
 int PrefixLen(const std::string& cidr) {
-    const char* slash = std::strchr(cidr.c_str(), '/');
-    return slash ? std::atoi(slash + 1) : 0;
+    uint32_t address = 0;
+    int prefix = 0;
+    return ParseCidr(cidr, address, prefix) ? prefix : 0;
 }
 
 bool ValidateIP(const std::string& ip) {
-    if (ip.empty()) return false;
-    int a, b, c, d, prefix, consumed = 0;
-    std::sscanf(ip.c_str(), "%d.%d.%d.%d/%d%n", &a, &b, &c, &d, &prefix, &consumed);
-    return (consumed == (int)ip.size() &&
-            a >= 0 && a <= 255 && b >= 0 && b <= 255 &&
-            c >= 0 && c <= 255 && d >= 0 && d <= 255 &&
-            prefix >= 0 && prefix <= 32);
+    uint32_t address = 0;
+    int prefix = 0;
+    return ParseCidr(ip, address, prefix);
 }
 
 std::vector<RouteEntry> GetRoutingTable(const DeviceNode& n) {

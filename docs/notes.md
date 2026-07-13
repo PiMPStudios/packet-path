@@ -1,94 +1,34 @@
-# Notes
+# Packet Path Status Notes
 
-⏺ Here's where we stand:
+Updated: 2026-07-12
 
-  ---
-  Development Plan (Development_Plan.md) — Status
+The original six-phase MVP plan is complete. Packet Path currently ships 16 JSON-driven scenarios covering IP forwarding, VLANs, OSPF, BGP, ACL/NAT, VXLAN/EVPN, MPLS/LDP, and failure troubleshooting. The level selector now discovers validated `level_*.json` files, so Level 17 no longer requires a code catalog update.
 
-  The plan defined 6 phases ending at "MVP Polish." We completed all 6 phases and went well beyond.
+## Current protocol status
 
-  ┌───────┬───────────────────────────────────────────────────────┬────────────────────────────┐
-  │ Phase │                       Plan Goal                       │           Status           │
-  ├───────┼───────────────────────────────────────────────────────┼────────────────────────────┤
-  │ PRE   │ Window + Makefile                                     │ ✅ Done                    │
-  ├───────┼───────────────────────────────────────────────────────┼────────────────────────────┤
-  │ P1    │ Draggable canvas + bezier cables                      │ ✅ Done                    │
-  ├───────┼───────────────────────────────────────────────────────┼────────────────────────────┤
-  │ P2    │ Config panel + IP input + right-click menu            │ ✅ Done                    │
-  ├───────┼───────────────────────────────────────────────────────┼────────────────────────────┤
-  │ P3    │ First playable ping end-to-end                        │ ✅ Done                    │
-  ├───────┼───────────────────────────────────────────────────────┼────────────────────────────┤
-  │ P4    │ RIB/FIB + OSPF single-area + routing table panel      │ ✅ Done                    │
-  ├───────┼───────────────────────────────────────────────────────┼────────────────────────────┤
-  │ P5    │ 4 CCNA levels + win conditions + star rating          │ ✅ Done (16 levels, not 4) │
-  ├───────┼───────────────────────────────────────────────────────┼────────────────────────────┤
-  │ P6    │ Packet trace, log console, broken path highlight, SFX │ ✅ Done                    │
-  └───────┴───────────────────────────────────────────────────────┴────────────────────────────┘
+| Area | Status | Notes |
+| --- | --- | --- |
+| IPv4 / ARP / static routing | Implemented and tested | Includes IP validation and longest-prefix matching |
+| VLAN / 802.1Q | Implemented and tested | Access/trunk forwarding and mismatch rejection |
+| OSPF | Implemented and tested | Single/multi-area, SPF, adjacency and broken-link withdrawal |
+| BGP | Implemented and tested | eBGP, iBGP, route reflection, link-failure withdrawal |
+| MPLS / LDP | Implemented and tested | Push, transit labels, and implicit-null/PHP |
+| RSVP-TE | Implemented, in testing | CSPF, explicit paths, bandwidth reservations, setup replay, event logs |
+| SR-MPLS | Implemented, in testing | Node SIDs, duplicate detection, adjacency SID steering, policy forwarding |
+| SRv6 | Not implemented | Planned after SR-MPLS scenarios |
+| IS-IS / SD-WAN | Not implemented | Longer-term roadmap |
 
-  Extras shipped beyond the plan: multi-area OSPF, BGP + route reflectors, MPLS/LDP, ACLs, NAT, VXLAN/EVPN, level-select screen, sandbox/free-play, save/load, failure injection (crashed devices, broken links), slow-motion replay.
+## Engineering status
 
-  ---
-  Roadmap (packet-path-game-roadmap.md) — Status
+- The automated simulator suite covers IP parsing/LPM, packet forwarding, VLANs, OSPF/BGP failure behavior, LDP, RSVP, SR, scene validation, save/load round trips, dynamic level discovery, and audio fallback.
+- CMake builds, tests, installs resources, and creates ZIP packages. GitHub Actions is configured for macOS, Ubuntu, and Windows.
+- `main.cpp` has dedicated units for level discovery, scene serialization, RSVP replay, and TE/SR panel input. TE/SR world overlays have moved out of `NetworkCanvas.cpp`.
+- Audio is optional: a missing device disables sound calls without stopping the simulator.
 
-  ┌──────────────┬───────────────────────────────────────┬──────────────┐
-  │   Category   │                 Item                  │    Status    │
-  ├──────────────┼───────────────────────────────────────┼──────────────┤
-  │ Routing      │ OSPF                                  │ ✅           │
-  ├──────────────┼───────────────────────────────────────┼──────────────┤
-  │              │ BGP (eBGP, route reflectors)          │ ✅           │
-  ├──────────────┼───────────────────────────────────────┼──────────────┤
-  │              │ Static routing                        │ ✅           │
-  ├──────────────┼───────────────────────────────────────┼──────────────┤
-  │              │ IS-IS                                 │ ❌ Not built │
-  ├──────────────┼───────────────────────────────────────┼──────────────┤
-  │ Switching    │ VLANs + 802.1Q + trunking             │ ✅           │
-  ├──────────────┼───────────────────────────────────────┼──────────────┤
-  │              │ VXLAN                                 │ ✅           │
-  ├──────────────┼───────────────────────────────────────┼──────────────┤
-  │              │ BGP EVPN                              │ ✅           │
-  ├──────────────┼───────────────────────────────────────┼──────────────┤
-  │ MPLS         │ MPLS architecture + LDP               │ ✅           │
-  ├──────────────┼───────────────────────────────────────┼──────────────┤
-  │              │ RSVP-TE                               │ ❌ Not built │
-  ├──────────────┼───────────────────────────────────────┼──────────────┤
-  │              │ Segment Routing (SR-MPLS / SRv6)      │ ❌ Not built │
-  ├──────────────┼───────────────────────────────────────┼──────────────┤
-  │ Security     │ ACLs                                  │ ✅           │
-  ├──────────────┼───────────────────────────────────────┼──────────────┤
-  │              │ NAT                                   │ ✅           │
-  ├──────────────┼───────────────────────────────────────┼──────────────┤
-  │ Modern       │ SD-WAN                                │ ❌ Not built │
-  ├──────────────┼───────────────────────────────────────┼──────────────┤
-  │ UI/Mechanics │ Animated packets + slow-motion replay │ ✅           │
-  ├──────────────┼───────────────────────────────────────┼──────────────┤
-  │              │ Troubleshoot mode                     │ ✅           │
-  ├──────────────┼───────────────────────────────────────┼──────────────┤
-  │              │ Star rating                           │ ✅           │
-  ├──────────────┼───────────────────────────────────────┼──────────────┤
-  │              │ Log console                           │ ✅           │
-  ├──────────────┼───────────────────────────────────────┼──────────────┤
-  │              │ Packet trace viewer                   │ ✅           │
-  ├──────────────┼───────────────────────────────────────┼──────────────┤
-  │              │ Sandbox mode                          │ ✅           │
-  ├──────────────┼───────────────────────────────────────┼──────────────┤
-  │              │ Failure injection                     │ ✅           │
-  ├──────────────┼───────────────────────────────────────┼──────────────┤
-  │              │ "Build your own ISP" campaign         │ ❌ Not built │
-  └──────────────┴───────────────────────────────────────┴──────────────┘
+## Next product work
 
-  Level progression:
-
-  ┌──────────────┬─────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────┐
-  │     Tier     │                           Roadmap                           │                         Built                         │
-  ├──────────────┼─────────────────────────────────────────────────────────────┼───────────────────────────────────────────────────────┤
-  │ Beginner     │ 4 levels (IP, VLANs, static, OSPF)                          │ ✅ Levels 1–4                                         │
-  ├──────────────┼─────────────────────────────────────────────────────────────┼───────────────────────────────────────────────────────┤
-  │ Intermediate │ 4 levels (multi-OSPF, BGP, ACL/NAT, VXLAN)                  │ ✅ Levels 5–8                                         │
-  ├──────────────┼─────────────────────────────────────────────────────────────┼───────────────────────────────────────────────────────┤
-  │ Advanced     │ 6 levels (MPLS, RSVP-TE, SR, EVPN, SD-WAN, troubleshooting) │ ⚠️  Levels 9–16 built but RSVP-TE, SR, SD-WAN are gaps │
-  ├──────────────┼─────────────────────────────────────────────────────────────┼───────────────────────────────────────────────────────┤
-  │ Bonus        │ Sandbox + failure injection + campaign mode                 │ ✅ Sandbox + failure injection; ❌ campaign mode      │
-  └──────────────┴─────────────────────────────────────────────────────────────┴───────────────────────────────────────────────────────┘
-
-  ---
-  Bottom line: The development plan is complete and retired. The roadmap has three meaningful gaps left: RSVP-TE (level 10), Segment Routing (level 11), and SD-WAN (level 13). Everything else is shipped.
+1. Add Level 17 for RSVP-TE using the discovered level catalog.
+2. Add an SR-MPLS scenario that teaches Node SID versus adjacency SID steering.
+3. Continue extracting generic input and remaining protocol panel rendering from `main.cpp` and `NetworkCanvas.cpp`.
+4. Run the new CI workflow in GitHub and address any platform-specific compiler or packaging failures.
+5. Add SRv6 only after the SR-MPLS scenarios and tests are stable.

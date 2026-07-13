@@ -83,20 +83,29 @@ void DrawReplayHUD(bool paused, float speedMult) {
     }
 }
 
-Rectangle LevelSelectCardRect(int i) {
-    // 4-column grid, 180x80 cards, 10px gaps, centered in canvas
-    const float cardW = 180.f, cardH = 80.f, gapX = 10.f, gapY = 10.f;
-    const float gridW = 4.f * cardW + 3.f * gapX;   // 750 px
+static int LevelGridColumns() {
+    return CANVAS_W() >= 1000 ? 5 : 4;
+}
+
+Rectangle LevelSelectCardRect(int i, int levelCount) {
+    (void)levelCount;
+    const int columns = LevelGridColumns();
+    const float gapX = 10.f, gapY = 10.f;
+    const float gridW = std::min(940.f, (float)CANVAS_W() - 16.f);
+    const float cardW = (gridW - (columns - 1) * gapX) / columns;
+    const float cardH = 72.f;
     float xs = std::max(8.f, ((float)CANVAS_W() - gridW) / 2.f);
-    int col = i % 4, row = i / 4;
+    int col = i % columns, row = i / columns;
     return {xs + col * (cardW + gapX), 90.f + row * (cardH + gapY), cardW, cardH};
 }
 
-Rectangle LevelSelectSandboxBtnRect() {
-    const float cardW = 180.f, cardH = 80.f, gapX = 10.f, gapY = 10.f;
-    const float gridW = 4.f * cardW + 3.f * gapX;
+Rectangle LevelSelectSandboxBtnRect(int levelCount) {
+    const int columns = LevelGridColumns();
+    const float cardH = 72.f, gapY = 10.f;
+    const float gridW = std::min(940.f, (float)CANVAS_W() - 16.f);
     float xs = std::max(8.f, ((float)CANVAS_W() - gridW) / 2.f);
-    return {xs, 90.f + 4.f * (cardH + gapY), gridW, 50.f};
+    const int rows = std::max(1, (levelCount + columns - 1) / columns);
+    return {xs, 90.f + rows * (cardH + gapY), gridW, 44.f};
 }
 
 void DrawSandboxHUD() {
@@ -116,8 +125,7 @@ void DrawSandboxHUD() {
                FS(10), Sp(FS(10)), Color{148, 163, 184, 255});
 }
 
-void DrawLevelSelectScreen(const std::string* levelTitles, const bool* levelExists) {
-    if (!levelTitles || !levelExists) return;
+void DrawLevelSelectScreen(const std::vector<LevelCatalogEntry>& levels) {
     // Dim the entire screen (canvas + panel)
     DrawRectangle(0, 0, SCREEN_W(), SCREEN_H(), Color{0, 0, 0, 225});
 
@@ -130,43 +138,32 @@ void DrawLevelSelectScreen(const std::string* levelTitles, const bool* levelExis
 
     Vector2 mouse = GetMousePosition();
 
-    // 4x4 grid of level cards  (i = 0..15 → level i+1)
-    for (int i = 0; i < 16; ++i) {
-        Rectangle r       = LevelSelectCardRect(i);
-        bool exists       = levelExists[i];
-        bool hovered      = exists && CheckCollisionPointRec(mouse, r);
+    for (int i = 0; i < (int)levels.size(); ++i) {
+        Rectangle r       = LevelSelectCardRect(i, (int)levels.size());
+        bool hovered      = CheckCollisionPointRec(mouse, r);
 
-        Color bg  = exists ? (hovered ? Color{30,  58, 138, 255} : Color{22, 33, 62, 255})
-                           : Color{15, 20, 35, 255};
-        Color brd = exists ? (hovered ? Color{59, 130, 246, 255} : Color{51, 65, 85, 255})
-                           : Color{30, 36, 48, 255};
+        Color bg  = hovered ? Color{30,  58, 138, 255} : Color{22, 33, 62, 255};
+        Color brd = hovered ? Color{59, 130, 246, 255} : Color{51, 65, 85, 255};
         DrawRectangleRounded(r, 0.1f, 4, bg);
         DrawRectangleRoundedLinesEx(r, 0.1f, 4, 1.5f, brd);
 
         // "LVL N" number
         char lvlBuf[8];
-        std::snprintf(lvlBuf, sizeof(lvlBuf), "LVL %d", i + 1);
+        std::snprintf(lvlBuf, sizeof(lvlBuf), "LVL %d", levels[i].number);
         DrawTextEx(GFont(), lvlBuf,
                    {r.x + 10.f, r.y + 12.f},
                    FS(11), Sp(FS(11)),
-                   exists ? Color{148, 163, 184, 255} : Color{51, 65, 85, 255});
+                   Color{148, 163, 184, 255});
 
-        if (exists) {
-            // Level title — truncate at 22 chars to fit 180 px card
-            std::string title = levelTitles[i];
-            if ((int)title.size() > 22) title = title.substr(0, 19) + "...";
-            DrawTextEx(GFont(), title.c_str(),
-                       {r.x + 10.f, r.y + 32.f},
-                       FS(10), Sp(FS(10)), Color{203, 213, 225, 255});
-        } else {
-            DrawTextEx(GFont(), "Coming Soon",
-                       {r.x + 10.f, r.y + 32.f},
-                       FS(10), Sp(FS(10)), Color{51, 65, 85, 255});
-        }
+        std::string title = levels[i].title;
+        if ((int)title.size() > 24) title = title.substr(0, 21) + "...";
+        DrawTextEx(GFont(), title.c_str(),
+                   {r.x + 10.f, r.y + 32.f},
+                   FS(10), Sp(FS(10)), Color{203, 213, 225, 255});
     }
 
     // Full-width sandbox card below the grid
-    Rectangle sr   = LevelSelectSandboxBtnRect();
+    Rectangle sr   = LevelSelectSandboxBtnRect((int)levels.size());
     bool sandHover = CheckCollisionPointRec(mouse, sr);
     Color sbg  = sandHover ? Color{15, 118, 110, 255} : Color{13,  94,  88, 255};
     Color sbrd = sandHover ? Color{20, 184, 166, 255} : Color{13, 148, 136, 255};

@@ -6,6 +6,19 @@
 #include <cstdio>
 #include <functional>
 
+static int FindNodeIdByIp(const std::vector<DeviceNode>& nodes,
+                          const std::string& ip)
+{
+    for (const auto& node : nodes) {
+        for (int port = 0; port < PORTS_PER_NODE; ++port) {
+            const auto slash = node.portIp[port].find('/');
+            const std::string plain = node.portIp[port].substr(0, slash);
+            if (plain == ip) return node.id;
+        }
+    }
+    return -1;
+}
+
 // Returns ordered node IDs [head, ..., tail], or empty if no BW-constrained path exists.
 // Walks the cable graph (not the OSPF LSDB) for simplicity; cost = hop count.
 static std::vector<int> CspfDijkstra(
@@ -17,18 +30,11 @@ static std::vector<int> CspfDijkstra(
     const std::unordered_map<uint64_t, uint32_t>& availBwMap,
     std::function<uint64_t(int,int)> cableKey)
 {
-    // Resolve dest IP → node ID
-    int tailId = -1;
-    for (const auto& n : nodes) {
-        for (int p = 0; p < PORTS_PER_NODE; ++p) {
-            auto sl = n.portIp[p].find('/');
-            std::string plain = (sl != std::string::npos)
-                                ? n.portIp[p].substr(0, sl) : n.portIp[p];
-            if (plain == destIp) { tailId = n.id; break; }
-        }
-        if (tailId != -1) break;
-    }
+    const int tailId = FindNodeIdByIp(nodes, destIp);
     if (tailId == -1 || tailId == headId) return {};
+    const DeviceNode* head = FindNode(nodes, headId);
+    const DeviceNode* tail = FindNode(nodes, tailId);
+    if (!head || !tail || head->crashed || tail->crashed) return {};
 
     // Dijkstra: dist + prev maps
     std::unordered_map<int, int> dist, prev;
@@ -45,14 +51,14 @@ static std::vector<int> CspfDijkstra(
         auto [d, u] = pq.top(); pq.pop();
         if (d > dist[u]) continue;
         for (const auto& c : cables) {
+            if (c.broken) continue;
             int v = (c.fromId == u) ? c.toId : (c.toId == u) ? c.fromId : -1;
             if (v < 0) continue;
             const DeviceNode* nbr = FindNode(nodes, v);
             if (!nbr || nbr->crashed) continue;
             // Prune links without enough BW
             auto it = availBwMap.find(cableKey(u, v));
-            uint32_t avail = (it != availBwMap.end()) ? it->second : 1000u;
-            if (avail < requiredBw) continue;
+            if (it == availBwMap.end() || it->second < requiredBw) continue;
             int nd = dist[u] + 1;
             if (nd < dist[v]) {
                 dist[v] = nd;
@@ -98,12 +104,15 @@ static void BuildTeLfib(TeTunnel& t, std::vector<DeviceNode>& nodes,
         // Find outPort toward path[i+1]
         int outPort = -1;
         for (const auto& c : cables) {
+            if (c.broken) continue;
             if ((c.fromId == path[i] && c.toId == path[i+1]) ||
                 (c.toId   == path[i] && c.fromId == path[i+1])) {
                 outPort = (c.fromId == path[i]) ? c.fromPort : c.toPort;
                 break;
             }
         }
+
+        if (outPort < 0) continue;
 
         TeLfibEntry entry;
         entry.inLabel  = inLbl;
@@ -128,6 +137,10 @@ std::vector<std::string> UpdateRsvp(std::vector<DeviceNode>& nodes,
     // max capacity per cable = min(portA_bw, portB_bw)
     std::unordered_map<uint64_t, uint32_t> maxBwMap;
     for (const auto& c : cables) {
+        if (c.broken || c.fromPort < 0 || c.fromPort >= PORTS_PER_NODE ||
+            c.toPort < 0 || c.toPort >= PORTS_PER_NODE) {
+            continue;
+        }
         const DeviceNode* a = FindNode(nodes, c.fromId);
         const DeviceNode* b = FindNode(nodes, c.toId);
         if (!a || !b) continue;
@@ -139,6 +152,7 @@ std::vector<std::string> UpdateRsvp(std::vector<DeviceNode>& nodes,
     // sum active tunnel reservations from last tick
     std::unordered_map<uint64_t, uint32_t> reservedMap;
     for (const auto& n : nodes) {
+        if (!n.rsvpEnabled || n.type != ROUTER) continue;
         for (const auto& t : n.teTunnels) {
             if (!t.isUp || t.activePath.size() < 2) continue;
             for (size_t i = 0; i + 1 < t.activePath.size(); ++i) {
@@ -147,35 +161,74 @@ std::vector<std::string> UpdateRsvp(std::vector<DeviceNode>& nodes,
         }
     }
 
-    // available = max - reserved, clamped to 0
-    std::unordered_map<uint64_t, uint32_t> availBwMap;
-    for (auto& [key, maxBw] : maxBwMap) {
-        uint32_t res = reservedMap.count(key) ? reservedMap[key] : 0u;
-        availBwMap[key] = (res < maxBw) ? (maxBw - res) : 0u;
-    }
+    auto adjustReservation = [&](const std::vector<int>& path, uint32_t bandwidth,
+                                 bool add) {
+        for (size_t i = 0; i + 1 < path.size(); ++i) {
+            const uint64_t key = cableKey(path[i], path[i + 1]);
+            uint32_t& reserved = reservedMap[key];
+            if (add) reserved += bandwidth;
+            else     reserved = reserved > bandwidth ? reserved - bandwidth : 0u;
+        }
+    };
+
+    auto availableBandwidth = [&]() {
+        std::unordered_map<uint64_t, uint32_t> available;
+        for (const auto& [key, maximum] : maxBwMap) {
+            const auto reserved = reservedMap.find(key);
+            const uint32_t used = reserved != reservedMap.end() ? reserved->second : 0u;
+            available[key] = used < maximum ? maximum - used : 0u;
+        }
+        return available;
+    };
+
+    // Transit entries are shared state. Clear them once before any head-end
+    // rebuilds its tunnels so a later router cannot erase an earlier path.
+    for (auto& node : nodes) node.teLfib.clear();
 
     // ── Phase 2: compute tunnel states ───────────────────────────────────
     for (auto& n : nodes) {
         if (!n.rsvpEnabled || n.type != ROUTER) continue;
-        n.teLfib.clear();
 
         for (auto& t : n.teTunnels) {
+            const std::vector<int> oldPath = t.isUp ? t.activePath : std::vector<int>{};
+            if (!oldPath.empty()) adjustReservation(oldPath, t.bandwidth, false);
+
+            const auto availBwMap = availableBandwidth();
             std::vector<int> newPath;
+            std::string failureStatus;
 
             if (!t.useExplicit) {
                 // CSPF
                 newPath = CspfDijkstra(n.id, t.destIp, t.bandwidth,
                                        nodes, cables, availBwMap, cableKey);
+                if (newPath.empty()) failureStatus = "No CSPF path";
             } else {
-                // Explicit path: prepend head, check each hop has enough BW
-                if (!t.explicitHops.empty()) {
+                // Explicit hops are waypoints; append the configured tail when
+                // the user did not repeat it in the hop list.
+                const int tailId = FindNodeIdByIp(nodes, t.destIp);
+                if (tailId < 0) {
+                    failureStatus = "Invalid tunnel destination";
+                } else {
                     newPath.push_back(n.id);
                     for (int hop : t.explicitHops) newPath.push_back(hop);
+                    if (newPath.back() != tailId) newPath.push_back(tailId);
+
                     bool ok = true;
                     for (size_t i = 0; i + 1 < newPath.size(); ++i) {
                         auto it = availBwMap.find(cableKey(newPath[i], newPath[i+1]));
-                        uint32_t avail = (it != availBwMap.end()) ? it->second : 1000u;
-                        if (avail < t.bandwidth) { ok = false; break; }
+                        const DeviceNode* from = FindNode(nodes, newPath[i]);
+                        const DeviceNode* to   = FindNode(nodes, newPath[i + 1]);
+                        if (!from || !to || from->crashed || to->crashed ||
+                            it == availBwMap.end()) {
+                            failureStatus = "Invalid explicit hop";
+                            ok = false;
+                            break;
+                        }
+                        if (it->second < t.bandwidth) {
+                            failureStatus = "BW insufficient on explicit path";
+                            ok = false;
+                            break;
+                        }
                     }
                     if (!ok) newPath.clear();
                 }
@@ -198,6 +251,7 @@ std::vector<std::string> UpdateRsvp(std::vector<DeviceNode>& nodes,
                                    [&](const TeTunnel& p){ return p.id == t.id; }),
                     n.pendingTunnels.end());
                 BuildTeLfib(t, nodes, cables);
+                adjustReservation(t.activePath, t.bandwidth, true);
 
                 if (pathChanged && t.headLabel != 0) {
                     char buf[64];
@@ -217,12 +271,12 @@ std::vector<std::string> UpdateRsvp(std::vector<DeviceNode>& nodes,
                     // First tick without path: hold current state one more tick
                     n.pendingTunnels.push_back(t);
                     BuildTeLfib(t, nodes, cables);  // keep forwarding for one tick
+                    adjustReservation(t.activePath, t.bandwidth, true);
                 } else if (t.isUp || alreadyPending) {
                     // Second tick (or first tick for pending): go Down
                     t.isUp      = false;
                     t.activePath.clear();
-                    t.statusMsg = t.explicitHops.empty()
-                                  ? "No CSPF path" : "BW insufficient on explicit path";
+                    t.statusMsg = failureStatus.empty() ? "No valid path" : failureStatus;
                     n.pendingTunnels.erase(
                         std::remove_if(n.pendingTunnels.begin(), n.pendingTunnels.end(),
                                        [&](const TeTunnel& p){ return p.id == t.id; }),
@@ -231,6 +285,10 @@ std::vector<std::string> UpdateRsvp(std::vector<DeviceNode>& nodes,
                     std::snprintf(buf, sizeof(buf), "RSVP-TE: %s Tunnel-%d down: %s",
                                   n.label.c_str(), t.id, t.statusMsg.c_str());
                     log.push_back(buf);
+                } else {
+                    t.isUp = false;
+                    t.activePath.clear();
+                    t.statusMsg = failureStatus.empty() ? "No valid path" : failureStatus;
                 }
             }
         }
@@ -253,15 +311,22 @@ void ResolveExplicitHops(TeTunnel& t, const std::vector<DeviceNode>& nodes)
         ip = ip.substr(s, ip.find_last_not_of(' ') - s + 1);
         if (ip.empty()) continue;
 
+        bool resolved = false;
         for (const auto& n : nodes) {
             bool found = false;
             for (int p = 0; p < PORTS_PER_NODE; ++p) {
                 auto sl = n.portIp[p].find('/');
                 std::string np = (sl != std::string::npos)
                                  ? n.portIp[p].substr(0, sl) : n.portIp[p];
-                if (np == ip) { t.explicitHops.push_back(n.id); found = true; break; }
+                if (np == ip) {
+                    t.explicitHops.push_back(n.id);
+                    found = true;
+                    resolved = true;
+                    break;
+                }
             }
             if (found) break;
         }
+        if (!resolved) t.explicitHops.push_back(-1);
     }
 }

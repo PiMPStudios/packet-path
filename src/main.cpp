@@ -2,28 +2,19 @@
 #include "OspfEngine.h"
 #include "LdpEngine.h"
 #include "RsvpEngine.h"
+#include "RsvpReplay.h"
+#include "ProtocolPanelController.h"
+#include "ProtocolOverlays.h"
 #include "SrEngine.h"
 #include "BgpEngine.h"
 #include "EvpnEngine.h"
 #include "Level.h"
+#include "LevelCatalog.h"
+#include "SceneSerializer.h"
 #include "GameUI.h"
 #include "TraceModal.h"
 #include "SoundEngine.h"
 #include "Font.h"
-#include <sstream>
-
-// ── RSVP replay state ─────────────────────────────────────────────────────
-struct RsvpReplayState {
-    enum Phase { PATH_PHASE, HOLD_PHASE, RESV_PHASE };
-    bool        active    = false;
-    Phase       phase     = PATH_PHASE;
-    int         hop       = 0;
-    float       holdTimer = 0.f;
-    std::vector<int> path;
-    PacketAnim  pkt;
-    bool        pktActive = false;
-    uint32_t    headLabel = 0;
-};
 
 // ── Main ──────────────────────────────────────────────────────────────────
 int main() {
@@ -35,7 +26,7 @@ int main() {
     InitGameFont();                               // must come after ChangeDirectory
     SetTargetFPS(60);
     InitAudioDevice();
-    InitSounds();
+    const bool audioAvailable = InitSounds();
 
     std::vector<DeviceNode> nodes;
     nodes.push_back(SpawnNode(PC, {0.0f, 0.0f}));
@@ -81,6 +72,7 @@ int main() {
     int           logScrollOffset = 0;
     int           prevLogSize     = 0;
     GameMenuState gameSettings;
+    gameSettings.soundOn = audioAvailable;
 
     // ── Save / Load dialog state ───────────────────────────────
     FileOpState fileOp      = FILEOP_NONE;
@@ -88,17 +80,7 @@ int main() {
     std::string fileOpMsg;
     float       fileOpTimer = 0.f;
 
-    // Preload level titles for the level-select screen
-    std::string levelTitles[16];
-    bool        levelExists[16];
-    for (int i = 0; i < 16; ++i) {
-        char lpath[64];
-        std::snprintf(lpath, sizeof(lpath), "levels/level_%02d.json", i + 1);
-        LevelDef tmpDef;
-        levelExists[i]  = LoadLevel(lpath, tmpDef);
-        levelTitles[i]  = levelExists[i] ? tmpDef.title
-                        : std::string("Level ") + std::to_string(i + 1);
-    }
+    const std::vector<LevelCatalogEntry> levelCatalog = DiscoverLevels("levels");
 
     // Populate supported resolutions from monitor max
     {
@@ -412,13 +394,13 @@ int main() {
                     gameSettings.showFps = !gameSettings.showFps;
                 } else if (CheckCollisionPointRec(screenMouse, ML.mute)) {
                     gameSettings.soundOn = !gameSettings.soundOn;
-                    SetMasterVolume(gameSettings.soundOn ? gameSettings.volume : 0.f);
+                    SetSoundVolume(gameSettings.soundOn ? gameSettings.volume : 0.f);
                 } else if (CheckCollisionPointRec(screenMouse, ML.volDown)) {
                     gameSettings.volume = std::max(0.f, gameSettings.volume - 0.1f);
-                    if (gameSettings.soundOn) SetMasterVolume(gameSettings.volume);
+                    if (gameSettings.soundOn) SetSoundVolume(gameSettings.volume);
                 } else if (CheckCollisionPointRec(screenMouse, ML.volUp)) {
                     gameSettings.volume = std::min(1.f, gameSettings.volume + 0.1f);
-                    if (gameSettings.soundOn) SetMasterVolume(gameSettings.volume);
+                    if (gameSettings.soundOn) SetSoundVolume(gameSettings.volume);
                 } else if (CheckCollisionPointRec(screenMouse, ML.save)) {
                     menuVisible = false;
                     fileOp      = FILEOP_SAVING;
@@ -507,14 +489,11 @@ int main() {
                     briefingCard.dragging  = false;
                     briefingCard.cardHeight = BriefingComputeHeight(activeLevelDef);
                     helpVisible          = false;
-                } else if (CheckCollisionPointRec(screenMouse, WinNextBtnRect()) &&
-                           currentLevel < 16) {
-                    int nextLevel = currentLevel + 1;
-                    char path[64];
-                    std::snprintf(path, sizeof(path), "levels/level_%02d.json", nextLevel);
+                } else if (CheckCollisionPointRec(screenMouse, WinNextBtnRect())) {
+                    const LevelCatalogEntry* next = FindNextLevel(levelCatalog, currentLevel);
                     LevelDef def;
-                    if (LoadLevel(path, def)) {
-                        currentLevel         = nextLevel;
+                    if (next && LoadLevel(next->path, def)) {
+                        currentLevel         = next->number;
                         activeLevelDef       = def;
                         ApplyLevel(def, nodes, cables, selectedId);
                         ps                   = PanelState{};
@@ -549,14 +528,12 @@ int main() {
                     traceModalOpen = false;
                 // all clicks consumed while modal is open
             } else if (gameMode == GAME_LEVEL_SELECT) {
-                for (int i = 0; i < 16; ++i) {
-                    if (levelExists[i] && CheckCollisionPointRec(screenMouse, LevelSelectCardRect(i))) {
-                        int lvlNum = i + 1;
-                        char path[64];
-                        std::snprintf(path, sizeof(path), "levels/level_%02d.json", lvlNum);
+                for (int i = 0; i < (int)levelCatalog.size(); ++i) {
+                    if (CheckCollisionPointRec(screenMouse,
+                                               LevelSelectCardRect(i, (int)levelCatalog.size()))) {
                         LevelDef def;
-                        if (LoadLevel(path, def)) {
-                            currentLevel         = lvlNum;
+                        if (LoadLevel(levelCatalog[i].path, def)) {
+                            currentLevel         = levelCatalog[i].number;
                             activeLevelDef       = def;
                             ApplyLevel(def, nodes, cables, selectedId);
                             ps                   = PanelState{};
@@ -585,7 +562,8 @@ int main() {
                         }
                     }
                 }
-                if (CheckCollisionPointRec(screenMouse, LevelSelectSandboxBtnRect()))
+                if (CheckCollisionPointRec(screenMouse,
+                                           LevelSelectSandboxBtnRect((int)levelCatalog.size())))
                     goSandbox();
             } else {
             // ── Briefing card interactions (non-consuming) ─────────────────
@@ -1231,205 +1209,12 @@ int main() {
                 }
                 // ── TE tab input ───────────────────────────────────────────
                 if (ps.activeTab == TAB_TE && selectedId != -1) {
-                    DeviceNode* selNode = nullptr;
-                    for (auto& nd : nodes) if (nd.id == selectedId) { selNode = &nd; break; }
-                    if (selNode && selNode->type == ROUTER) {
-                        // Toggle rsvp-te
-                        if (CheckCollisionPointRec(screenMouse, PnlTeToggleRect())) {
-                            selNode->rsvpEnabled = !selNode->rsvpEnabled;
-                            if (!selNode->rsvpEnabled) {
-                                selNode->teLfib.clear();
-                                selNode->teTunnels.clear();
-                                selNode->pendingTunnels.clear();
-                            }
-                        }
-                        if (!selNode->rsvpEnabled) goto te_input_done;
-
-                        // Per-port BW field activation
-                        for (int p = 0; p < PORTS_PER_NODE; ++p) {
-                            if (selNode->portIp[p].empty()) continue;
-                            if (CheckCollisionPointRec(screenMouse, PnlTePbwRect(p))) {
-                                ps.tePbwActivePort = (ps.tePbwActivePort == p) ? -1 : p;
-                                ps.tePbwBuf = std::to_string(selNode->portBandwidth[p]);
-                            }
-                        }
-
-                        // Tunnel row click -> expand/collapse
-                        for (int i = 0; i < (int)selNode->teTunnels.size(); ++i) {
-                            if (CheckCollisionPointRec(screenMouse, PnlTeTunnelRowRect(i))) {
-                                ps.teExpandedIdx = (ps.teExpandedIdx == i) ? -1 : i;
-                                ps.teActiveField = -1;
-                                if (ps.teExpandedIdx == i) {
-                                    ps.teDestBuf = selNode->teTunnels[i].destIp;
-                                    ps.teBwBuf   = std::to_string(selNode->teTunnels[i].bandwidth);
-                                    std::string hops;
-                                    for (const auto& h : selNode->teTunnels[i].explicitHopIps)
-                                        hops += h + " ";
-                                    ps.teHopsBuf = hops;
-                                }
-                            }
-                        }
-
-                        // Expanded form field clicks
-                        if (ps.teExpandedIdx >= 0 && ps.teExpandedIdx < (int)selNode->teTunnels.size()) {
-                            auto& t   = selNode->teTunnels[ps.teExpandedIdx];
-                            float fy  = TeListBaseY() + (float)ps.teExpandedIdx * TeRowH() + TeRowH();
-
-                            Rectangle destR = {(float)(CANVAS_W()+56), fy - 2.0f, (float)(PANEL_W-60), 20.0f};
-                            if (CheckCollisionPointRec(screenMouse, destR)) ps.teActiveField = 0;
-                            fy += 24.0f;
-                            Rectangle bwR = {(float)(CANVAS_W()+56), fy - 2.0f, (float)(PANEL_W-60), 20.0f};
-                            if (CheckCollisionPointRec(screenMouse, bwR))   ps.teActiveField = 1;
-                            fy += 24.0f;
-                            Rectangle modeR = {(float)(CANVAS_W()+56), fy, 80.0f, 20.0f};
-                            if (CheckCollisionPointRec(screenMouse, modeR)) {
-                                t.useExplicit = !t.useExplicit;
-                                t.headLabel   = 0;
-                            }
-                            fy += 24.0f;
-                            if (t.useExplicit) {
-                                Rectangle hopR = {(float)(CANVAS_W()+56), fy-2.0f, (float)(PANEL_W-60), 20.0f};
-                                if (CheckCollisionPointRec(screenMouse, hopR)) ps.teActiveField = 2;
-                                fy += 24.0f;
-                            }
-
-                            float btnW = (float)(PANEL_W - 8) * 0.55f;
-                            float delW = (float)(PANEL_W - 8) * 0.40f;
-                            Rectangle simR = {(float)(CANVAS_W()+12), fy, btnW, 22.0f};
-                            Rectangle delR = {(float)(CANVAS_W() + 12 + PANEL_W - 24 - delW), fy, delW, 22.0f};
-
-                            if (t.isUp && CheckCollisionPointRec(screenMouse, simR)) {
-                                rsvpReplay           = RsvpReplayState{};
-                                rsvpReplay.active    = true;
-                                rsvpReplay.phase     = RsvpReplayState::PATH_PHASE;
-                                rsvpReplay.path      = t.activePath;
-                                rsvpReplay.headLabel = t.headLabel;
-                                rsvpReplay.hop       = 0;
-                                rsvpReplay.pktActive = false;
-                            }
-                            if (CheckCollisionPointRec(screenMouse, delR)) {
-                                selNode->teTunnels.erase(selNode->teTunnels.begin() + ps.teExpandedIdx);
-                                ps.teExpandedIdx = -1;
-                                ps.teActiveField = -1;
-                            }
-                        }
-
-                        {
-                            // Add Tunnel button
-                            int visCount = (int)selNode->teTunnels.size() + (ps.teExpandedIdx >= 0 ? 1 : 0);
-                            if (CheckCollisionPointRec(screenMouse, PnlTeAddBtnRect(visCount))) {
-                                TeTunnel nt;
-                                nt.id = selNode->teTunnels.empty()
-                                        ? 1 : selNode->teTunnels.back().id + 1;
-                                selNode->teTunnels.push_back(nt);
-                            }
-                        }
-
-                        te_input_done:;
-                    }
+                    HandleTrafficEngineeringPanelClick(screenMouse, selectedId,
+                                                       nodes, ps, rsvpReplay);
                 }
                 // ── SR tab input ───────────────────────────────────────────
                 if (ps.activeTab == TAB_SR && selectedId != -1) {
-                    DeviceNode* sel = nullptr;
-                    for (auto& nd : nodes) if (nd.id == selectedId) { sel = &nd; break; }
-                    if (sel && sel->type == ROUTER) {
-                        // Toggle SR-MPLS
-                        if (CheckCollisionPointRec(screenMouse, PnlSrToggleRect())) {
-                            sel->srEnabled = !sel->srEnabled;
-                            goto sr_input_done;
-                        }
-
-                        // Node SID field click
-                        if (CheckCollisionPointRec(screenMouse, PnlSrNodeSidRect())) {
-                            ps.srNodeSidEditing = true;
-                            ps.srNodeSidBuf = sel->nodeSid > 0 ? std::to_string(sel->nodeSid) : "";
-                            goto sr_input_done;
-                        }
-
-                        // Policy row click -> expand/collapse
-                        for (int i = 0; i < (int)sel->srPolicies.size(); ++i) {
-                            int   expansionAbove = (ps.srExpandedIdx >= 0 && ps.srExpandedIdx < i) ? 1 : 0;
-                            float rowY = PnlSrPolicyRowRect(i).y + expansionAbove * SrFormH();
-                            Rectangle rowRect = { PnlSrPolicyRowRect(i).x, rowY,
-                                                  PnlSrPolicyRowRect(i).width, PnlSrPolicyRowRect(i).height };
-                            if (CheckCollisionPointRec(screenMouse, rowRect)) {
-                                if (ps.srExpandedIdx == i) {
-                                    ps.srExpandedIdx = -1;
-                                    ps.srActiveField = -1;
-                                } else {
-                                    ps.srExpandedIdx = i;
-                                    ps.srActiveField = -1;
-                                    ps.srDestBuf = sel->srPolicies[i].destIp;
-                                    ps.srSegsBuf.clear();
-                                    for (int j = 0; j < (int)sel->srPolicies[i].segmentIps.size(); ++j) {
-                                        if (j > 0) ps.srSegsBuf += ", ";
-                                        ps.srSegsBuf += sel->srPolicies[i].segmentIps[j];
-                                    }
-                                }
-                                goto sr_input_done;
-                            }
-                        }
-
-                        // Expanded form field clicks
-                        if (ps.srExpandedIdx >= 0 && ps.srExpandedIdx < (int)sel->srPolicies.size()) {
-                            // The expanded row is never displaced by a row above it expanding,
-                            // because only one row can be expanded at a time (this one).
-                            float rowY = PnlSrPolicyRowRect(ps.srExpandedIdx).y;
-                            float fy   = rowY + 28.0f; // SrRowH() = 28.0f
-
-                            float px = (float)(CANVAS_W() + 12);
-                            float pw = (float)(PANEL_W - 24);
-
-                            // Dest field rect (matches srField lambda: {px+52, y-2, pw-56, 20})
-                            Rectangle destR = { px + 52.0f, fy - 2.0f, pw - 56.0f, 20.0f };
-                            if (CheckCollisionPointRec(screenMouse, destR)) {
-                                ps.srActiveField = 0;
-                                goto sr_input_done;
-                            }
-                            fy += 24.0f;
-
-                            // Segs field rect
-                            Rectangle segsR = { px + 52.0f, fy - 2.0f, pw - 56.0f, 20.0f };
-                            if (CheckCollisionPointRec(screenMouse, segsR)) {
-                                ps.srActiveField = 1;
-                                goto sr_input_done;
-                            }
-                            fy += 24.0f;
-
-                            // Skip label preview row (variable height — check both with and without it)
-                            // Del button appears after segs + optional 16px preview line
-                            const auto& pol = sel->srPolicies[ps.srExpandedIdx];
-                            if (!pol.labelStack.empty() || !pol.segmentIps.empty()) {
-                                fy += 16.0f;
-                            }
-
-                            float delW = (pw - 8.0f) * 0.40f;
-                            Rectangle delR = { px + pw - delW, fy, delW, 22.0f };
-                            if (CheckCollisionPointRec(screenMouse, delR)) {
-                                sel->srPolicies.erase(sel->srPolicies.begin() + ps.srExpandedIdx);
-                                ps.srExpandedIdx = -1;
-                                ps.srActiveField = -1;
-                                goto sr_input_done;
-                            }
-                        }
-
-                        // Add Policy button
-                        {
-                            int visCount = (int)sel->srPolicies.size() + (ps.srExpandedIdx >= 0 ? 1 : 0);
-                            if (CheckCollisionPointRec(screenMouse, PnlSrAddBtnRect(visCount))) {
-                                SrPolicy newPolicy;
-                                newPolicy.id = (int)sel->srPolicies.size() + 1;
-                                sel->srPolicies.push_back(newPolicy);
-                                ps.srExpandedIdx = (int)sel->srPolicies.size() - 1;
-                                ps.srActiveField = 0;
-                                ps.srDestBuf.clear();
-                                ps.srSegsBuf.clear();
-                                goto sr_input_done;
-                            }
-                        }
-
-                        sr_input_done:;
-                    }
+                    HandleSegmentRoutingPanelClick(screenMouse, selectedId, nodes, ps);
                 }
             }
         }
@@ -1670,135 +1455,12 @@ int main() {
 
         // TE tab text field updates
         if (ps.activeTab == TAB_TE && selectedId != -1) {
-            DeviceNode* sn = nullptr;
-            for (auto& nd : nodes) if (nd.id == selectedId) { sn = &nd; break; }
-            if (sn) {
-                if (ps.tePbwActivePort >= 0) {
-                    UpdateTextField(ps.tePbwBuf, 7);
-                    if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_TAB)) {
-                        int p = ps.tePbwActivePort;
-                        uint32_t bw = (uint32_t)std::max(1, std::atoi(ps.tePbwBuf.c_str()));
-                        sn->portBandwidth[p] = bw;
-                        ps.tePbwActivePort = -1;
-                    }
-                }
-                if (ps.teExpandedIdx >= 0 && ps.teExpandedIdx < (int)sn->teTunnels.size()) {
-                    auto& t = sn->teTunnels[ps.teExpandedIdx];
-                    if (ps.teActiveField == 0) {
-                        UpdateTextField(ps.teDestBuf, 15);
-                        if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_TAB)) {
-                            t.destIp = ps.teDestBuf;
-                            t.headLabel = 0;
-                            ps.teActiveField = -1;
-                        }
-                    } else if (ps.teActiveField == 1) {
-                        UpdateTextField(ps.teBwBuf, 7);
-                        if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_TAB)) {
-                            t.bandwidth = (uint32_t)std::max(0, std::atoi(ps.teBwBuf.c_str()));
-                            t.headLabel = 0;
-                            ps.teActiveField = -1;
-                        }
-                    } else if (ps.teActiveField == 2) {
-                        UpdateTextField(ps.teHopsBuf, 120);
-                        if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_TAB)) {
-                            t.explicitHopIps.clear();
-                            std::istringstream ss(ps.teHopsBuf);
-                            std::string tok;
-                            while (ss >> tok) t.explicitHopIps.push_back(tok);
-                            ResolveExplicitHops(t, nodes);
-                            t.headLabel = 0;
-                            ps.teActiveField = -1;
-                        }
-                    }
-                }
-            }
+            UpdateTrafficEngineeringPanelInput(selectedId, nodes, ps);
         }
 
         // SR tab text field updates
         if (ps.activeTab == TAB_SR && selectedId != -1) {
-            DeviceNode* sn = nullptr;
-            for (auto& nd : nodes) if (nd.id == selectedId) { sn = &nd; break; }
-            if (sn) {
-                if (ps.srNodeSidEditing) {
-                    int key = GetCharPressed();
-                    while (key > 0) {
-                        if (key >= '0' && key <= '9' && (int)ps.srNodeSidBuf.size() < 3) {
-                            ps.srNodeSidBuf += (char)key;
-                        }
-                        key = GetCharPressed();
-                    }
-                    if (IsKeyPressed(KEY_BACKSPACE) && !ps.srNodeSidBuf.empty()) {
-                        ps.srNodeSidBuf.pop_back();
-                    }
-                    if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_ESCAPE)) {
-                        if (!ps.srNodeSidBuf.empty()) {
-                            uint32_t sid = (uint32_t)std::stoul(ps.srNodeSidBuf);
-                            if (sid < 1) sid = 1;
-                            if (sid >= SRGB_SIZE) sid = SRGB_SIZE - 1;
-                            sn->nodeSid = sid;
-                        }
-                        ps.srNodeSidEditing = false;
-                    }
-                } else if (ps.srExpandedIdx >= 0 && ps.srExpandedIdx < (int)sn->srPolicies.size()
-                           && ps.srActiveField >= 0) {
-                    auto& pol = sn->srPolicies[ps.srExpandedIdx];
-                    if (ps.srActiveField == 0) {
-                        // Dest field editing
-                        int key = GetCharPressed();
-                        while (key > 0) {
-                            if (key >= 32 && key <= 126 && (int)ps.srDestBuf.size() < 15) {
-                                ps.srDestBuf += (char)key;
-                            }
-                            key = GetCharPressed();
-                        }
-                        if (IsKeyPressed(KEY_BACKSPACE) && !ps.srDestBuf.empty()) {
-                            ps.srDestBuf.pop_back();
-                        }
-                        if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_TAB)) {
-                            pol.destIp = ps.srDestBuf;
-                            ps.srActiveField = 1; // advance to Segs
-                        }
-                        if (IsKeyPressed(KEY_ESCAPE)) {
-                            pol.destIp = ps.srDestBuf;
-                            ps.srActiveField = -1;
-                        }
-                    } else if (ps.srActiveField == 1) {
-                        // Segs field editing
-                        int key = GetCharPressed();
-                        while (key > 0) {
-                            if (key >= 32 && key <= 126) {
-                                ps.srSegsBuf += (char)key;
-                            }
-                            key = GetCharPressed();
-                        }
-                        if (IsKeyPressed(KEY_BACKSPACE) && !ps.srSegsBuf.empty()) {
-                            ps.srSegsBuf.pop_back();
-                        }
-                        // Parse segments on every keystroke for live preview
-                        {
-                            pol.segmentIps.clear();
-                            std::istringstream ss(ps.srSegsBuf);
-                            std::string tok;
-                            while (std::getline(ss, tok, ',')) {
-                                // trim leading/trailing whitespace
-                                size_t start = tok.find_first_not_of(" \t");
-                                size_t end   = tok.find_last_not_of(" \t");
-                                if (start != std::string::npos) {
-                                    pol.segmentIps.push_back(tok.substr(start, end - start + 1));
-                                }
-                            }
-                            pol.segmentsResolved = false;
-                            ResolveSrSegments(pol, nodes);
-                        }
-                        if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_TAB)) {
-                            ps.srActiveField = -1;
-                        }
-                        if (IsKeyPressed(KEY_ESCAPE)) {
-                            ps.srActiveField = -1;
-                        }
-                    }
-                }
-            }
+            UpdateSegmentRoutingPanelInput(selectedId, nodes, cables, ps);
         }
 
         // Reset active field when selection changes
@@ -1841,7 +1503,7 @@ int main() {
         {
             auto ospfEvents = UpdateOspf(dt, nodes, cables);
             UpdateLdp(nodes, cables);   // recompute LFIB after each OSPF tick
-            UpdateRsvp(nodes, cables);
+            auto rsvpEvents = UpdateRsvp(nodes, cables);
             UpdateSr(nodes, cables);
             UpdateBgp(nodes, cables);   // recompute BGP RIB every frame
             BuildEvpnRoutes(nodes);
@@ -1854,6 +1516,14 @@ int main() {
                 e.success   = true;
                 e.pathStr   = msg;
                 e.type      = LOG_OSPF;
+                e.timestamp = GetTime();
+                pushLog(e);
+            }
+            for (const auto& msg : rsvpEvents) {
+                LogEntry e;
+                e.success   = msg.find(" down:") == std::string::npos;
+                e.pathStr   = msg;
+                e.type      = LOG_RSVP;
                 e.timestamp = GetTime();
                 pushLog(e);
             }
@@ -1875,59 +1545,7 @@ int main() {
             }
         }
 
-        // ── RSVP replay tick ──────────────────────────────────────────────
-        if (rsvpReplay.active) {
-            if (rsvpReplay.pktActive) {
-                UpdatePacketAnim(rsvpReplay.pkt, dt, nodes, cables);
-                if (rsvpReplay.pkt.done) rsvpReplay.pktActive = false;
-            }
-
-            if (!rsvpReplay.pktActive) {
-                const auto& rpath = rsvpReplay.path;
-                int  n = (int)rpath.size();
-
-                if (rsvpReplay.phase == RsvpReplayState::PATH_PHASE) {
-                    if (rsvpReplay.hop < n - 1) {
-                        // Spawn PATH packet for this hop (blue)
-                        ForwardResult fr;
-                        fr.path    = {rpath[rsvpReplay.hop], rpath[rsvpReplay.hop+1]};
-                        fr.success = true;
-                        rsvpReplay.pkt             = PacketAnim{};
-                        rsvpReplay.pkt.result      = fr;
-                        rsvpReplay.pkt.overrideColor = Color{59, 130, 246, 255};
-                        rsvpReplay.pktActive       = true;
-                        ++rsvpReplay.hop;
-                    } else {
-                        rsvpReplay.phase     = RsvpReplayState::HOLD_PHASE;
-                        rsvpReplay.holdTimer = 0.8f;
-                    }
-                } else if (rsvpReplay.phase == RsvpReplayState::HOLD_PHASE) {
-                    rsvpReplay.holdTimer -= dt;
-                    if (rsvpReplay.holdTimer <= 0.f) {
-                        rsvpReplay.phase = RsvpReplayState::RESV_PHASE;
-                        rsvpReplay.hop   = 0;
-                    }
-                } else if (rsvpReplay.phase == RsvpReplayState::RESV_PHASE) {
-                    if (rsvpReplay.hop < n - 1) {
-                        // Spawn RESV packet tail→head (default green)
-                        int from = rpath[n - 1 - rsvpReplay.hop];
-                        int to   = rpath[n - 2 - rsvpReplay.hop];
-                        ForwardResult fr;
-                        fr.path    = {from, to};
-                        fr.success = true;
-                        rsvpReplay.pkt              = PacketAnim{};
-                        rsvpReplay.pkt.result       = fr;
-                        rsvpReplay.pkt.currentLabel = rsvpReplay.headLabel
-                                                      + (uint32_t)(n - 2 - rsvpReplay.hop);
-                        // overrideColor left at {0,0,0,0} → default green
-                        rsvpReplay.pktActive = true;
-                        ++rsvpReplay.hop;
-                    } else {
-                        rsvpReplay.active = false;
-                    }
-                }
-            }
-        }
+        UpdateRsvpReplay(rsvpReplay, dt, nodes, cables);
 
         // ── Draw ───────────────────────────────────────────────────────
         BeginDrawing();
@@ -1944,8 +1562,8 @@ int main() {
                 if (troubleshootMode)
                     DrawTroubleshootOverlay(nodes, cables);
                 DrawPacketAnim(simState.anim, nodes, cables);
-                if (rsvpReplay.active && rsvpReplay.pktActive)
-                    DrawPacketAnim(rsvpReplay.pkt, nodes, cables);
+                if (rsvpReplay.active && rsvpReplay.packetActive)
+                    DrawPacketAnim(rsvpReplay.packet, nodes, cables);
 
                 if (connecting) {
                     const DeviceNode* fromNode = FindNode(nodes, connectFromId);
@@ -2042,11 +1660,13 @@ int main() {
             if (simState.mode == SIM_ANIMATING)
                 DrawReplayHUD(simState.anim.paused, simState.anim.speedMult);
             if (gameMode == GAME_WIN)
-                DrawWinOverlay(activeLevelDef, currentLevel < 16, starsEarned);
+                DrawWinOverlay(activeLevelDef,
+                               FindNextLevel(levelCatalog, currentLevel) != nullptr,
+                               starsEarned);
 
             // Level-select overlay (drawn last so it sits above everything)
             if (gameMode == GAME_LEVEL_SELECT)
-                DrawLevelSelectScreen(levelTitles, levelExists);
+                DrawLevelSelectScreen(levelCatalog);
 
             // HUD — screen space, outside camera
             if (gameSettings.showFps) {
@@ -2080,7 +1700,7 @@ int main() {
     }
 
     UnloadSounds();
-    CloseAudioDevice();
+    if (IsAudioDeviceReady()) CloseAudioDevice();
     UnloadGameFont();
     CloseWindow();
     return 0;
