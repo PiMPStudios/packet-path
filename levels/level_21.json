@@ -1,0 +1,127 @@
+{
+  "id": 21,
+  "title": "Fault Domain Sweep",
+  "briefing": "A compound outage has isolated HQ and the branch from the application server. Three independent faults span the upper core, the lower backup path, and branch access. Press T for Troubleshoot Mode, use failed packet traces to separate the fault domains, restore every failed component, wait for OSPF to reconverge, and verify both sites can exchange traffic with SERVER.",
+  "devices": [
+    {
+      "id": 1,
+      "label": "PC-HQ",
+      "type": "PC",
+      "x": -520,
+      "y": -80,
+      "portIp0": "10.1.0.2/24",
+      "staticRoutes": [
+        {"dest": "0.0.0.0/0", "nextHop": "10.1.0.1"}
+      ]
+    },
+    {
+      "id": 2,
+      "label": "CORE-1",
+      "type": "ROUTER",
+      "x": -300,
+      "y": -80,
+      "portIp0": "10.1.0.1/24",
+      "portIp1": "10.0.12.1/30",
+      "portIp2": "10.0.13.1/30",
+      "ospfEnabled": true,
+      "routerId": "1.1.1.1"
+    },
+    {
+      "id": 3,
+      "label": "CORE-2",
+      "type": "ROUTER",
+      "x": -40,
+      "y": -220,
+      "portIp0": "10.0.12.2/30",
+      "portIp1": "10.0.24.1/30",
+      "ospfEnabled": true,
+      "routerId": "2.2.2.2",
+      "crashed": true
+    },
+    {
+      "id": 4,
+      "label": "CORE-3",
+      "type": "ROUTER",
+      "x": -40,
+      "y": 80,
+      "portIp0": "10.0.13.2/30",
+      "portIp1": "10.0.34.1/30",
+      "portIp2": "10.30.0.1/24",
+      "ospfEnabled": true,
+      "routerId": "3.3.3.3"
+    },
+    {
+      "id": 5,
+      "label": "CORE-4",
+      "type": "ROUTER",
+      "x": 240,
+      "y": -80,
+      "portIp0": "10.0.24.2/30",
+      "portIp1": "10.0.34.2/30",
+      "portIp2": "10.40.0.1/24",
+      "ospfEnabled": true,
+      "routerId": "4.4.4.4"
+    },
+    {
+      "id": 6,
+      "label": "SERVER",
+      "type": "PC",
+      "x": 500,
+      "y": -80,
+      "portIp0": "10.40.0.2/24",
+      "staticRoutes": [
+        {"dest": "0.0.0.0/0", "nextHop": "10.40.0.1"}
+      ]
+    },
+    {
+      "id": 7,
+      "label": "PC-BRANCH",
+      "type": "PC",
+      "x": -40,
+      "y": 300,
+      "portIp0": "10.30.0.2/24",
+      "staticRoutes": [
+        {"dest": "0.0.0.0/0", "nextHop": "10.30.0.1"}
+      ]
+    }
+  ],
+  "cables": [
+    {"from": 1, "fromPort": 0, "to": 2, "toPort": 0},
+    {"from": 2, "fromPort": 1, "to": 3, "toPort": 0},
+    {"from": 3, "fromPort": 1, "to": 5, "toPort": 0},
+    {"from": 2, "fromPort": 2, "to": 4, "toPort": 0, "broken": true},
+    {"from": 4, "fromPort": 1, "to": 5, "toPort": 1},
+    {"from": 5, "fromPort": 2, "to": 6, "toPort": 0},
+    {"from": 4, "fromPort": 2, "to": 7, "toPort": 0, "broken": true}
+  ],
+  "winConditions": [
+    {
+      "src": "PC-HQ",
+      "dst": "SERVER",
+      "description": "HQ can reach SERVER after the complete fault sweep",
+      "requiresFix": true,
+      "requiresAllFaultsCleared": true
+    },
+    {
+      "src": "SERVER",
+      "dst": "PC-HQ",
+      "description": "SERVER can return traffic to HQ after OSPF reconverges",
+      "requiresFix": true,
+      "requiresAllFaultsCleared": true
+    },
+    {
+      "src": "PC-BRANCH",
+      "dst": "SERVER",
+      "description": "The branch can reach SERVER after its access fault is restored",
+      "requiresFix": true,
+      "requiresAllFaultsCleared": true
+    },
+    {
+      "src": "SERVER",
+      "dst": "PC-BRANCH",
+      "description": "SERVER can return traffic to the restored branch",
+      "requiresFix": true,
+      "requiresAllFaultsCleared": true
+    }
+  ]
+}

@@ -9,6 +9,7 @@ struct WinCondition {
     std::string dstLabel;
     std::string description;
     bool        requiresFix = false;
+    bool        requiresAllFaultsCleared = false;
     std::string requiresNatOnDevice;  // if non-empty, win also requires this device's natEnabled=true
     std::string requiresTeTunnelOnDevice;
     int         requiresTeTunnelId = 0;       // 0 = any UP tunnel on the required device

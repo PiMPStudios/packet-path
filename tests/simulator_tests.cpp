@@ -955,6 +955,65 @@ void TestLevel20RequiresSlaBasedBackupPath() {
            "The intended SLA backup policy should complete Level 20");
 }
 
+void TestLevel21RequiresCompleteMultiFailureRecovery() {
+    LevelDef level;
+    Expect(LoadLevel("levels/level_21.json", level),
+           "Level 21 should load through the production scene parser");
+    std::vector<DeviceNode> nodes = level.devices;
+    std::vector<Cable> cables = level.cables;
+    ConvergeOspf(nodes, cables);
+
+    Expect(CheckWinConditions(level, nodes, cables) == 0,
+           "The three injected faults should prevent Level 21 completion");
+
+    DeviceNode* upperCore = FindNodeMut(nodes, 3);
+    Expect(upperCore && upperCore->crashed,
+           "Level 21 should begin with the upper-core router crashed");
+    upperCore->crashed = false;
+    ConvergeOspf(nodes, cables);
+
+    const ForwardResult hqViaUpper =
+        SimulateForward(1, "10.40.0.2", nodes, cables, "10.1.0.2");
+    Expect(hqViaUpper.success,
+           "Restoring the upper core should recover HQ reachability");
+    Expect(CheckWinConditions(level, nodes, cables) == 0,
+           "Partial reachability must not complete the full fault sweep");
+
+    bool restoredLowerCore = false;
+    for (auto& cable : cables) {
+        if ((cable.fromId == 2 && cable.toId == 4) ||
+            (cable.fromId == 4 && cable.toId == 2)) {
+            Expect(cable.broken, "The lower-core link should be an injected fault");
+            cable.broken = false;
+            restoredLowerCore = true;
+        }
+    }
+    Expect(restoredLowerCore, "Level 21 should contain the lower-core fault");
+    ConvergeOspf(nodes, cables);
+    Expect(CheckWinConditions(level, nodes, cables) == 0,
+           "The remaining branch-access fault must still block completion");
+
+    bool restoredBranch = false;
+    for (auto& cable : cables) {
+        if ((cable.fromId == 4 && cable.toId == 7) ||
+            (cable.fromId == 7 && cable.toId == 4)) {
+            Expect(cable.broken, "The branch-access link should be an injected fault");
+            cable.broken = false;
+            restoredBranch = true;
+        }
+    }
+    Expect(restoredBranch, "Level 21 should contain the branch-access fault");
+    ConvergeOspf(nodes, cables);
+
+    const ForwardResult branchRecovered =
+        SimulateForward(7, "10.40.0.2", nodes, cables, "10.30.0.2");
+    Expect(branchRecovered.success,
+           "Restoring every fault should recover branch-to-server forwarding");
+    Expect(CheckWinConditions(level, nodes, cables) ==
+               static_cast<int>(level.winConditions.size()),
+           "Every Level 21 objective should pass only after complete recovery");
+}
+
 void TestLevelCatalogDiscoversMetadataWithoutFixedLimit() {
     const std::filesystem::path directory =
         std::filesystem::temp_directory_path() / "packet-path-level-catalog";
@@ -1022,6 +1081,7 @@ int main() {
         {"Level 18 SR-MPLS solution", TestLevel18RequiresNodeAndAdjacencySidSteering},
         {"Level 19 SRv6 solution", TestLevel19RequiresSrv6SegmentSteering},
         {"Level 20 SD-WAN solution", TestLevel20RequiresSlaBasedBackupPath},
+        {"Level 21 multi-failure recovery", TestLevel21RequiresCompleteMultiFailureRecovery},
         {"Dynamic level catalog", TestLevelCatalogDiscoversMetadataWithoutFixedLimit},
         {"Audio fallback", TestAudioCallsAreSafeWithoutADevice},
     };

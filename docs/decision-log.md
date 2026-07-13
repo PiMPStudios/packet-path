@@ -1,5 +1,15 @@
 # Packet Path Decision Log
 
+## 2026-07-13 — Level 21 multi-failure troubleshooting contract
+
+- **What we chose:** Level objectives may opt into `requiresAllFaultsCleared`, which blocks completion while any device remains crashed or any link remains broken; older reachability-only failure levels retain their existing behavior.
+- **Why:** Level 21 must prove a complete fault sweep, while Level 15 intentionally teaches that restoring either redundant path can recover service.
+- **Trade-offs:** The requirement checks all visible scene fault flags rather than naming individual required repairs, which is simple and reusable but does not model hidden or causally dependent faults.
+
+- **What we chose:** Level 21 separates three injected faults across an upper-core router, a lower-core link, and branch access, then validates bidirectional HQ and branch service against a shared server after OSPF reconvergence.
+- **Why:** Distinct fault domains and two service paths prevent one lucky repair from masquerading as a complete diagnosis and make the topology itself communicate the troubleshooting sequence.
+- **Trade-offs:** Troubleshoot Mode still exposes failure overlays for accessibility; the capstone tests isolation and recovery discipline rather than requiring command-line inference from telemetry alone.
+
 ## 2026-07-13 — Level 20 SD-WAN teaching contract
 
 - **What we chose:** SD-WAN policies match an exact application destination, evaluate live per-egress latency, jitter, and loss against configured thresholds, prefer the primary when compliant, and otherwise select a compliant backup.

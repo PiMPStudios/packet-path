@@ -181,6 +181,13 @@ int CheckWinConditions(const LevelDef& def,
         std::string wcsrcIp = GetFirstValidIp(*src);
         ForwardResult fr = SimulateForward(src->id, dstIp, nodes, cables, wcsrcIp);
         if (fr.success) {
+            if (wc.requiresAllFaultsCleared) {
+                const bool crashedDevice = std::any_of(nodes.begin(), nodes.end(),
+                    [](const DeviceNode& node) { return node.crashed; });
+                const bool brokenLink = std::any_of(cables.begin(), cables.end(),
+                    [](const Cable& cable) { return cable.broken; });
+                if (crashedDevice || brokenLink) continue;
+            }
             if (!MeetsTeRequirement(wc, fr, nodes)) continue;
             if (!MeetsSrRequirement(wc, fr, nodes)) continue;
             if (!MeetsSrv6Requirement(wc, fr, nodes)) continue;

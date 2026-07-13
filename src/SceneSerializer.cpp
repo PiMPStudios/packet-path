@@ -273,6 +273,8 @@ bool LoadLevel(const std::string& path, LevelDef& out) {
             condition.dstLabel    = wc.value("dst", "");
             condition.description = wc.value("description", "");
             condition.requiresFix = wc.value("requiresFix", false);
+            condition.requiresAllFaultsCleared =
+                wc.value("requiresAllFaultsCleared", false);
             condition.requiresNatOnDevice =
                 wc.value("requiresNatOnDevice", std::string{});
             condition.requiresTeTunnelOnDevice =
