@@ -31,10 +31,12 @@ void UpdateBgp(std::vector<DeviceNode>& nodes,
     // One session per cable where both endpoints: ROUTER, bgpEnabled, localAsn != 0.
     // Same AS → iBGP (full mesh, direct cable); different AS → eBGP.
     for (const auto& cable : cables) {
+        if (cable.broken) continue;
         DeviceNode* a = FindNodeMut(nodes, cable.fromId);
         DeviceNode* b = FindNodeMut(nodes, cable.toId);
         if (!a || !b) continue;
         if (a->type != ROUTER || b->type != ROUTER) continue;
+        if (a->crashed || b->crashed) continue;
         if (!a->bgpEnabled || !b->bgpEnabled) continue;
         if (a->localAsn == 0 || b->localAsn == 0) continue;
 

@@ -8,13 +8,14 @@ static int FindNbrNodeId(int nodeId, const std::string& nextHopIp,
                           const std::vector<Cable>& cables)
 {
     for (const auto& c : cables) {
+        if (c.broken) continue;
         int candidateId = -1;
         if      (c.fromId == nodeId) candidateId = c.toId;
         else if (c.toId   == nodeId) candidateId = c.fromId;
         if (candidateId == -1) continue;
 
         const DeviceNode* nb = FindNode(nodes, candidateId);
-        if (!nb) continue;
+        if (!nb || nb->crashed) continue;
         for (int i = 0; i < PORTS_PER_NODE; ++i) {
             const auto& ip = nb->portIp[i];
             if (ip.empty()) continue;
@@ -40,7 +41,7 @@ void UpdateLdp(std::vector<DeviceNode>& nodes,
         std::unordered_map<std::string, uint32_t>> bindingMap;
 
     for (const auto& n : nodes) {
-        if (n.type != ROUTER || !n.ospfEnabled || !n.ldpEnabled) continue;
+        if (n.type != ROUTER || !n.ospfEnabled || !n.ldpEnabled || n.crashed) continue;
         if (n.routerId.empty()) continue;
 
         uint32_t localBase = (uint32_t)n.id * 100u;  // up to 100 non-CONNECTED prefixes per router
@@ -62,7 +63,7 @@ void UpdateLdp(std::vector<DeviceNode>& nodes,
 
     // Phase 2: for each ldpEnabled router, build LFIB
     for (auto& n : nodes) {
-        if (n.type != ROUTER || !n.ospfEnabled || !n.ldpEnabled) continue;
+        if (n.type != ROUTER || !n.ospfEnabled || !n.ldpEnabled || n.crashed) continue;
         if (n.routerId.empty()) continue;
 
         auto myBindings = bindingMap.find(n.routerId);

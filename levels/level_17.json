@@ -1,0 +1,121 @@
+{
+  "id": 17,
+  "title": "Bandwidth Detour",
+  "briefing": "OSPF and RSVP-TE are already enabled across the core. The short upper path through RTR-2 has only 200 Mbps available, while the longer lower path has 1 Gbps. Select RTR-1, open the TE tab, add Tunnel-1 to 10.0.24.2, reserve 400 Mbps, and leave the mode on CSPF. When the tunnel is UP, run Simulate Setup to watch PATH and RESV, then send a packet from RTR-1 to RTR-4.",
+  "devices": [
+    {
+      "id": 1,
+      "label": "RTR-1",
+      "type": "ROUTER",
+      "x": -360,
+      "y": 0,
+      "portIp0": "10.0.12.1/30",
+      "portBandwidth0": 200,
+      "portIp1": "10.0.13.1/30",
+      "portBandwidth1": 1000,
+      "ospfEnabled": true,
+      "routerId": "1.1.1.1",
+      "rsvpEnabled": true
+    },
+    {
+      "id": 2,
+      "label": "RTR-2",
+      "type": "ROUTER",
+      "x": -40,
+      "y": -150,
+      "portIp0": "10.0.12.2/30",
+      "portBandwidth0": 200,
+      "portIp1": "10.0.24.1/30",
+      "portBandwidth1": 200,
+      "ospfEnabled": true,
+      "routerId": "2.2.2.2",
+      "rsvpEnabled": true
+    },
+    {
+      "id": 3,
+      "label": "RTR-3",
+      "type": "ROUTER",
+      "x": -140,
+      "y": 150,
+      "portIp0": "10.0.13.2/30",
+      "portBandwidth0": 1000,
+      "portIp1": "10.0.35.1/30",
+      "portBandwidth1": 1000,
+      "ospfEnabled": true,
+      "routerId": "3.3.3.3",
+      "rsvpEnabled": true
+    },
+    {
+      "id": 4,
+      "label": "RTR-4",
+      "type": "ROUTER",
+      "x": 360,
+      "y": 0,
+      "portIp0": "10.0.24.2/30",
+      "portBandwidth0": 200,
+      "portIp1": "10.0.45.2/30",
+      "portBandwidth1": 1000,
+      "ospfEnabled": true,
+      "routerId": "4.4.4.4",
+      "rsvpEnabled": true
+    },
+    {
+      "id": 5,
+      "label": "RTR-5",
+      "type": "ROUTER",
+      "x": 140,
+      "y": 150,
+      "portIp0": "10.0.35.2/30",
+      "portBandwidth0": 1000,
+      "portIp1": "10.0.45.1/30",
+      "portBandwidth1": 1000,
+      "ospfEnabled": true,
+      "routerId": "5.5.5.5",
+      "rsvpEnabled": true
+    }
+  ],
+  "cables": [
+    {
+      "from": 1,
+      "fromPort": 0,
+      "to": 2,
+      "toPort": 0
+    },
+    {
+      "from": 2,
+      "fromPort": 1,
+      "to": 4,
+      "toPort": 0
+    },
+    {
+      "from": 1,
+      "fromPort": 1,
+      "to": 3,
+      "toPort": 0
+    },
+    {
+      "from": 3,
+      "fromPort": 1,
+      "to": 5,
+      "toPort": 0
+    },
+    {
+      "from": 5,
+      "fromPort": 1,
+      "to": 4,
+      "toPort": 1
+    }
+  ],
+  "winConditions": [
+    {
+      "src": "RTR-1",
+      "dst": "RTR-4",
+      "description": "A 400 Mbps CSPF Tunnel-1 carries traffic through RTR-3",
+      "requiresTeTunnelOnDevice": "RTR-1",
+      "requiresTeTunnelId": 1,
+      "requiresTeMinBandwidth": 400,
+      "requiresTePathVia": "RTR-3",
+      "requiresTeMode": "cspf"
+    }
+  ]
+}

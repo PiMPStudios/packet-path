@@ -245,13 +245,15 @@ std::vector<std::string> UpdateOspf(float dt,
 
     // Phase 2: Hello timer and adjacency FSM
     for (auto& nodeA : nodes) {
-        if (!nodeA.ospfEnabled || nodeA.type != ROUTER || nodeA.routerId.empty()) continue;
+        if (!nodeA.ospfEnabled || nodeA.type != ROUTER || nodeA.routerId.empty() ||
+            nodeA.crashed) continue;
 
         nodeA.helloTimer += dt;
         if (nodeA.helloTimer < OSPF_HELLO_INTERVAL) continue;
         nodeA.helloTimer = 0.f;
 
         for (const auto& cable : cables) {
+            if (cable.broken) continue;
             int localPort, bPort, bId;
             if (cable.fromId == nodeA.id) {
                 localPort = cable.fromPort;
@@ -272,7 +274,7 @@ std::vector<std::string> UpdateOspf(float dt,
             // Area check — both ports must be in the same area to form adjacency
             uint32_t areaA = nodeA.ospfPortArea[localPort];
             DeviceNode* nodeB = FindNodeMut(nodes, bId);
-            if (!nodeB || !nodeB->ospfEnabled || nodeB->type != ROUTER
+            if (!nodeB || !nodeB->ospfEnabled || nodeB->type != ROUTER || nodeB->crashed
                        || nodeB->routerId.empty()) continue;
             uint32_t areaB = nodeB->ospfPortArea[bPort];
             if (areaA != areaB) continue;

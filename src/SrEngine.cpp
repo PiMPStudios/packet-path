@@ -6,28 +6,40 @@
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-// Returns the outPort from src.ospfRoutes that covers dest, or -1 if not found.
-// Matches against dest.routerId or any of dest's port IPs (bare, no mask).
+// Returns the best connected/OSPF outPort toward dest, or -1 if not found.
 static int NextHopPort(const DeviceNode& src, const DeviceNode& dest) {
-    for (const auto& r : src.ospfRoutes) {
-        // Match by routerId (exact)
-        if (r.dest == dest.routerId) return r.outPort;
+    std::vector<std::string> destinationIps;
+    if (ValidateIPOnly(dest.routerId)) destinationIps.push_back(dest.routerId);
+    for (int i = 0; i < PORTS_PER_NODE; ++i) {
+        if (dest.portIp[i].empty()) continue;
+        const auto slash = dest.portIp[i].find('/');
+        destinationIps.push_back(dest.portIp[i].substr(0, slash));
+    }
 
-        // Match by any port IP of dest (strip mask for comparison)
-        for (int i = 0; i < PORTS_PER_NODE; ++i) {
-            if (dest.portIp[i].empty()) continue;
-            std::string bareIp   = dest.portIp[i].substr(0, dest.portIp[i].find('/'));
-            std::string bareDest = r.dest.substr(0, r.dest.find('/'));
-            if (bareDest == bareIp) return r.outPort;
+    int bestPort = -1;
+    int bestPrefixLength = -1;
+    for (const auto& route : GetRoutingTable(src)) {
+        if (route.src != ROUTE_CONNECTED && route.src != ROUTE_OSPF &&
+            route.src != ROUTE_OSPF_IA) {
+            continue;
+        }
+        for (const auto& destinationIp : destinationIps) {
+            if (!IpInSubnet(destinationIp, route.dest)) continue;
+            const int prefixLength = PrefixLen(route.dest);
+            if (prefixLength > bestPrefixLength) {
+                bestPrefixLength = prefixLength;
+                bestPort = route.outPort;
+            }
         }
     }
-    return -1;
+    return bestPort;
 }
 
 // Returns the node ID on the far end of the cable attached to src at port, or -1.
 static int NextHopNodeId(const DeviceNode& src, int port,
                          const std::vector<Cable>& cables) {
     for (const auto& c : cables) {
+        if (c.broken) continue;
         if (c.fromId == src.id && c.fromPort == port) return c.toId;
         if (c.toId   == src.id && c.toPort   == port) return c.fromId;
     }
@@ -66,12 +78,33 @@ static std::vector<int> OspfPath(int srcId, int destId,
 
 // ── ResolveSrSegments ─────────────────────────────────────────────────────────
 
-void ResolveSrSegments(SrPolicy& policy, const std::vector<DeviceNode>& nodes) {
+void ResolveSrSegments(SrPolicy& policy, const std::vector<DeviceNode>& nodes,
+                       const std::vector<Cable>& cables) {
     policy.segmentHops.clear();
+    policy.segmentOwners.clear();
+    policy.segmentOutPorts.clear();
     policy.labelStack.clear();
     policy.segmentsResolved = false;
 
-    for (const auto& ip : policy.segmentIps) {
+    for (const auto& token : policy.segmentIps) {
+        const bool adjacency = token.rfind("adj:", 0) == 0;
+        std::string ip = token;
+        int adjacencyPort = -1;
+        if (adjacency) {
+            const auto separator = token.rfind(':');
+            if (separator == std::string::npos || separator <= 4) {
+                policy.statusMsg = "Invalid adjacency segment";
+                return;
+            }
+            ip = token.substr(4, separator - 4);
+            try {
+                adjacencyPort = std::stoi(token.substr(separator + 1));
+            } catch (...) {
+                policy.statusMsg = "Invalid adjacency port";
+                return;
+            }
+        }
+
         const DeviceNode* found = nullptr;
 
         for (const auto& n : nodes) {
@@ -87,7 +120,30 @@ void ResolveSrSegments(SrPolicy& policy, const std::vector<DeviceNode>& nodes) {
             if (found) break;
         }
 
-        if (!found || !found->srEnabled || found->nodeSid == 0) {
+        if (!found || !found->srEnabled) {
+            policy.statusMsg = "No Node SID for " + ip;
+            return;
+        }
+
+        if (adjacency) {
+            if (adjacencyPort < 0 || adjacencyPort >= PORTS_PER_NODE) {
+                policy.statusMsg = "Invalid adjacency port";
+                return;
+            }
+            const int endpoint = NextHopNodeId(*found, adjacencyPort, cables);
+            const auto label = found->adjSids.find(adjacencyPort);
+            if (endpoint < 0 || label == found->adjSids.end()) {
+                policy.statusMsg = "Adjacency unavailable for " + ip;
+                return;
+            }
+            policy.segmentOwners.push_back(found->id);
+            policy.segmentOutPorts.push_back(adjacencyPort);
+            policy.segmentHops.push_back(endpoint);
+            policy.labelStack.push_back(label->second);
+            continue;
+        }
+
+        if (found->nodeSid == 0) {
             policy.statusMsg = "No Node SID for " + ip;
             return;
         }
@@ -96,6 +152,8 @@ void ResolveSrSegments(SrPolicy& policy, const std::vector<DeviceNode>& nodes) {
             return;
         }
 
+        policy.segmentOwners.push_back(found->id);
+        policy.segmentOutPorts.push_back(-1);
         policy.segmentHops.push_back(found->id);
         policy.labelStack.push_back(SRGB_BASE + found->nodeSid);
     }
@@ -112,16 +170,20 @@ void ResolveSrSegments(SrPolicy& policy, const std::vector<DeviceNode>& nodes) {
 void UpdateSr(std::vector<DeviceNode>& nodes, const std::vector<Cable>& cables) {
 
     // Phase 1: Build global SID maps (nodeId ↔ label).
-    // Skip duplicate SIDs silently — first one wins.
-    std::unordered_map<int, uint32_t> nodeSidToLabel;  // nodeId  -> label
     std::unordered_map<uint32_t, int> labelToNodeId;   // label   -> nodeId
+    std::unordered_set<uint32_t> duplicateLabels;
 
     for (const auto& n : nodes) {
         if (!n.srEnabled || n.nodeSid == 0) continue;
         uint32_t label = SRGB_BASE + n.nodeSid;
-        if (labelToNodeId.count(label)) continue;  // duplicate SID — skip
-        nodeSidToLabel[n.id] = label;
+        if (labelToNodeId.count(label)) {
+            duplicateLabels.insert(label);
+            continue;
+        }
         labelToNodeId[label] = n.id;
+    }
+    for (uint32_t label : duplicateLabels) {
+        labelToNodeId.erase(label);
     }
 
     // Phase 2: Assign adjacency SIDs per port.
@@ -130,6 +192,7 @@ void UpdateSr(std::vector<DeviceNode>& nodes, const std::vector<Cable>& cables) 
         if (!n.srEnabled) continue;
         n.adjSids.clear();
         for (const auto& c : cables) {
+            if (c.broken) continue;
             if (c.fromId == n.id)
                 n.adjSids[c.fromPort] = 5000u + static_cast<uint32_t>(n.id) * 8u
                                         + static_cast<uint32_t>(c.fromPort);
@@ -137,6 +200,13 @@ void UpdateSr(std::vector<DeviceNode>& nodes, const std::vector<Cable>& cables) 
                 n.adjSids[c.toPort]   = 5000u + static_cast<uint32_t>(n.id) * 8u
                                         + static_cast<uint32_t>(c.toPort);
         }
+    }
+
+    struct AdjacencyOwner { int nodeId; int port; };
+    std::unordered_map<uint32_t, AdjacencyOwner> adjacencyOwners;
+    for (const auto& n : nodes) {
+        for (const auto& [port, label] : n.adjSids)
+            adjacencyOwners[label] = {n.id, port};
     }
 
     // Phase 3: Build per-node srFib (shortest-path SR forwarding entries).
@@ -168,6 +238,20 @@ void UpdateSr(std::vector<DeviceNode>& nodes, const std::vector<Cable>& cables) 
                 n.srFib[label] = { label, label, port, 0 };
             }
         }
+
+        // The simulator allocates globally unique adjacency labels. Transit
+        // routers carry them unchanged toward the owner; the owner pops the
+        // label and forces the selected interface.
+        for (const auto& [label, owner] : adjacencyOwners) {
+            if (n.id == owner.nodeId) {
+                n.srFib[label] = {label, MPLS_IMPLICIT_NULL, owner.port, 0};
+                continue;
+            }
+            const DeviceNode* ownerNode = FindNode(nodes, owner.nodeId);
+            if (!ownerNode) continue;
+            const int port = NextHopPort(n, *ownerNode);
+            if (port >= 0) n.srFib[label] = {label, label, port, 0};
+        }
     }
 
     // Phase 4: Compute SR policies — resolve segments and verify reachability.
@@ -177,47 +261,62 @@ void UpdateSr(std::vector<DeviceNode>& nodes, const std::vector<Cable>& cables) 
         for (auto& policy : n.srPolicies) {
             // Re-resolve whenever the UI clears segmentsResolved.
             if (!policy.segmentsResolved)
-                ResolveSrSegments(policy, nodes);
+                ResolveSrSegments(policy, nodes, cables);
 
             if (!policy.segmentsResolved || policy.segmentHops.empty()) {
                 policy.isActive = false;
                 continue;
             }
 
-            // Verify reachability from head-end to first segment.
-            {
-                auto path = OspfPath(n.id, policy.segmentHops.front(), nodes, cables);
-                if (path.empty()) {
-                    policy.isActive  = false;
-                    policy.statusMsg = "Segment 0 unreachable";
-                    continue;
+            bool hasDuplicateSid = false;
+            for (uint32_t label : policy.labelStack) {
+                if (duplicateLabels.count(label)) {
+                    policy.isActive = false;
+                    policy.statusMsg = "Duplicate Node SID";
+                    hasDuplicateSid = true;
+                    break;
                 }
             }
+            if (hasDuplicateSid) continue;
 
-            // Verify reachability between consecutive segment hops.
+            // Build the path to each SID owner. Node SIDs terminate there;
+            // adjacency SIDs then force the owner's selected outgoing link.
+            policy.activePath.clear();
+            policy.activePath.push_back(n.id);
+            int currentId = n.id;
             bool reachable = true;
-            for (int i = 0; i + 1 < static_cast<int>(policy.segmentHops.size()); ++i) {
-                auto path = OspfPath(policy.segmentHops[i], policy.segmentHops[i + 1],
-                                     nodes, cables);
-                if (path.empty()) {
-                    policy.isActive  = false;
+            for (int i = 0; i < static_cast<int>(policy.segmentHops.size()); ++i) {
+                const int ownerId = policy.segmentOwners[i];
+                auto seg = OspfPath(currentId, ownerId, nodes, cables);
+                if (seg.empty()) {
                     policy.statusMsg = "Segment " + std::to_string(i) + " unreachable";
                     reachable = false;
                     break;
                 }
-            }
-            if (!reachable) continue;
-
-            // Build activePath: head-end + OSPF paths concatenated through each waypoint.
-            policy.activePath.clear();
-            policy.activePath.push_back(n.id);
-
-            for (int i = 0; i < static_cast<int>(policy.segmentHops.size()); ++i) {
-                int fromId = (i == 0) ? n.id : policy.segmentHops[i - 1];
-                auto seg = OspfPath(fromId, policy.segmentHops[i], nodes, cables);
-                if (seg.size() > 1)
+                if (seg.size() > 1) {
                     policy.activePath.insert(policy.activePath.end(),
                                              seg.begin() + 1, seg.end());
+                }
+
+                currentId = ownerId;
+                if (policy.segmentOutPorts[i] >= 0) {
+                    const DeviceNode* owner = FindNode(nodes, ownerId);
+                    const int endpoint = owner
+                        ? NextHopNodeId(*owner, policy.segmentOutPorts[i], cables) : -1;
+                    if (endpoint < 0) {
+                        policy.statusMsg = "Adjacency segment " + std::to_string(i) + " unavailable";
+                        reachable = false;
+                        break;
+                    }
+                    if (policy.activePath.back() != endpoint)
+                        policy.activePath.push_back(endpoint);
+                    currentId = endpoint;
+                }
+            }
+
+            if (!reachable) {
+                policy.isActive = false;
+                continue;
             }
 
             policy.isActive  = true;

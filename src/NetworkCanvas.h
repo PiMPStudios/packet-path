@@ -52,10 +52,6 @@ void DrawDotGrid(const Camera2D& cam);
 void DrawDeviceNode(const DeviceNode& n);
 void DrawAllCables(const std::vector<Cable>& cables,
                    const std::vector<DeviceNode>& nodes);
-void DrawTeTunnelOverlays(const std::vector<DeviceNode>& nodes,
-                          const std::vector<Cable>&      cables);
-void DrawSrPolicyOverlays(const std::vector<DeviceNode>& nodes,
-                           const std::vector<Cable>&      cables);
 void DrawPacketAnim(const PacketAnim& anim,
                     const std::vector<DeviceNode>& nodes,
                     const std::vector<Cable>& cables);
@@ -72,8 +68,6 @@ void DrawSubIfaceTab(const DeviceNode* n, const PanelState& ps);
 void DrawVxlanTab(const DeviceNode* n, const PanelState& ps);
 void DrawAclTab(const DeviceNode* n, const PanelState& ps);
 void DrawNatTab(const DeviceNode* n, const PanelState& ps);
-void DrawTeTab(const DeviceNode* n, const PanelState& ps);
-void DrawSrTab(const DeviceNode* n, const PanelState& ps);
 void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
                const PanelState& ps);
 void DrawContextMenu(const ContextMenu& menu, Vector2 screenMouse);

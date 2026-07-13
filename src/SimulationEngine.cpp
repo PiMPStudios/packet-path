@@ -122,6 +122,197 @@ static std::vector<int> FindL2Path(int srcId, int dstId,
     return {};  // unreachable or blocked
 }
 
+// Follows a specific egress port through an optional switch fabric to the next
+// Layer-3 device. Label forwarding uses this path instead of the IP next hop.
+static std::vector<int> FindL2PathViaPort(int srcId, int outPort,
+                                         const std::vector<DeviceNode>& nodes,
+                                         const std::vector<Cable>& cables)
+{
+    if (outPort < 0 || outPort >= PORTS_PER_NODE) return {};
+
+    struct State {
+        int nodeId;
+        std::vector<int> path;
+    };
+
+    std::queue<State> queue;
+    std::unordered_set<int> visited = {srcId};
+
+    for (const auto& cable : cables) {
+        if (cable.broken) continue;
+        int nextId = -1;
+        if (cable.fromId == srcId && cable.fromPort == outPort) nextId = cable.toId;
+        if (cable.toId   == srcId && cable.toPort   == outPort) nextId = cable.fromId;
+        if (nextId < 0) continue;
+
+        const DeviceNode* next = FindNode(nodes, nextId);
+        if (!next || next->crashed) continue;
+        if (next->type != SWITCH) return {srcId, nextId};
+
+        visited.insert(nextId);
+        queue.push({nextId, {srcId, nextId}});
+    }
+
+    while (!queue.empty()) {
+        State state = std::move(queue.front());
+        queue.pop();
+
+        for (const auto& cable : cables) {
+            if (cable.broken) continue;
+            int nextId = -1;
+            if (cable.fromId == state.nodeId) nextId = cable.toId;
+            if (cable.toId   == state.nodeId) nextId = cable.fromId;
+            if (nextId < 0 || visited.count(nextId)) continue;
+
+            const DeviceNode* next = FindNode(nodes, nextId);
+            if (!next || next->crashed) continue;
+
+            auto path = state.path;
+            path.push_back(nextId);
+            if (next->type != SWITCH) return path;
+
+            visited.insert(nextId);
+            queue.push({nextId, std::move(path)});
+        }
+    }
+
+    return {};
+}
+
+struct LabelDecision {
+    LabelOp  operation     = LABEL_NONE;
+    uint32_t inLabel       = 0;
+    uint32_t outLabel      = 0;
+    int      forcedOutPort = -1;
+    int      tunnelId      = 0;
+    int      policyId      = 0;
+    int      segmentIndex  = 0;
+};
+
+static LabelDecision ResolveLabelDecision(
+    const DeviceNode& current,
+    const RouteEntry& route,
+    const std::string& destinationIp,
+    uint32_t& currentLabel,
+    std::vector<uint32_t>& srLabelStack,
+    int& srSegmentIndex,
+    int& srPolicyId)
+{
+    LabelDecision decision;
+
+    if (currentLabel == 0 && current.srEnabled) {
+        for (const auto& policy : current.srPolicies) {
+            if (!policy.isActive || policy.destIp != destinationIp ||
+                policy.labelStack.empty()) {
+                continue;
+            }
+            srLabelStack   = policy.labelStack;
+            currentLabel   = srLabelStack.back();
+            srSegmentIndex = 0;
+            srPolicyId     = policy.id;
+
+            decision.operation    = LABEL_PUSH;
+            decision.outLabel     = currentLabel;
+            decision.policyId     = policy.id;
+            decision.segmentIndex = 0;
+            auto fib = current.srFib.find(currentLabel);
+            if (fib != current.srFib.end()) decision.forcedOutPort = fib->second.outPort;
+            return decision;
+        }
+    }
+
+    if (currentLabel == 0 && current.rsvpEnabled) {
+        for (const auto& tunnel : current.teTunnels) {
+            if (!tunnel.isUp || tunnel.destIp != destinationIp || tunnel.headLabel == 0)
+                continue;
+
+            decision.tunnelId  = tunnel.id;
+            auto fib = current.teLfib.find(tunnel.headLabel);
+            if (fib == current.teLfib.end()) continue;
+
+            decision.forcedOutPort = fib->second.outPort;
+            if (fib->second.outLabel == MPLS_IMPLICIT_NULL) {
+                // The head-end is also the penultimate hop; PHP means the
+                // packet leaves without an MPLS label.
+                currentLabel = 0;
+            } else {
+                currentLabel       = fib->second.outLabel;
+                decision.operation = LABEL_PUSH;
+                decision.outLabel  = currentLabel;
+            }
+            return decision;
+        }
+    }
+
+    if (currentLabel != 0 && current.srEnabled) {
+        auto fib = current.srFib.find(currentLabel);
+        if (fib != current.srFib.end()) {
+            const SrLfibEntry& entry = fib->second;
+            decision.inLabel      = currentLabel;
+            decision.policyId     = srPolicyId;
+            decision.segmentIndex = srSegmentIndex;
+            decision.forcedOutPort = entry.outPort;
+
+            if (entry.outLabel == MPLS_IMPLICIT_NULL) {
+                decision.operation = LABEL_POP;
+                if (!srLabelStack.empty()) srLabelStack.pop_back();
+                currentLabel = srLabelStack.empty() ? 0 : srLabelStack.back();
+                ++srSegmentIndex;
+            } else {
+                decision.operation = LABEL_SWAP;
+                decision.outLabel  = entry.outLabel;
+                currentLabel       = entry.outLabel;
+            }
+            return decision;
+        }
+    }
+
+    if (currentLabel != 0 && current.rsvpEnabled) {
+        auto fib = current.teLfib.find(currentLabel);
+        if (fib != current.teLfib.end()) {
+            const TeLfibEntry& entry = fib->second;
+            decision.inLabel       = currentLabel;
+            decision.tunnelId      = entry.tunnelId;
+            decision.forcedOutPort = entry.outPort;
+            if (entry.outLabel == MPLS_IMPLICIT_NULL) {
+                decision.operation = LABEL_POP;
+                currentLabel = 0;
+            } else {
+                decision.operation = LABEL_SWAP;
+                decision.outLabel  = entry.outLabel;
+                currentLabel       = entry.outLabel;
+            }
+            return decision;
+        }
+    }
+
+    if (current.ldpEnabled) {
+        auto fib = current.lfib.find(NetworkAddress(route.dest));
+        if (fib != current.lfib.end()) {
+            const uint32_t nextLabel = fib->second.outLabel;
+            decision.inLabel = currentLabel;
+            if (currentLabel == 0) {
+                decision.operation = LABEL_PUSH;
+                decision.outLabel  = nextLabel;
+                currentLabel       = nextLabel;
+            } else if (nextLabel == MPLS_IMPLICIT_NULL) {
+                decision.operation = LABEL_POP;
+                currentLabel       = 0;
+            } else {
+                decision.operation = LABEL_SWAP;
+                decision.outLabel  = nextLabel;
+                currentLabel       = nextLabel;
+            }
+        } else if (currentLabel != 0) {
+            currentLabel = 0;
+        }
+    } else if (currentLabel != 0) {
+        currentLabel = 0;
+    }
+
+    return decision;
+}
+
 // ── Forwarding engine ─────────────────────────────────────────────────────
 ForwardResult SimulateForward(int srcId, const std::string& destIp,
                               const std::vector<DeviceNode>& nodes,
@@ -170,6 +361,96 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
             }
         }
         // ── end ACL inbound ────────────────────────────────────────────────
+
+        // Labeled transit is driven by the LFIB and must not require an IP
+        // route to the payload destination on intermediate LSRs.
+        const bool hasSrTransit = currentLabel != 0 && cur->srEnabled &&
+                                  cur->srFib.count(currentLabel) > 0;
+        const bool hasTeTransit = currentLabel != 0 && cur->rsvpEnabled &&
+                                  cur->teLfib.count(currentLabel) > 0;
+        if (hasSrTransit || hasTeTransit) {
+            RouteEntry labelRoute;
+            labelRoute.dest = destIp + "/32";
+            LabelDecision decision = ResolveLabelDecision(
+                *cur, labelRoute, destIp, currentLabel, srLabelStack,
+                srSegmentIdx, srPolicyId);
+
+            if (decision.forcedOutPort >= 0) {
+                const auto l2Path = FindL2PathViaPort(
+                    currentId, decision.forcedOutPort, nodes, cables);
+                if (l2Path.size() < 2) {
+                    result.reason = "label forwarding: no live neighbor on " +
+                                    GetPortName(cur->type, decision.forcedOutPort);
+                    return result;
+                }
+
+                const int neighborId = l2Path.back();
+                if (visited.count(neighborId)) {
+                    result.reason = "loop detected";
+                    return result;
+                }
+
+                HopDecision hop;
+                hop.nodeId        = currentId;
+                hop.nodeLabel     = cur->label;
+                hop.routeType     = hasSrTransit ? "SR" : "TE";
+                hop.destPrefix    = labelRoute.dest;
+                const DeviceNode* neighbor = FindNode(nodes, neighborId);
+                hop.nextHopIp     = neighbor ? neighbor->label : "label next-hop";
+                hop.outPort       = decision.forcedOutPort;
+                hop.labelOp       = decision.operation;
+                hop.inLabel       = decision.inLabel;
+                hop.outLabel      = decision.outLabel;
+                hop.tunnelId      = decision.tunnelId;
+                hop.policyId      = decision.policyId;
+                hop.segmentIndex  = decision.segmentIndex;
+
+                if (!cur->aclRules.empty() && cur->aclOutPort == hop.outPort) {
+                    const AclRule* rule = MatchAcl(cur->aclRules, srcIp, destIp, dstPort);
+                    if (!rule || rule->action == ACL_DENY) {
+                        const std::string why = rule
+                            ? "ACL seq " + std::to_string(rule->seq) + " deny"
+                            : "ACL implicit deny";
+                        result.reason = why + ": " + srcIp + " â " + destIp;
+                        return result;
+                    }
+                    hop.aclResult = "PERMIT seq:" + std::to_string(rule->seq);
+                }
+                result.hops.push_back(hop);
+
+                for (size_t pathIndex = 1; pathIndex + 1 < l2Path.size(); ++pathIndex) {
+                    const int switchId = l2Path[pathIndex];
+                    const int nextId   = l2Path[pathIndex + 1];
+                    const DeviceNode* switchNode = FindNode(nodes, switchId);
+                    const DeviceNode* nextNode   = FindNode(nodes, nextId);
+                    const Cable* cable = FindCableL2(cables, switchId, nextId);
+
+                    HopDecision switchHop;
+                    switchHop.nodeId     = switchId;
+                    switchHop.nodeLabel  = switchNode ? switchNode->label : "";
+                    switchHop.routeType  = "SW";
+                    switchHop.destPrefix = labelRoute.dest;
+                    switchHop.nextHopIp  = nextNode ? nextNode->label : "";
+                    if (cable)
+                        switchHop.outPort = cable->fromId == switchId
+                            ? cable->fromPort : cable->toPort;
+                    result.hops.push_back(switchHop);
+                    result.path.push_back(switchId);
+                    visited.insert(switchId);
+                }
+
+                result.path.push_back(neighborId);
+                visited.insert(neighborId);
+                const Cable* ingressCable = FindCableL2(
+                    cables, l2Path[l2Path.size() - 2], neighborId);
+                lastIngressPort = ingressCable
+                    ? (ingressCable->fromId == neighborId
+                        ? ingressCable->fromPort : ingressCable->toPort)
+                    : -1;
+                currentId = neighborId;
+                continue;
+            }
+        }
 
         auto table = GetRoutingTable(*cur);
         std::sort(table.begin(), table.end(),
@@ -322,43 +603,52 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
             }
             // ── end VXLAN EVPN ───────────────────────────────────────────
 
-            // ARP cache check for this next-hop
-            bool        arpHit    = cur->arpTable.count(route.nextHop) > 0;
-            std::string cachedMac = arpHit ? cur->arpTable.at(route.nextHop) : "";
+            LabelDecision labelDecision = ResolveLabelDecision(
+                *cur, route, destIp, currentLabel, srLabelStack,
+                srSegmentIdx, srPolicyId);
 
-            // Find the node owning route.nextHop (checks portIp + subIfaces)
-            const DeviceNode* nextHopNode = FindNodeOwningIp(nodes, route.nextHop);
-            int         neighborId  = nextHopNode ? nextHopNode->id : -1;
-            std::string resolvedMac = (neighborId != -1) ? GetDeviceMac(neighborId) : "";
-
-            // Emit ARP event
-            if (arpHit) {
-                result.arpEvents.push_back({currentId, route.nextHop, cachedMac, true});
-                if (neighborId == -1) {
-                    result.reason = "ARP: stale cache entry for " + route.nextHop;
+            int neighborId = -1;
+            std::vector<int> l2nh;
+            if (labelDecision.forcedOutPort >= 0) {
+                l2nh = FindL2PathViaPort(currentId, labelDecision.forcedOutPort,
+                                         nodes, cables);
+                if (!l2nh.empty()) neighborId = l2nh.back();
+                if (neighborId < 0) {
+                    result.reason = "label forwarding: no live neighbor on " +
+                                    GetPortName(cur->type, labelDecision.forcedOutPort);
                     return result;
                 }
-            } else if (neighborId != -1) {
-                result.arpEvents.push_back({currentId, route.nextHop, resolvedMac, false});
             } else {
-                result.arpEvents.push_back({currentId, route.nextHop, "", false});
-                result.reason = "ARP: who has " + route.nextHop + "? — no reply";
-                return result;
+                const bool arpHit = cur->arpTable.count(route.nextHop) > 0;
+                const std::string cachedMac = arpHit ? cur->arpTable.at(route.nextHop) : "";
+                const DeviceNode* nextHopNode = FindNodeOwningIp(nodes, route.nextHop);
+                neighborId = nextHopNode ? nextHopNode->id : -1;
+                const std::string resolvedMac = neighborId >= 0
+                    ? GetDeviceMac(neighborId) : "";
+
+                if (arpHit) {
+                    result.arpEvents.push_back({currentId, route.nextHop, cachedMac, true});
+                    if (neighborId < 0) {
+                        result.reason = "ARP: stale cache entry for " + route.nextHop;
+                        return result;
+                    }
+                } else if (neighborId >= 0) {
+                    result.arpEvents.push_back({currentId, route.nextHop, resolvedMac, false});
+                } else {
+                    result.arpEvents.push_back({currentId, route.nextHop, "", false});
+                    result.reason = "ARP: who has " + route.nextHop + "? — no reply";
+                    return result;
+                }
+
+                l2nh = FindL2Path(currentId, neighborId, nodes, cables);
+                if (l2nh.empty()) {
+                    result.reason = "VLAN mismatch — no L2 path to " + route.nextHop;
+                    return result;
+                }
             }
 
             if (visited.count(neighborId)) {
                 result.reason = "loop detected";
-                return result;
-            }
-
-            // Find L2 path to neighbor (handles switches between L3 devices)
-            std::vector<int> l2nh = {};
-            if (neighborId != -1)
-                l2nh = FindL2Path(currentId, neighborId, nodes, cables);
-            if (neighborId == -1 || l2nh.empty()) {
-                result.reason = l2nh.empty() && neighborId != -1
-                    ? "VLAN mismatch — no L2 path to " + route.nextHop
-                    : "ARP: who has " + route.nextHop + "? — no reply";
                 return result;
             }
 
@@ -379,116 +669,14 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
                     const Cable* c = FindCableL2(cables, l2nh[0], l2nh[1]);
                     if (c) hd.outPort = (c->fromId == l2nh[0]) ? c->fromPort : c->toPort;
                 }
-                // ── SR head-end: unlabeled packet, check SR policies first ──
-                {
-                    auto slash2 = destIp.find('/');
-                    std::string plainDest = (slash2 != std::string::npos)
-                                           ? destIp.substr(0, slash2) : destIp;
-                    if (cur->srEnabled && currentLabel == 0) {
-                        for (auto& p : cur->srPolicies) {
-                            if (!p.isActive || p.destIp.empty() || p.labelStack.empty()) continue;
-                            if (p.destIp == plainDest) {
-                                srLabelStack    = p.labelStack;
-                                currentLabel    = srLabelStack.back();
-                                srSegmentIdx    = 0;
-                                srPolicyId      = p.id;
-                                hd.labelOp      = LABEL_PUSH;
-                                hd.inLabel      = 0;
-                                hd.outLabel     = currentLabel;
-                                hd.policyId     = p.id;
-                                hd.segmentIndex = 0;
-                                goto done_mpls;
-                            }
-                        }
-                    }
-                    // ── TE tunnel head-end: impose tunnel label stack ──────────
-                    if (cur->rsvpEnabled && currentLabel == 0) {
-                        for (const auto& tun : cur->teTunnels) {
-                            if (!tun.isUp || tun.destIp.empty()) continue;
-                            if (tun.destIp == plainDest) {
-                                hd.labelOp   = LABEL_PUSH;
-                                hd.inLabel   = 0;
-                                hd.outLabel  = tun.headLabel;
-                                hd.tunnelId  = tun.id;
-                                currentLabel = tun.headLabel;
-                                break;
-                            }
-                        }
-                        if (currentLabel != 0) goto done_mpls;  // TE head-end matched
-                    }
-                }
-                // SR transit: labeled packet, check srFib
-                if (cur->srEnabled && currentLabel != 0) {
-                    auto it = cur->srFib.find(currentLabel);
-                    if (it != cur->srFib.end()) {
-                        const SrLfibEntry& se = it->second;
-                        hd.policyId      = srPolicyId;
-                        hd.segmentIndex  = srSegmentIdx;
-                        if (se.outLabel == MPLS_IMPLICIT_NULL) {
-                            hd.labelOp   = LABEL_POP;
-                            hd.inLabel   = currentLabel;
-                            hd.outLabel  = 0;
-                            if (!srLabelStack.empty()) srLabelStack.pop_back();
-                            currentLabel = srLabelStack.empty() ? 0 : srLabelStack.back();
-                            srSegmentIdx++;
-                            if (se.outPort >= 0) hd.outPort = se.outPort;
-                        } else {
-                            hd.labelOp   = LABEL_SWAP;
-                            hd.inLabel   = currentLabel;
-                            hd.outLabel  = se.outLabel;
-                            hd.outPort   = se.outPort;
-                            currentLabel = se.outLabel;
-                        }
-                        goto done_mpls;
-                    }
-                }
-                // MPLS: TE teLfib takes priority over LDP lfib
-                if (cur->rsvpEnabled && currentLabel != 0) {
-                    auto it = cur->teLfib.find(currentLabel);
-                    if (it != cur->teLfib.end()) {
-                        const TeLfibEntry& te = it->second;
-                        hd.tunnelId = te.tunnelId;
-                        if (te.outLabel == MPLS_IMPLICIT_NULL) {
-                            hd.labelOp   = LABEL_POP;
-                            hd.inLabel   = currentLabel;
-                            hd.outLabel  = 0;
-                            currentLabel = 0;
-                        } else {
-                            hd.labelOp   = LABEL_SWAP;
-                            hd.inLabel   = currentLabel;
-                            hd.outLabel  = te.outLabel;
-                            currentLabel = te.outLabel;
-                        }
-                        goto done_mpls;
-                    }
-                }
-                if (cur->ldpEnabled) {
-                    auto it = cur->lfib.find(NetworkAddress(route.dest));
-                    if (it != cur->lfib.end()) {
-                        uint32_t nextOut = it->second.outLabel;
-                        if (currentLabel == 0) {
-                            hd.labelOp    = LABEL_PUSH;
-                            hd.inLabel    = 0;
-                            hd.outLabel   = nextOut;
-                            currentLabel  = nextOut;
-                        } else if (nextOut == MPLS_IMPLICIT_NULL) {
-                            hd.labelOp    = LABEL_POP;
-                            hd.inLabel    = currentLabel;
-                            hd.outLabel   = 0;
-                            currentLabel  = 0;
-                        } else {
-                            hd.labelOp    = LABEL_SWAP;
-                            hd.inLabel    = currentLabel;
-                            hd.outLabel   = nextOut;
-                            currentLabel  = nextOut;
-                        }
-                    } else if (currentLabel != 0) {
-                        currentLabel = 0;
-                    }
-                } else if (currentLabel != 0) {
-                    currentLabel = 0;
-                }
-                done_mpls:;
+                if (labelDecision.forcedOutPort >= 0)
+                    hd.outPort = labelDecision.forcedOutPort;
+                hd.labelOp      = labelDecision.operation;
+                hd.inLabel      = labelDecision.inLabel;
+                hd.outLabel     = labelDecision.outLabel;
+                hd.tunnelId     = labelDecision.tunnelId;
+                hd.policyId     = labelDecision.policyId;
+                hd.segmentIndex = labelDecision.segmentIndex;
                 // ── ACL outbound check ─────────────────────────────────────
                 if (!cur->aclRules.empty() && cur->aclOutPort >= 0
                     && cur->aclOutPort == hd.outPort) {

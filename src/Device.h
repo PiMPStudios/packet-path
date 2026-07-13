@@ -71,7 +71,9 @@ struct SrPolicy {
     std::string destIp;                 // tail-end destination IP (no mask)
 
     std::vector<std::string> segmentIps;    // hop IPs as typed (UI storage)
-    std::vector<int>         segmentHops;   // resolved node IDs (engine use)
+    std::vector<int>         segmentHops;   // resolved endpoint node IDs (engine use)
+    std::vector<int>         segmentOwners; // node that owns each SID
+    std::vector<int>         segmentOutPorts; // -1 for Node SID; local port for Adj SID
     std::vector<uint32_t>    labelStack;    // innermost first, outermost at back()
                                             // e.g. segs [R2→R4]: {17004, 17002}
                                             // back() = 17002 (R2's label, processed first)
@@ -157,7 +159,7 @@ struct OspfNeighbor {
 };
 
 // ── ARP & log types ───────────────────────────────────────────────────────
-enum LogType { LOG_FORWARD, LOG_ARP_REQ, LOG_ARP_REPLY, LOG_ARP_HIT, LOG_OSPF,
+enum LogType { LOG_FORWARD, LOG_ARP_REQ, LOG_ARP_REPLY, LOG_ARP_HIT, LOG_OSPF, LOG_RSVP,
                LOG_LINK_DOWN, LOG_DEVICE_CRASH, LOG_RESTORED };
 
 struct ArpEvent {

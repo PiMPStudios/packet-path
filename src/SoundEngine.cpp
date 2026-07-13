@@ -5,6 +5,7 @@
 static Sound sndSend   = {};
 static Sound sndArrive = {};
 static Sound sndFail   = {};
+static bool  soundsReady = false;
 
 static const float kPI = 3.14159265f;
 
@@ -68,18 +69,29 @@ static Sound MakeChord(float freq1, float freq2, float duration, float volume) {
     return snd;
 }
 
-void InitSounds() {
+bool InitSounds() {
+    soundsReady = IsAudioDeviceReady();
+    if (!soundsReady) return false;
     sndSend   = MakeSweep(880.f, 1100.f, 0.15f, 0.4f, false);  // sine sweep up
     sndArrive = MakeChord(660.f, 880.f,  0.25f, 0.4f);          // two-tone chord
     sndFail   = MakeSweep(220.f, 110.f,  0.30f, 0.3f, true);    // square sweep down
+    return true;
 }
 
 void UnloadSounds() {
+    if (!soundsReady) return;
     UnloadSound(sndSend);
     UnloadSound(sndArrive);
     UnloadSound(sndFail);
+    soundsReady = false;
 }
 
-void PlayPacketSend()   { PlaySound(sndSend);   }
-void PlayPacketArrive() { PlaySound(sndArrive); }
-void PlayPacketFail()   { PlaySound(sndFail);   }
+bool IsSoundAvailable() { return soundsReady; }
+
+void SetSoundVolume(float volume) {
+    if (soundsReady) SetMasterVolume(volume);
+}
+
+void PlayPacketSend()   { if (soundsReady) PlaySound(sndSend);   }
+void PlayPacketArrive() { if (soundsReady) PlaySound(sndArrive); }
+void PlayPacketFail()   { if (soundsReady) PlaySound(sndFail);   }

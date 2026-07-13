@@ -1,5 +1,6 @@
 #pragma once
 #include "Level.h"
+#include "LevelCatalog.h"
 #include "raylib.h"
 #include <string>
 #include <utility>
@@ -40,10 +41,10 @@ Rectangle LevelHudMenuBtnRect();     // {252,8,52,22}
 Rectangle LevelHudSandboxBtnRect();  // {308,8,72,22}
 
 // ── Level-select overlay ──────────────────────────────────────────────────
-// Full-screen overlay; levelTitles and levelExists must be 16-element arrays (indices 0–15).
-void DrawLevelSelectScreen(const std::string* levelTitles, const bool* levelExists);
-Rectangle LevelSelectCardRect(int i);   // i=0..15 → level card for level i+1
-Rectangle LevelSelectSandboxBtnRect();  // Full-width sandbox card below the grid
+// Full-screen overlay populated from discovered level metadata.
+void DrawLevelSelectScreen(const std::vector<LevelCatalogEntry>& levels);
+Rectangle LevelSelectCardRect(int i, int levelCount);
+Rectangle LevelSelectSandboxBtnRect(int levelCount);
 
 // ── Replay controls HUD ───────────────────────────────────────────────────
 // Shown at y=58 when SIM_ANIMATING. PAUSED badge + four speed buttons.
