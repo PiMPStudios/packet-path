@@ -50,6 +50,7 @@ set(PACKET_PATH_SOURCES
     src/RsvpEngine.cpp
     src/RsvpReplay.cpp
     src/SceneSerializer.cpp
+    src/SdwanEngine.cpp
     src/SimulationEngine.cpp
     src/SoundEngine.cpp
     src/SrEngine.cpp

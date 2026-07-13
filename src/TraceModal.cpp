@@ -61,8 +61,9 @@ void DrawTraceModal(const ForwardResult& trace, int activeHop) {
             bool hasAcl   = !h.aclResult.empty();
             bool hasNat   = !h.natResult.empty();
             bool hasSrv6  = !h.srv6ActiveSid.empty();
+            bool hasSdwan = h.sdwanPolicyId != 0;
             int  extras   = (hasLabel ? 1 : 0) + (hasAcl ? 1 : 0) +
-                            (hasNat ? 1 : 0) + (hasSrv6 ? 1 : 0);
+                            (hasNat ? 1 : 0) + (hasSrv6 ? 1 : 0) + (hasSdwan ? 1 : 0);
             float rowStride = 44.f + extras * 16.f;
 
             // Active-hop highlight — subtle blue background behind the entire row
@@ -139,11 +140,21 @@ void DrawTraceModal(const ForwardResult& trace, int activeHop) {
                 DrawTextEx(GFont(), text.c_str(), {MX + 45.f, annotY + 2.f},
                            FS(9), Sp(FS(9)), WHITE);
             }
+            if (hasSdwan) {
+                const float annotY = rowY + 30.f + (hasLabel ? 16.f : 0.f) +
+                                     (hasSrv6 ? 16.f : 0.f);
+                const std::string text = "SD-WAN Policy-" + std::to_string(h.sdwanPolicyId) +
+                    " -> Gi0/" + std::to_string(h.sdwanSelectedPort) +
+                    (h.sdwanUsingBackup ? " (backup)" : " (primary)");
+                const float width = TW(text.c_str(),9) + 10.f;
+                DrawRectangleRounded({MX+40.f,annotY,width,13.f},.4f,4,Color{14,165,233,255});
+                DrawTextEx(GFont(), text.c_str(), {MX+45.f,annotY+2.f},FS(9),Sp(FS(9)),WHITE);
+            }
 
             // ACL annotation badge
             if (hasAcl) {
                 float annotY = rowY + 30.f + (hasLabel ? 16.f : 0.f) +
-                               (hasSrv6 ? 16.f : 0.f);
+                               (hasSrv6 ? 16.f : 0.f) + (hasSdwan ? 16.f : 0.f);
                 bool permit  = (h.aclResult.rfind("PERMIT", 0) == 0);
                 Color ac     = permit ? Color{34,197,94,255} : Color{239,68,68,255};
                 float bw = TW(h.aclResult.c_str(), 9) + 10.f;
@@ -153,7 +164,8 @@ void DrawTraceModal(const ForwardResult& trace, int activeHop) {
             // NAT annotation badge
             if (hasNat) {
                 float annotY = rowY + 30.f + (hasLabel ? 16.f : 0.f) +
-                               (hasSrv6 ? 16.f : 0.f) + (hasAcl ? 16.f : 0.f);
+                               (hasSrv6 ? 16.f : 0.f) + (hasSdwan ? 16.f : 0.f) +
+                               (hasAcl ? 16.f : 0.f);
                 char natBuf[64];
                 std::snprintf(natBuf, sizeof(natBuf), "NAT %s", h.natResult.c_str());
                 float bw = TW(natBuf, 9) + 10.f;

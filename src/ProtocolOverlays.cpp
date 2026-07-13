@@ -180,3 +180,34 @@ void DrawSrv6PolicyOverlays(const std::vector<DeviceNode>& nodes,
         }
     }
 }
+
+void DrawSdwanPolicyOverlays(const std::vector<DeviceNode>& nodes,
+                             const std::vector<Cable>& cables) {
+    for (const auto& node : nodes) {
+        if (!node.sdwanEnabled) continue;
+        for (const auto& policy : node.sdwanPolicies) {
+            if (!policy.isActive) continue;
+            for (const auto& cable : cables) {
+                int port = -1;
+                int neighborId = -1;
+                if (cable.fromId == node.id) { port = cable.fromPort; neighborId = cable.toId; }
+                if (cable.toId == node.id) { port = cable.toPort; neighborId = cable.fromId; }
+                if (port != policy.preferredPort && port != policy.selectedPort) continue;
+                const DeviceNode* neighbor = FindNode(nodes, neighborId);
+                if (!neighbor) continue;
+                const int neighborPort = cable.fromId == neighborId ? cable.fromPort : cable.toPort;
+                const Vector2 start = GetPortPosition(node, port);
+                const Vector2 end = GetPortPosition(*neighbor, neighborPort);
+                const Vector2 c1 = BezierCtrl(start, port);
+                const Vector2 c2 = BezierCtrl(end, neighborPort);
+                const Color color = port == policy.selectedPort
+                    ? Color{34,197,94,220} : Color{239,68,68,190};
+                if (port == policy.selectedPort)
+                    DrawSplineSegmentBezierCubic(start,c1,c2,end,5.f,color);
+                else for (int part=0; part<24; part+=3)
+                    DrawLineEx(EvaluateCubicBezier(start,c1,c2,end,part/24.f),
+                               EvaluateCubicBezier(start,c1,c2,end,(part+1)/24.f),4.f,color);
+            }
+        }
+    }
+}

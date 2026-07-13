@@ -1,0 +1,37 @@
+{
+  "id": 20,
+  "title": "SLA Failover",
+  "briefing": "PC-A reaches PC-B through EDGE-1's primary ISP-A route, but live probes show that ISP-A violates the voice SLA. Open EDGE-1's WAN tab and finish Policy-1: Dest 192.168.20.2, Max Lat 80, Max Jit 20, and Max Loss 1. Primary Gi0/1 and backup Gi0/2 are already assigned. When the policy reports Backup selected, send a packet from PC-A to PC-B. The red dashed primary fails SLA; the green backup is the path the application should use.",
+  "devices": [
+    {"id":1,"label":"PC-A","type":"PC","x":-500,"y":0,"portIp0":"192.168.10.2/24","staticRoutes":[{"dest":"0.0.0.0/0","nextHop":"192.168.10.1"}]},
+    {"id":2,"label":"EDGE-1","type":"ROUTER","x":-300,"y":0,
+      "portIp0":"192.168.10.1/24","portIp1":"10.0.13.1/30","portIp2":"10.0.14.1/30",
+      "staticRoutes":[{"dest":"192.168.20.0/24","nextHop":"10.0.13.2"}],
+      "sdwanEnabled":true,"sdwanLatency1":120,"sdwanJitter1":35,"sdwanLoss1":2.5,
+      "sdwanLatency2":35,"sdwanJitter2":5,"sdwanLoss2":0.2,
+      "sdwanPolicies":[{"id":1,"destIp":"","preferredPort":1,"backupPort":2,"maxLatencyMs":0,"maxJitterMs":0,"maxLossPct":0}]},
+    {"id":3,"label":"ISP-A","type":"ROUTER","x":-60,"y":-150,
+      "portIp0":"10.0.13.2/30","portIp1":"10.0.35.1/30",
+      "staticRoutes":[{"dest":"192.168.20.0/24","nextHop":"10.0.35.2"}]},
+    {"id":4,"label":"ISP-B","type":"ROUTER","x":-60,"y":150,
+      "portIp0":"10.0.14.2/30","portIp1":"10.0.45.1/30",
+      "staticRoutes":[{"dest":"192.168.20.0/24","nextHop":"10.0.45.2"}]},
+    {"id":5,"label":"EDGE-2","type":"ROUTER","x":200,"y":0,
+      "portIp0":"10.0.35.2/30","portIp1":"10.0.45.2/30","portIp2":"192.168.20.1/24"},
+    {"id":6,"label":"PC-B","type":"PC","x":440,"y":0,"portIp0":"192.168.20.2/24","staticRoutes":[{"dest":"0.0.0.0/0","nextHop":"192.168.20.1"}]}
+  ],
+  "cables": [
+    {"from":1,"fromPort":0,"to":2,"toPort":0},
+    {"from":2,"fromPort":1,"to":3,"toPort":0},
+    {"from":3,"fromPort":1,"to":5,"toPort":0},
+    {"from":2,"fromPort":2,"to":4,"toPort":0},
+    {"from":4,"fromPort":1,"to":5,"toPort":1},
+    {"from":5,"fromPort":2,"to":6,"toPort":0}
+  ],
+  "winConditions": [
+    {"src":"PC-A","dst":"PC-B","description":"Voice SLA policy rejects ISP-A and forwards over ISP-B",
+      "requiresSdwanPolicyOnDevice":"EDGE-1","requiresSdwanPolicyId":1,
+      "requiresSdwanPreferredPort":1,"requiresSdwanBackupPort":2,"requiresSdwanSelectedPort":2,
+      "requiresSdwanMaxLatencyMs":80,"requiresSdwanMaxJitterMs":20,"requiresSdwanMaxLossPct":1}
+  ]
+}

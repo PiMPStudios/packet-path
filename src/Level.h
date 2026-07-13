@@ -23,6 +23,14 @@ struct WinCondition {
     int         requiresSrv6PolicyId = 0;
     std::vector<std::string> requiresSrv6Segments;
     std::string requiresSrv6PathVia;
+    std::string requiresSdwanPolicyOnDevice;
+    int         requiresSdwanPolicyId = 0;
+    int         requiresSdwanPreferredPort = -1;
+    int         requiresSdwanBackupPort = -1;
+    int         requiresSdwanSelectedPort = -1;
+    float       requiresSdwanMaxLatencyMs = 0.f;
+    float       requiresSdwanMaxJitterMs = 0.f;
+    float       requiresSdwanMaxLossPct = 0.f;
 };
 
 struct LevelDef {

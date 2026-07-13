@@ -6,7 +6,7 @@
 
 enum PanelTab { TAB_CONFIG, TAB_ROUTES, TAB_ARP, TAB_OSPF, TAB_MPLS, TAB_BGP,
                 TAB_VLAN, TAB_SUB, TAB_VXLAN, TAB_ACL, TAB_NAT, TAB_TE, TAB_SR,
-                TAB_SRV6 };
+                TAB_SRV6, TAB_SDWAN };
 
 struct TabInfo {
     PanelTab    tab;
@@ -78,6 +78,12 @@ struct PanelState {
     int         srv6ActiveField = -1;
     std::string srv6DestBuf;
     std::string srv6SegsBuf;
+
+    int         sdwanActiveField = -1;  // 0=dest, 1=latency, 2=jitter, 3=loss
+    std::string sdwanDestBuf;
+    std::string sdwanLatencyBuf;
+    std::string sdwanJitterBuf;
+    std::string sdwanLossBuf;
 };
 
 // Layout rect helpers
@@ -155,6 +161,12 @@ Rectangle PnlSrv6ToggleRect();
 Rectangle PnlSrv6SidRect();
 Rectangle PnlSrv6PolicyRowRect(int idx);
 Rectangle PnlSrv6AddBtnRect(int count);
+// SD-WAN tab
+Rectangle PnlSdwanToggleRect();
+Rectangle PnlSdwanFieldRect(int field);
+Rectangle PnlSdwanPreferredRect();
+Rectangle PnlSdwanBackupRect();
+Rectangle PnlSdwanAddRect();
 Rectangle PnlRouteDeleteRect(int rowIdx);
 Rectangle PnlRouteDestRect();
 Rectangle PnlRouteNextRect();

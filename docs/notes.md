@@ -2,7 +2,7 @@
 
 Updated: 2026-07-12
 
-The original six-phase MVP plan is complete. Packet Path currently ships 19 JSON-driven scenarios covering IP forwarding, VLANs, OSPF, BGP, ACL/NAT, VXLAN/EVPN, MPLS/LDP, RSVP-TE, SR-MPLS, SRv6, and failure troubleshooting. The level selector discovers validated `level_*.json` files, so later scenarios require no code catalog update.
+The original six-phase MVP plan is complete. Packet Path currently ships 20 JSON-driven scenarios covering IP forwarding, VLANs, OSPF, BGP, ACL/NAT, VXLAN/EVPN, MPLS/LDP, RSVP-TE, SR-MPLS, SRv6, SD-WAN, and failure troubleshooting. The level selector discovers validated `level_*.json` files, so later scenarios require no code catalog update.
 
 ## Current protocol status
 
@@ -16,7 +16,8 @@ The original six-phase MVP plan is complete. Packet Path currently ships 19 JSON
 | RSVP-TE | Implemented and tested | OSPF-based CSPF, explicit paths, bandwidth reservations, setup replay, event logs, TE-aware level objectives |
 | SR-MPLS | Implemented and tested | Node SIDs, duplicate detection, adjacency SID steering, policy forwarding, SR-aware level objectives |
 | SRv6 | Implemented and tested | IPv6 SID validation, duplicate detection, SRH segment steering, trace state, SRv6-aware objectives |
-| IS-IS / SD-WAN | Not implemented | Longer-term roadmap |
+| SD-WAN | Implemented and tested | Latency/jitter/loss probes, preferred/backup SLA selection, policy forwarding, objective validation |
+| IS-IS | Not implemented | Longer-term roadmap |
 
 ## Engineering status
 
@@ -28,5 +29,5 @@ The original six-phase MVP plan is complete. Packet Path currently ships 19 JSON
 ## Next product work
 
 1. Playtest Levels 17–19 for briefing clarity and panel-input pacing.
-2. Define the Level 20 SD-WAN policy and SLA teaching contract.
+2. Define the Level 21 complex multi-failure troubleshooting contract.
 3. Continue extracting generic input and remaining protocol panel rendering from `main.cpp` and `NetworkCanvas.cpp`.

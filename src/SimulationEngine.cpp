@@ -348,6 +348,7 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
     std::vector<std::string> srv6SegmentSids;
     std::vector<int> srv6SegmentHops;
     std::vector<int> srv6Path;
+    bool sdwanPolicyApplied = false;
 
     for (int i = 0; i < MAX_HOPS; ++i) {
         const DeviceNode* cur = FindNode(nodes, currentId);
@@ -367,6 +368,67 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
             }
         }
         // ── end ACL inbound ────────────────────────────────────────────────
+
+        // ── SD-WAN destination policy / SLA-selected egress ──────────────
+        if (!sdwanPolicyApplied && cur->sdwanEnabled) {
+            const SdwanPolicy* selectedPolicy = nullptr;
+            for (const auto& policy : cur->sdwanPolicies) {
+                if (policy.isActive && policy.destIp == destIp && policy.selectedPort >= 0) {
+                    selectedPolicy = &policy;
+                    break;
+                }
+            }
+            if (selectedPolicy) {
+                const auto l2Path = FindL2PathViaPort(
+                    currentId, selectedPolicy->selectedPort, nodes, cables);
+                if (l2Path.size() < 2) {
+                    result.reason = "SD-WAN selected path unavailable";
+                    return result;
+                }
+                const int neighborId = l2Path.back();
+                if (visited.count(neighborId)) {
+                    result.reason = "loop detected";
+                    return result;
+                }
+                HopDecision hop;
+                hop.nodeId = currentId;
+                hop.nodeLabel = cur->label;
+                hop.routeType = "SD-WAN";
+                hop.destPrefix = destIp + "/32";
+                const DeviceNode* neighbor = FindNode(nodes, neighborId);
+                hop.nextHopIp = neighbor ? neighbor->label : "WAN next-hop";
+                hop.outPort = selectedPolicy->selectedPort;
+                hop.sdwanPolicyId = selectedPolicy->id;
+                hop.sdwanSelectedPort = selectedPolicy->selectedPort;
+                hop.sdwanUsingBackup = selectedPolicy->usingBackup;
+                if (!cur->aclRules.empty() && cur->aclOutPort == hop.outPort) {
+                    const AclRule* rule = MatchAcl(cur->aclRules, srcIp, destIp, dstPort);
+                    if (!rule || rule->action == ACL_DENY) {
+                        result.reason = rule
+                            ? "ACL seq " + std::to_string(rule->seq) + " deny"
+                            : "ACL implicit deny";
+                        return result;
+                    }
+                    hop.aclResult = "PERMIT seq:" + std::to_string(rule->seq);
+                }
+                result.hops.push_back(hop);
+                for (std::size_t index = 1; index + 1 < l2Path.size(); ++index) {
+                    result.path.push_back(l2Path[index]);
+                    visited.insert(l2Path[index]);
+                }
+                result.path.push_back(neighborId);
+                visited.insert(neighborId);
+                const Cable* ingress = FindCableL2(
+                    cables, l2Path[l2Path.size() - 2], neighborId);
+                lastIngressPort = ingress
+                    ? (ingress->fromId == neighborId ? ingress->fromPort : ingress->toPort)
+                    : -1;
+                currentId = neighborId;
+                sdwanPolicyApplied = true;
+                continue;
+            }
+        }
+        // ── end SD-WAN steering ──────────────────────────────────────────
 
         // ── SRv6 policy encapsulation / SRH steering ─────────────────────
         if (srv6PolicyId == 0 && cur->srv6Enabled) {

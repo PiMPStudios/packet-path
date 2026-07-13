@@ -317,6 +317,22 @@ void DrawPacketAnim(const PacketAnim& anim,
         DrawTextEx(GFont(), text.c_str(), {badgeX + 5.f, badgeY + 3.f},
                    FS(9), Sp(FS(9)), WHITE);
     }
+    if (anim.currentSdwanPolicyId != 0) {
+        const std::string text = "WAN P" + std::to_string(anim.currentSdwanPolicyId) +
+            " Gi0/" + std::to_string(anim.currentSdwanPort) +
+            (anim.currentSdwanBackup ? " backup" : " primary");
+        const int badgeWidth = static_cast<int>(TW(text.c_str(),9)) + 10;
+        float badgeY = pos.y - 30.f;
+        if (anim.currentLabel != 0) badgeY -= 20.f;
+        if (anim.currentVlan != 0) badgeY -= 20.f;
+        if (anim.currentVni != 0) badgeY -= 20.f;
+        if (!anim.currentSrv6Sid.empty()) badgeY -= 20.f;
+        const float badgeX = pos.x - badgeWidth * .5f;
+        DrawRectangleRounded({badgeX,badgeY,(float)badgeWidth,16.f},.5f,4,
+                             Color{14,165,233,225});
+        DrawTextEx(GFont(), text.c_str(), {badgeX+5.f,badgeY+3.f},
+                   FS(9),Sp(FS(9)),WHITE);
+    }
 
     // Core dot color: use overrideColor if set (alpha != 0), else default green
     Color core  = (anim.overrideColor.a != 0) ? anim.overrideColor
@@ -1367,6 +1383,7 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
     else if (ps.activeTab == TAB_TE)   DrawTeTab(n, ps);
     else if (ps.activeTab == TAB_SR)   DrawSrTab(n, ps);
     else if (ps.activeTab == TAB_SRV6) DrawSrv6Tab(n, ps);
+    else if (ps.activeTab == TAB_SDWAN) DrawSdwanTab(n, ps);
 }
 
 // ── Context menu draw ────────────────────────────────────────────────────

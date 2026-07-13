@@ -12,6 +12,7 @@
 #include "Level.h"
 #include "LevelCatalog.h"
 #include "SceneSerializer.h"
+#include "SdwanEngine.h"
 #include "GameUI.h"
 #include "TraceModal.h"
 #include "SoundEngine.h"
@@ -700,6 +701,9 @@ int main() {
                             if (!fr.hops.empty()) {
                                 simState.anim.currentSrv6Sid = fr.hops[0].srv6ActiveSid;
                                 simState.anim.currentSrv6SegmentsLeft = fr.hops[0].srv6SegmentsLeft;
+                                simState.anim.currentSdwanPolicyId = fr.hops[0].sdwanPolicyId;
+                                simState.anim.currentSdwanPort = fr.hops[0].sdwanSelectedPort;
+                                simState.anim.currentSdwanBackup = fr.hops[0].sdwanUsingBackup;
                             }
                             simState.anim.currentVlan  = vlanSeed;
                         }
@@ -1226,6 +1230,9 @@ int main() {
                 if (ps.activeTab == TAB_SRV6 && selectedId != -1) {
                     HandleSrv6PanelClick(screenMouse, selectedId, nodes, ps);
                 }
+                if (ps.activeTab == TAB_SDWAN && selectedId != -1) {
+                    HandleSdwanPanelClick(screenMouse, selectedId, nodes, ps);
+                }
             }
         }
 
@@ -1475,6 +1482,9 @@ int main() {
         if (ps.activeTab == TAB_SRV6 && selectedId != -1) {
             UpdateSrv6PanelInput(selectedId, nodes, ps);
         }
+        if (ps.activeTab == TAB_SDWAN && selectedId != -1) {
+            UpdateSdwanPanelInput(selectedId, nodes, ps);
+        }
 
         // Reset active field when selection changes
         if (selectedId != prevSelectedId) {
@@ -1512,6 +1522,11 @@ int main() {
             ps.srv6ActiveField     = -1;
             ps.srv6DestBuf.clear();
             ps.srv6SegsBuf.clear();
+            ps.sdwanActiveField     = -1;
+            ps.sdwanDestBuf.clear();
+            ps.sdwanLatencyBuf.clear();
+            ps.sdwanJitterBuf.clear();
+            ps.sdwanLossBuf.clear();
             prevSelectedId         = selectedId;
         }
 
@@ -1525,6 +1540,7 @@ int main() {
             auto rsvpEvents = UpdateRsvp(nodes, cables);
             UpdateSr(nodes, cables);
             UpdateSrv6(nodes, cables);
+            UpdateSdwan(nodes, cables);
             UpdateBgp(nodes, cables);   // recompute BGP RIB every frame
             BuildEvpnRoutes(nodes);
             auto pushLog = [&](LogEntry entry) {
@@ -1577,6 +1593,7 @@ int main() {
                 DrawTeTunnelOverlays(nodes, cables);
                 DrawSrPolicyOverlays(nodes, cables);
                 DrawSrv6PolicyOverlays(nodes, cables);
+                DrawSdwanPolicyOverlays(nodes, cables);
                 // Annotation first (background layer) — packet anim renders on top
                 if (failAnnotationTimer > 0.f)
                     DrawBrokenPath(nodes, cables, lastFailedTrace);

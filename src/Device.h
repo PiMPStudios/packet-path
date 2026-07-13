@@ -96,6 +96,21 @@ struct Srv6Policy {
     std::string      statusMsg;
 };
 
+struct SdwanPolicy {
+    int         id = 0;
+    std::string destIp;
+    int         preferredPort = -1;
+    int         backupPort = -1;
+    float       maxLatencyMs = 0.f;
+    float       maxJitterMs = 0.f;
+    float       maxLossPct = 0.f;
+
+    bool        isActive = false;
+    int         selectedPort = -1;
+    bool        usingBackup = false;
+    std::string statusMsg;
+};
+
 // ── BGP types ─────────────────────────────────────────────────────────────
 struct BgpNeighbor {
     std::string neighborIp;        // peer's port IP on shared cable (no mask)
@@ -203,6 +218,9 @@ struct HopDecision {
     int         srv6SegmentIndex = -1;
     int         srv6SegmentsLeft = -1;
     std::string srv6ActiveSid;
+    int         sdwanPolicyId = 0;
+    int         sdwanSelectedPort = -1;
+    bool        sdwanUsingBackup = false;
 };
 
 struct ForwardResult {
@@ -290,6 +308,12 @@ struct DeviceNode {
     bool                    srv6Enabled = false;
     std::string             srv6Sid;
     std::vector<Srv6Policy> srv6Policies;
+    // SD-WAN SLA probes and destination policy (routers only).
+    bool                    sdwanEnabled = false;
+    float                   sdwanLatencyMs[PORTS_PER_NODE] = {};
+    float                   sdwanJitterMs[PORTS_PER_NODE] = {};
+    float                   sdwanLossPct[PORTS_PER_NODE] = {};
+    std::vector<SdwanPolicy> sdwanPolicies;
 };
 
 // ── Device geometry helpers (no draw calls) ───────────────────────────────

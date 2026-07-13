@@ -45,12 +45,15 @@ It is not a toy model. The simulation engine runs real protocol behavior: OSPF S
 | 17 | Bandwidth Detour | RSVP-TE, OSPF-based CSPF, bandwidth reservations, PATH/RESV replay |
 | 18 | SID Steering | SR-MPLS, Node SIDs, adjacency SIDs, explicit link steering |
 | 19 | Segments Left | SRv6, IPv6 SIDs, Segment Routing Header, segment-list steering |
+| 20 | SLA Failover | SD-WAN, live path probes, application SLAs, dual-WAN failover |
 
 Level 17 presents two OSPF paths to the same tail-end: a short 200 Mbps route and a longer 1 Gbps route. The player creates a 400 Mbps CSPF tunnel, watches RSVP PATH/RESV signaling, and verifies that labeled traffic follows the only bandwidth-feasible path.
 
 Level 18 contrasts SR segment types. A Node SID carries traffic to an OSPF-selected waypoint, an adjacency SID forces one exact egress interface, and a final Node SID completes the label-stack journey to the tail-end.
 
 Level 19 carries the existing IPv4 payload inside an SRv6 policy. The player enters an ordered IPv6 SID list, watches the active destination advance through the list, and sees the SRH Segments Left value count down while the packet avoids the ordinary OSPF path.
+
+Level 20 introduces application-aware WAN selection. A nominal primary path violates latency, jitter, and loss thresholds, so the player builds an SLA policy that selects the compliant backup path and verifies the actual forwarding trace.
 
 ---
 
@@ -67,6 +70,7 @@ Level 19 carries the existing IPv4 payload inside an SRv6 policy. The player ent
 - RSVP-TE: bandwidth reservations, CSPF/explicit paths, rerouting, and setup replay
 - SR-MPLS: Node and adjacency SIDs, label-stack steering, and duplicate-SID validation
 - SRv6: IPv6 SID validation, SRH segment-list steering, duplicate-SID detection, and Segments Left traces
+- SD-WAN: per-path latency/jitter/loss probes, destination SLA policies, preferred/backup selection, and forwarding overrides
 - 802.1Q: trunk/access ports, VLAN tag handling, frame forwarding
 - VXLAN + BGP EVPN: overlay encapsulation, MAC/IP route advertisement
 - ACL: ordered permit/deny rules applied per interface/direction
@@ -192,7 +196,7 @@ The simulator is built against published RFCs. Key references in `docs/RFCs/`:
 
 ## Roadmap
 
-The core engine, 19 levels, and all UI features listed above are implemented and working on macOS. Active development continues.
+The core engine, 20 levels, and all UI features listed above are implemented and working on macOS. Active development continues.
 
 ### Protocol engine
 
@@ -207,15 +211,15 @@ The core engine, 19 levels, and all UI features listed above are implemented and
 - [x] Segment Routing — SR-MPLS Node/adjacency SID allocation and label-stack steering
 - [x] SRv6 — IPv4 payload encapsulation, IPv6 SID lists, SRH trace state, and policy steering
 - [ ] IS-IS — L1/L2, TLVs, SPF
-- [ ] SD-WAN — policy-based path selection, SLA thresholds
+- [x] SD-WAN — policy-based preferred/backup selection with latency, jitter, and loss thresholds
 
 ### Levels & content
 
-- [x] Levels 1–19 (beginner through advanced, see table above)
+- [x] Levels 1–20 (beginner through advanced, see table above)
 - [x] Level 17: RSVP-TE traffic engineering
 - [x] Level 18: Segment Routing SR-MPLS
 - [x] Level 19: SRv6 segment-list steering
-- [ ] Level 20: SD-WAN dual-WAN policy
+- [x] Level 20: SD-WAN dual-WAN SLA policy
 - [ ] Level 21: Complex multi-failure troubleshooting
 - [ ] Campaign mode — "Build your own ISP" narrative arc
 

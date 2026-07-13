@@ -74,12 +74,16 @@ void UpdatePacketAnim(PacketAnim& anim, float dt,
             anim.currentVni   = anim.result.hops[anim.hop].vxlanVni;
             anim.currentSrv6Sid = anim.result.hops[anim.hop].srv6ActiveSid;
             anim.currentSrv6SegmentsLeft = anim.result.hops[anim.hop].srv6SegmentsLeft;
+            anim.currentSdwanPolicyId = anim.result.hops[anim.hop].sdwanPolicyId;
+            anim.currentSdwanPort = anim.result.hops[anim.hop].sdwanSelectedPort;
+            anim.currentSdwanBackup = anim.result.hops[anim.hop].sdwanUsingBackup;
         } else {
             anim.currentLabel = 0;
             anim.currentVlan  = 0;
             anim.currentVni   = 0;
             anim.currentSrv6Sid.clear();
             anim.currentSrv6SegmentsLeft = -1;
+            anim.currentSdwanPolicyId = 0; anim.currentSdwanPort = -1; anim.currentSdwanBackup = false;
         }
         if (anim.hop >= (int)path.size() - 1) {
             anim.done = true;
@@ -88,6 +92,7 @@ void UpdatePacketAnim(PacketAnim& anim, float dt,
             anim.currentVni   = 0;
             anim.currentSrv6Sid.clear();
             anim.currentSrv6SegmentsLeft = -1;
+            anim.currentSdwanPolicyId = 0; anim.currentSdwanPort = -1; anim.currentSdwanBackup = false;
             if (anim.result.success) anim.successPulse = 0.5f;
             else                     anim.failPulse    = 0.5f;
         }
@@ -112,12 +117,16 @@ void StepForwardAnim(PacketAnim& anim) {
         anim.currentVni   = anim.result.hops[anim.hop].vxlanVni;
         anim.currentSrv6Sid = anim.result.hops[anim.hop].srv6ActiveSid;
         anim.currentSrv6SegmentsLeft = anim.result.hops[anim.hop].srv6SegmentsLeft;
+        anim.currentSdwanPolicyId = anim.result.hops[anim.hop].sdwanPolicyId;
+        anim.currentSdwanPort = anim.result.hops[anim.hop].sdwanSelectedPort;
+        anim.currentSdwanBackup = anim.result.hops[anim.hop].sdwanUsingBackup;
     } else {
         anim.currentLabel = 0;
         anim.currentVlan  = 0;
         anim.currentVni   = 0;
         anim.currentSrv6Sid.clear();
         anim.currentSrv6SegmentsLeft = -1;
+        anim.currentSdwanPolicyId = 0; anim.currentSdwanPort = -1; anim.currentSdwanBackup = false;
     }
     if (anim.hop >= (int)path.size() - 1) {
         anim.done         = true;
@@ -126,6 +135,7 @@ void StepForwardAnim(PacketAnim& anim) {
         anim.currentVni   = 0;
         anim.currentSrv6Sid.clear();
         anim.currentSrv6SegmentsLeft = -1;
+        anim.currentSdwanPolicyId = 0; anim.currentSdwanPort = -1; anim.currentSdwanBackup = false;
         if (anim.result.success) anim.successPulse = 0.5f;
         else                     anim.failPulse    = 0.5f;
     }

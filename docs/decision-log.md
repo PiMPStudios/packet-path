@@ -1,5 +1,15 @@
 # Packet Path Decision Log
 
+## 2026-07-13 — Level 20 SD-WAN teaching contract
+
+- **What we chose:** SD-WAN policies match an exact application destination, evaluate live per-egress latency, jitter, and loss against configured thresholds, prefer the primary when compliant, and otherwise select a compliant backup.
+- **Why:** The lesson must distinguish application-aware path selection from static-route preference and prove that measured quality can override the nominal WAN path.
+- **Trade-offs:** Probes are deterministic per-port measurements rather than sampled time-series, and the first slice supports preferred/backup paths rather than centralized controllers, overlays, or multi-application policy classes.
+
+- **What we chose:** Level 20 preconfigures a reachable primary static route, two visibly separate ISP paths, measured WAN quality, and the primary/backup port roles; the player supplies the voice destination and the 80 ms / 20 ms / 1 percent SLA.
+- **Why:** This isolates one new idea—SLA-driven failover—while forwarding traces and green/red path overlays make the policy outcome immediately legible.
+- **Trade-offs:** The campaign objective requires exact threshold values to keep the teaching contract deterministic; sandbox SD-WAN policies may use any thresholds.
+
 ## 2026-07-12 — Level 19 SRv6 teaching contract
 
 - **What we chose:** The first SRv6 slice encapsulates the simulator's existing IPv4 payload over an IPv4/OSPF underlay, maps configured 128-bit IPv6 SIDs to SRv6-enabled routers, and exposes the active SID and SRH Segments Left at each steered hop.

@@ -15,6 +15,13 @@ DeviceNode* SelectedRouter(int selectedId, std::vector<DeviceNode>& nodes) {
     return node && node->type == ROUTER ? node : nullptr;
 }
 
+std::string MetricBuffer(float value) {
+    if (value == 0.f) return {};
+    std::ostringstream output;
+    output << value;
+    return output.str();
+}
+
 }  // namespace
 
 void HandleTrafficEngineeringPanelClick(Vector2 mouse, int selectedId,
@@ -427,4 +434,68 @@ void UpdateSrv6PanelInput(int selectedId, std::vector<DeviceNode>& nodes,
     }
     if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_TAB) || IsKeyPressed(KEY_ESCAPE))
         panel.srv6ActiveField = -1;
+}
+
+void HandleSdwanPanelClick(Vector2 mouse, int selectedId,
+                           std::vector<DeviceNode>& nodes, PanelState& panel) {
+    DeviceNode* node = SelectedRouter(selectedId, nodes);
+    if (!node) return;
+    if (CheckCollisionPointRec(mouse, PnlSdwanToggleRect())) {
+        node->sdwanEnabled = !node->sdwanEnabled;
+        if (node->sdwanEnabled && node->sdwanPolicies.empty()) {
+            SdwanPolicy policy;
+            policy.id = 1;
+            node->sdwanPolicies.push_back(policy);
+        }
+        return;
+    }
+    if (!node->sdwanEnabled) return;
+    if (node->sdwanPolicies.empty()) {
+        if (CheckCollisionPointRec(mouse, PnlSdwanAddRect())) {
+            SdwanPolicy policy;
+            policy.id = 1;
+            node->sdwanPolicies.push_back(policy);
+        }
+        return;
+    }
+    auto& policy = node->sdwanPolicies.front();
+    for (int field = 0; field < 4; ++field) {
+        if (!CheckCollisionPointRec(mouse, PnlSdwanFieldRect(field))) continue;
+        panel.sdwanActiveField = field;
+        panel.sdwanDestBuf = policy.destIp;
+        panel.sdwanLatencyBuf = MetricBuffer(policy.maxLatencyMs);
+        panel.sdwanJitterBuf = MetricBuffer(policy.maxJitterMs);
+        panel.sdwanLossBuf = MetricBuffer(policy.maxLossPct);
+        return;
+    }
+    if (CheckCollisionPointRec(mouse, PnlSdwanPreferredRect()))
+        policy.preferredPort = (policy.preferredPort + 1) % PORTS_PER_NODE;
+    if (CheckCollisionPointRec(mouse, PnlSdwanBackupRect()))
+        policy.backupPort = (policy.backupPort + 1) % PORTS_PER_NODE;
+}
+
+void UpdateSdwanPanelInput(int selectedId, std::vector<DeviceNode>& nodes,
+                           PanelState& panel) {
+    DeviceNode* node = SelectedRouter(selectedId, nodes);
+    if (!node || node->sdwanPolicies.empty() || panel.sdwanActiveField < 0) return;
+    std::string* buffer = &panel.sdwanDestBuf;
+    if (panel.sdwanActiveField == 1) buffer = &panel.sdwanLatencyBuf;
+    if (panel.sdwanActiveField == 2) buffer = &panel.sdwanJitterBuf;
+    if (panel.sdwanActiveField == 3) buffer = &panel.sdwanLossBuf;
+    UpdateTextField(*buffer, panel.sdwanActiveField == 0 ? 15 : 8);
+    if (!IsKeyPressed(KEY_ENTER) && !IsKeyPressed(KEY_TAB) &&
+        !IsKeyPressed(KEY_ESCAPE)) return;
+    auto& policy = node->sdwanPolicies.front();
+    try {
+        if (panel.sdwanActiveField == 0) policy.destIp = panel.sdwanDestBuf;
+        if (panel.sdwanActiveField == 1)
+            policy.maxLatencyMs = std::max(0.f, std::stof(panel.sdwanLatencyBuf));
+        if (panel.sdwanActiveField == 2)
+            policy.maxJitterMs = std::max(0.f, std::stof(panel.sdwanJitterBuf));
+        if (panel.sdwanActiveField == 3)
+            policy.maxLossPct = std::clamp(std::stof(panel.sdwanLossBuf), 0.f, 100.f);
+    } catch (...) {
+        // Keep the previous valid value; the engine status remains actionable.
+    }
+    panel.sdwanActiveField = -1;
 }

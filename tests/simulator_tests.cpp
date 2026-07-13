@@ -10,6 +10,7 @@
 #include "SoundEngine.h"
 #include "SrEngine.h"
 #include "Srv6Engine.h"
+#include "SdwanEngine.h"
 
 #include <cstdio>
 #include <filesystem>
@@ -686,6 +687,20 @@ void TestSceneRoundTripsTeAndSrConfiguration() {
     srv6Policy.segmentSids = {"2001:db8:2::1", "2001:db8:3::1"};
     r1.srv6Policies.push_back(srv6Policy);
 
+    r1.sdwanEnabled = true;
+    r1.sdwanLatencyMs[1] = 90.f;
+    r1.sdwanJitterMs[1] = 12.f;
+    r1.sdwanLossPct[1] = .5f;
+    SdwanPolicy sdwanPolicy;
+    sdwanPolicy.id = 4;
+    sdwanPolicy.destIp = "203.0.113.9";
+    sdwanPolicy.preferredPort = 1;
+    sdwanPolicy.backupPort = 2;
+    sdwanPolicy.maxLatencyMs = 80.f;
+    sdwanPolicy.maxJitterMs = 20.f;
+    sdwanPolicy.maxLossPct = 1.f;
+    r1.sdwanPolicies.push_back(sdwanPolicy);
+
     const std::string path = TempPath("packet-path-roundtrip.json");
     Expect(SaveScene(path, {r1}, {}), "Scene save should succeed");
 
@@ -709,6 +724,10 @@ void TestSceneRoundTripsTeAndSrConfiguration() {
                restored.srv6Policies.size() == 1 &&
                restored.srv6Policies[0].segmentSids.size() == 2,
            "Round-trip should preserve SRv6 SID and policy configuration");
+    Expect(restored.sdwanEnabled && restored.sdwanLatencyMs[1] == 90.f &&
+               restored.sdwanPolicies.size() == 1 &&
+               restored.sdwanPolicies[0].preferredPort == 1,
+           "Round-trip should preserve SD-WAN probes and policies");
 }
 
 void TestSceneRejectsInvalidCablePortsAndTypes() {
@@ -900,6 +919,42 @@ void TestLevel19RequiresSrv6SegmentSteering() {
            "The intended SRv6 policy should complete Level 19");
 }
 
+void TestLevel20RequiresSlaBasedBackupPath() {
+    LevelDef level;
+    Expect(LoadLevel("levels/level_20.json", level),
+           "Level 20 should load through the production scene parser");
+    std::vector<DeviceNode> nodes = level.devices;
+    const std::vector<Cable> cables = level.cables;
+    UpdateSdwan(nodes, cables);
+    const ForwardResult baseline =
+        SimulateForward(1, "192.168.20.2", nodes, cables, "192.168.10.2");
+    Expect(baseline.success && baseline.path == std::vector<int>({1,2,3,5,6}),
+           "Level 20 should begin on the static primary ISP-A path");
+    Expect(CheckWinConditions(level,nodes,cables) == 0,
+           "Ordinary reachability must not complete the SD-WAN lesson");
+
+    DeviceNode* edge = FindNodeMut(nodes,2);
+    Expect(edge && !edge->sdwanPolicies.empty(), "Level 20 should contain Policy-1");
+    auto& policy = edge->sdwanPolicies.front();
+    policy.destIp = "192.168.20.2";
+    policy.maxLatencyMs = 80.f;
+    policy.maxJitterMs = 20.f;
+    policy.maxLossPct = 1.f;
+    UpdateSdwan(nodes,cables);
+    Expect(policy.isActive && policy.usingBackup && policy.selectedPort == 2,
+           "The SLA engine should reject ISP-A and select ISP-B");
+    const ForwardResult steered =
+        SimulateForward(1,"192.168.20.2",nodes,cables,"192.168.10.2");
+    Expect(steered.success && steered.path == std::vector<int>({1,2,4,5,6}),
+           "SD-WAN forwarding should use the SLA-compliant backup path");
+    Expect(std::any_of(steered.hops.begin(),steered.hops.end(),[](const HopDecision& hop) {
+               return hop.nodeId == 2 && hop.sdwanPolicyId == 1 &&
+                      hop.sdwanSelectedPort == 2 && hop.sdwanUsingBackup;
+           }), "The forwarding trace should identify the selected backup policy");
+    Expect(CheckWinConditions(level,nodes,cables) == 1,
+           "The intended SLA backup policy should complete Level 20");
+}
+
 void TestLevelCatalogDiscoversMetadataWithoutFixedLimit() {
     const std::filesystem::path directory =
         std::filesystem::temp_directory_path() / "packet-path-level-catalog";
@@ -960,12 +1015,13 @@ int main() {
         {"RSVP-aware level objective", TestTeWinConditionRequiresConfiguredForwardingPath},
         {"Duplicate SR SID validation", TestDuplicateSrNodeSidsAreRejected},
         {"SRv6 SID validation", TestSrv6SidValidationAndDuplicateDetection},
-        {"TE/SR/SRv6 scene round-trip", TestSceneRoundTripsTeAndSrConfiguration},
+        {"TE/SR/SRv6/SD-WAN scene round-trip", TestSceneRoundTripsTeAndSrConfiguration},
         {"Scene validation", TestSceneRejectsInvalidCablePortsAndTypes},
         {"Bundled level validation", TestBundledLevelsPassSceneValidation},
         {"Level 17 RSVP-TE solution", TestLevel17RequiresAndAcceptsBandwidthDetour},
         {"Level 18 SR-MPLS solution", TestLevel18RequiresNodeAndAdjacencySidSteering},
         {"Level 19 SRv6 solution", TestLevel19RequiresSrv6SegmentSteering},
+        {"Level 20 SD-WAN solution", TestLevel20RequiresSlaBasedBackupPath},
         {"Dynamic level catalog", TestLevelCatalogDiscoversMetadataWithoutFixedLimit},
         {"Audio fallback", TestAudioCallsAreSafeWithoutADevice},
     };

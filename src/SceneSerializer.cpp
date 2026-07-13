@@ -70,6 +70,11 @@ bool LoadLevel(const std::string& path, LevelDef& out) {
                 if (bandwidth == 0 || bandwidth > std::numeric_limits<uint32_t>::max())
                     return false;
                 n.portBandwidth[i] = static_cast<uint32_t>(bandwidth);
+                n.sdwanLatencyMs[i] = d.value("sdwanLatency" + suffix, 0.f);
+                n.sdwanJitterMs[i]  = d.value("sdwanJitter" + suffix, 0.f);
+                n.sdwanLossPct[i]   = d.value("sdwanLoss" + suffix, 0.f);
+                if (n.sdwanLatencyMs[i] < 0.f || n.sdwanJitterMs[i] < 0.f ||
+                    n.sdwanLossPct[i] < 0.f || n.sdwanLossPct[i] > 100.f) return false;
             }
 
             n.ospfEnabled = d.value("ospfEnabled", false);
@@ -203,6 +208,29 @@ bool LoadLevel(const std::string& path, LevelDef& out) {
                 n.srv6Policies.push_back(std::move(policy));
             }
 
+            n.sdwanEnabled = d.value("sdwanEnabled", false);
+            const json sdwanPolicies = d.value("sdwanPolicies", json::array());
+            if (!sdwanPolicies.is_array()) return false;
+            std::unordered_set<int> sdwanPolicyIds;
+            for (const auto& pj : sdwanPolicies) {
+                if (!pj.is_object()) return false;
+                SdwanPolicy policy;
+                policy.id = pj.value("id", 0);
+                if (policy.id < 1 || policy.id > 255 ||
+                    !sdwanPolicyIds.insert(policy.id).second) return false;
+                policy.destIp = pj.value("destIp", "");
+                policy.preferredPort = pj.value("preferredPort", -1);
+                policy.backupPort = pj.value("backupPort", -1);
+                policy.maxLatencyMs = pj.value("maxLatencyMs", 0.f);
+                policy.maxJitterMs = pj.value("maxJitterMs", 0.f);
+                policy.maxLossPct = pj.value("maxLossPct", 0.f);
+                if (policy.preferredPort < -1 || policy.preferredPort >= PORTS_PER_NODE ||
+                    policy.backupPort < -1 || policy.backupPort >= PORTS_PER_NODE ||
+                    policy.maxLatencyMs < 0.f || policy.maxJitterMs < 0.f ||
+                    policy.maxLossPct < 0.f || policy.maxLossPct > 100.f) return false;
+                n.sdwanPolicies.push_back(std::move(policy));
+            }
+
             maxId = std::max(maxId, n.id);
             parsed.devices.push_back(std::move(n));
         }
@@ -278,6 +306,15 @@ bool LoadLevel(const std::string& path, LevelDef& out) {
                 condition.requiresSrv6Segments.push_back(segment.get<std::string>());
             condition.requiresSrv6PathVia =
                 wc.value("requiresSrv6PathVia", std::string{});
+            condition.requiresSdwanPolicyOnDevice =
+                wc.value("requiresSdwanPolicyOnDevice", std::string{});
+            condition.requiresSdwanPolicyId = wc.value("requiresSdwanPolicyId", 0);
+            condition.requiresSdwanPreferredPort = wc.value("requiresSdwanPreferredPort", -1);
+            condition.requiresSdwanBackupPort = wc.value("requiresSdwanBackupPort", -1);
+            condition.requiresSdwanSelectedPort = wc.value("requiresSdwanSelectedPort", -1);
+            condition.requiresSdwanMaxLatencyMs = wc.value("requiresSdwanMaxLatencyMs", 0.f);
+            condition.requiresSdwanMaxJitterMs = wc.value("requiresSdwanMaxJitterMs", 0.f);
+            condition.requiresSdwanMaxLossPct = wc.value("requiresSdwanMaxLossPct", 0.f);
             if (condition.requiresTeTunnelId < 0 ||
                 condition.requiresTeTunnelId > 255 ||
                 (!condition.requiresTeMode.empty() &&
@@ -304,6 +341,21 @@ bool LoadLevel(const std::string& path, LevelDef& out) {
                  (condition.requiresSrv6PolicyId != 0 ||
                   !condition.requiresSrv6Segments.empty() ||
                   !condition.requiresSrv6PathVia.empty()))) return false;
+            if (condition.requiresSdwanPolicyId < 0 || condition.requiresSdwanPolicyId > 255 ||
+                condition.requiresSdwanPreferredPort < -1 ||
+                condition.requiresSdwanPreferredPort >= PORTS_PER_NODE ||
+                condition.requiresSdwanBackupPort < -1 ||
+                condition.requiresSdwanBackupPort >= PORTS_PER_NODE ||
+                condition.requiresSdwanSelectedPort < -1 ||
+                condition.requiresSdwanSelectedPort >= PORTS_PER_NODE ||
+                (condition.requiresSdwanPolicyOnDevice.empty() &&
+                 (condition.requiresSdwanPolicyId != 0 ||
+                  condition.requiresSdwanPreferredPort != -1 ||
+                  condition.requiresSdwanBackupPort != -1 ||
+                  condition.requiresSdwanSelectedPort != -1 ||
+                  condition.requiresSdwanMaxLatencyMs != 0.f ||
+                  condition.requiresSdwanMaxJitterMs != 0.f ||
+                  condition.requiresSdwanMaxLossPct != 0.f))) return false;
             parsed.winConditions.push_back(std::move(condition));
         }
 
@@ -447,6 +499,30 @@ bool SaveScene(const std::string& path,
                     policies.push_back(std::move(pj));
                 }
                 d["srv6Policies"] = std::move(policies);
+            }
+        }
+
+        if (n.sdwanEnabled || !n.sdwanPolicies.empty()) {
+            if (n.sdwanEnabled) d["sdwanEnabled"] = true;
+            for (int i = 0; i < PORTS_PER_NODE; ++i) {
+                const std::string suffix = std::to_string(i);
+                if (n.sdwanLatencyMs[i] != 0.f) d["sdwanLatency" + suffix] = n.sdwanLatencyMs[i];
+                if (n.sdwanJitterMs[i] != 0.f) d["sdwanJitter" + suffix] = n.sdwanJitterMs[i];
+                if (n.sdwanLossPct[i] != 0.f) d["sdwanLoss" + suffix] = n.sdwanLossPct[i];
+            }
+            if (!n.sdwanPolicies.empty()) {
+                json policies = json::array();
+                for (const auto& policy : n.sdwanPolicies) {
+                    policies.push_back({
+                        {"id", policy.id}, {"destIp", policy.destIp},
+                        {"preferredPort", policy.preferredPort},
+                        {"backupPort", policy.backupPort},
+                        {"maxLatencyMs", policy.maxLatencyMs},
+                        {"maxJitterMs", policy.maxJitterMs},
+                        {"maxLossPct", policy.maxLossPct},
+                    });
+                }
+                d["sdwanPolicies"] = std::move(policies);
             }
         }
 

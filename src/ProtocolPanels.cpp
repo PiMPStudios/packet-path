@@ -408,3 +408,77 @@ void DrawSrv6Tab(const DeviceNode* n, const PanelState& ps) {
                {add.x + (add.width - TW("+ Add SRv6 Policy", 11)) * 0.5f, add.y + 6.f},
                FS(11), Sp(FS(11)), WHITE);
 }
+
+void DrawSdwanTab(const DeviceNode* n, const PanelState& ps) {
+    const float x = CANVAS_W() + 12.f;
+    const float width = PANEL_W - 24.f;
+    const Color dim = {100,116,139,255};
+    const Color accent = {14,165,233,255};
+    const Color good = {34,197,94,255};
+    if (!n || n->type != ROUTER) {
+        DrawTextEx(GFont(), "SD-WAN: select a router", {x,130.f}, FS(11), Sp(FS(11)), dim);
+        return;
+    }
+    const char* toggle = n->sdwanEnabled ? "sd-wan  ON" : "sd-wan  OFF";
+    const Color toggleColor = n->sdwanEnabled ? good : dim;
+    DrawRectangleRoundedLines(PnlSdwanToggleRect(), .4f, 4, toggleColor);
+    DrawTextEx(GFont(), toggle, {x + (width - TW(toggle,12)) * .5f,126.f},
+               FS(12), Sp(FS(12)), toggleColor);
+    if (!n->sdwanEnabled) return;
+
+    DrawTextEx(GFont(), "Live SLA probes", {x,154.f}, FS(10), Sp(FS(10)), dim);
+    float y = 172.f;
+    for (int port = 0; port < PORTS_PER_NODE; ++port) {
+        if (n->portIp[port].empty()) continue;
+        char metrics[128];
+        std::snprintf(metrics, sizeof(metrics), "Gi0/%d  %.0fms  jit %.0fms  loss %.1f%%",
+                      port, n->sdwanLatencyMs[port], n->sdwanJitterMs[port],
+                      n->sdwanLossPct[port]);
+        DrawTextEx(GFont(), metrics, {x + 4.f,y}, FS(9), Sp(FS(9)), WHITE);
+        y += 20.f;
+    }
+    DrawLineEx({x,292.f}, {x+width,292.f}, 1.f, Color{51,65,85,255});
+    if (n->sdwanPolicies.empty()) {
+        DrawRectangleRounded(PnlSdwanAddRect(), .4f, 4, Color{21,128,61,200});
+        DrawTextEx(GFont(), "+ Add SLA Policy", {x+60.f,317.f}, FS(11), Sp(FS(11)), WHITE);
+        return;
+    }
+    const auto& policy = n->sdwanPolicies.front();
+    auto metricText = [](float value) {
+        if (value == 0.f) return std::string{};
+        char buffer[24];
+        std::snprintf(buffer, sizeof(buffer), "%g", value);
+        return std::string(buffer);
+    };
+    const char* names[] = {"Dest:", "Max Lat:", "Max Jit:", "Max Loss:"};
+    std::string values[] = {
+        ps.sdwanActiveField == 0 ? ps.sdwanDestBuf : policy.destIp,
+        ps.sdwanActiveField == 1 ? ps.sdwanLatencyBuf : metricText(policy.maxLatencyMs),
+        ps.sdwanActiveField == 2 ? ps.sdwanJitterBuf : metricText(policy.maxJitterMs),
+        ps.sdwanActiveField == 3 ? ps.sdwanLossBuf : metricText(policy.maxLossPct),
+    };
+    for (int field = 0; field < 4; ++field) {
+        const Rectangle rect = PnlSdwanFieldRect(field);
+        DrawTextEx(GFont(), names[field], {x,rect.y+4.f}, FS(9), Sp(FS(9)), dim);
+        DrawRectangleRec(rect, Color{30,41,59,255});
+        DrawRectangleLinesEx(rect, 1.f,
+            ps.sdwanActiveField == field ? accent : Color{51,65,85,255});
+        DrawTextEx(GFont(), values[field].c_str(), {rect.x+4.f,rect.y+4.f},
+                   FS(9), Sp(FS(9)), WHITE);
+    }
+    auto portRow = [&](const char* name, Rectangle rect, int port) {
+        DrawTextEx(GFont(), name, {x,rect.y+4.f}, FS(9), Sp(FS(9)), dim);
+        DrawRectangleRounded(rect,.3f,4,Color{30,41,59,255});
+        const std::string value = port >= 0 ? GetPortName(n->type,port) : "none";
+        DrawTextEx(GFont(), value.c_str(), {rect.x+6.f,rect.y+4.f}, FS(9), Sp(FS(9)), WHITE);
+    };
+    portRow("Primary:", PnlSdwanPreferredRect(), policy.preferredPort);
+    portRow("Backup:", PnlSdwanBackupRect(), policy.backupPort);
+    const Color statusColor = policy.isActive ? good : Color{239,68,68,255};
+    DrawTextEx(GFont(), policy.statusMsg.c_str(), {x,502.f}, FS(10), Sp(FS(10)), statusColor);
+    if (policy.isActive) {
+        const std::string selected = "Selected: " + GetPortName(n->type,policy.selectedPort) +
+            (policy.usingBackup ? " (backup)" : " (primary)");
+        DrawTextEx(GFont(), selected.c_str(), {x,520.f}, FS(10), Sp(FS(10)), accent);
+    }
+}

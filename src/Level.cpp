@@ -122,6 +122,34 @@ bool MeetsSrv6Requirement(const WinCondition& condition,
     return false;
 }
 
+bool MeetsSdwanRequirement(const WinCondition& condition,
+                           const ForwardResult& result,
+                           const std::vector<DeviceNode>& nodes) {
+    if (condition.requiresSdwanPolicyOnDevice.empty()) return true;
+    const DeviceNode* head = FindNodeByLabel(nodes, condition.requiresSdwanPolicyOnDevice);
+    if (!head) return false;
+    for (const auto& policy : head->sdwanPolicies) {
+        if (!policy.isActive ||
+            (condition.requiresSdwanPolicyId && policy.id != condition.requiresSdwanPolicyId) ||
+            (condition.requiresSdwanPreferredPort >= 0 &&
+             policy.preferredPort != condition.requiresSdwanPreferredPort) ||
+            (condition.requiresSdwanBackupPort >= 0 &&
+             policy.backupPort != condition.requiresSdwanBackupPort) ||
+            (condition.requiresSdwanSelectedPort >= 0 &&
+             policy.selectedPort != condition.requiresSdwanSelectedPort) ||
+            policy.maxLatencyMs != condition.requiresSdwanMaxLatencyMs ||
+            policy.maxJitterMs != condition.requiresSdwanMaxJitterMs ||
+            policy.maxLossPct != condition.requiresSdwanMaxLossPct) continue;
+        const bool used = std::any_of(result.hops.begin(), result.hops.end(),
+            [&](const HopDecision& hop) {
+                return hop.nodeId == head->id && hop.sdwanPolicyId == policy.id &&
+                       hop.sdwanSelectedPort == policy.selectedPort;
+            });
+        if (used) return true;
+    }
+    return false;
+}
+
 }  // namespace
 
 void ApplyLevel(const LevelDef& def,
@@ -156,6 +184,7 @@ int CheckWinConditions(const LevelDef& def,
             if (!MeetsTeRequirement(wc, fr, nodes)) continue;
             if (!MeetsSrRequirement(wc, fr, nodes)) continue;
             if (!MeetsSrv6Requirement(wc, fr, nodes)) continue;
+            if (!MeetsSdwanRequirement(wc, fr, nodes)) continue;
             if (!wc.requiresNatOnDevice.empty()) {
                 bool natOk = false;
                 for (const auto& nd : nodes)

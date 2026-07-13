@@ -207,12 +207,13 @@ static const TabInfo kRtTabs[] = {
     {TAB_TE,     "TE",   Color{251,191,36,255}, Color{251,191,36,255}},
     {TAB_SR,     "SR",   Color{59,130,246,255}, Color{59,130,246,255}},
     {TAB_SRV6,   "V6",   Color{217,70,239,255}, Color{217,70,239,255}},
+    {TAB_SDWAN,  "WAN",  Color{14,165,233,255}, Color{14,165,233,255}},
 };
 
 int PnlTabCount(DeviceType t) {
     if (t == PC)     return 3;
     if (t == SWITCH) return 3;
-    return 13;
+    return 14;
 }
 float PnlTabWFor(DeviceType t) {
     int n = PnlTabCount(t);
@@ -299,4 +300,21 @@ Rectangle PnlSrv6AddBtnRect(int count) {
     return {(float)(CANVAS_W() + 12),
             Srv6ListBaseY() + count * Srv6RowH() + 4.0f,
             (float)(PANEL_W - 24), 26.0f};
+}
+
+Rectangle PnlSdwanToggleRect() {
+    return {(float)(CANVAS_W() + 12), 120.f, (float)(PANEL_W - 24), 26.f};
+}
+Rectangle PnlSdwanFieldRect(int field) {
+    return {(float)(CANVAS_W() + 88), 310.f + field * 30.f,
+            (float)(PANEL_W - 100), 22.f};
+}
+Rectangle PnlSdwanPreferredRect() {
+    return {(float)(CANVAS_W() + 88), 434.f, (float)(PANEL_W - 100), 22.f};
+}
+Rectangle PnlSdwanBackupRect() {
+    return {(float)(CANVAS_W() + 88), 464.f, (float)(PANEL_W - 100), 22.f};
+}
+Rectangle PnlSdwanAddRect() {
+    return {(float)(CANVAS_W() + 12), 310.f, (float)(PANEL_W - 24), 28.f};
 }
