@@ -12,6 +12,7 @@
 #include "Srv6Engine.h"
 #include "SdwanEngine.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
