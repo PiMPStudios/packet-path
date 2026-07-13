@@ -773,6 +773,51 @@ void TestLevel17RequiresAndAcceptsBandwidthDetour() {
            "The intended 400 Mbps bandwidth detour should complete Level 17");
 }
 
+void TestLevel18RequiresNodeAndAdjacencySidSteering() {
+    LevelDef level;
+    Expect(LoadLevel("levels/level_18.json", level),
+           "Level 18 should load through the production scene parser");
+
+    std::vector<DeviceNode> nodes = level.devices;
+    const std::vector<Cable> cables = level.cables;
+    ConvergeOspf(nodes, cables);
+    UpdateSr(nodes, cables);
+
+    const ForwardResult baseline =
+        SimulateForward(1, "10.0.35.2", nodes, cables, "10.0.13.1");
+    Expect(baseline.success && baseline.path == std::vector<int>({1, 3, 5}),
+           "Level 18 should begin on the shorter OSPF path");
+    Expect(CheckWinConditions(level, nodes, cables) == 0,
+           "Ordinary OSPF reachability must not complete the SR-MPLS lesson");
+
+    DeviceNode* head = FindNodeMut(nodes, 1);
+    Expect(head != nullptr, "Level 18 should contain the RTR-1 policy head-end");
+    SrPolicy policy;
+    policy.id = 1;
+    policy.destIp = "10.0.35.2";
+    policy.segmentIps = {"2.2.2.2", "5.5.5.5"};
+    head->srPolicies.push_back(policy);
+    UpdateSr(nodes, cables);
+    Expect(CheckWinConditions(level, nodes, cables) == 0,
+           "Node SIDs alone must not satisfy the adjacency-steering objective");
+
+    head->srPolicies[0].segmentIps = {
+        "2.2.2.2", "adj:2.2.2.2:1", "5.5.5.5",
+    };
+    head->srPolicies[0].segmentsResolved = false;
+    UpdateSr(nodes, cables);
+
+    Expect(head->srPolicies[0].isActive &&
+               head->srPolicies[0].activePath == std::vector<int>({1, 2, 4, 5}),
+           "The adjacency SID should force RTR-2 Gi0/1 toward RTR-4");
+    const ForwardResult steered =
+        SimulateForward(1, "10.0.35.2", nodes, cables, "10.0.13.1");
+    Expect(steered.success && steered.path == std::vector<int>({1, 2, 4, 5}),
+           "The active SR policy should steer forwarding over the lower path");
+    Expect(CheckWinConditions(level, nodes, cables) == 1,
+           "The intended Node plus adjacency SID policy should complete Level 18");
+}
+
 void TestLevelCatalogDiscoversMetadataWithoutFixedLimit() {
     const std::filesystem::path directory =
         std::filesystem::temp_directory_path() / "packet-path-level-catalog";
@@ -836,6 +881,7 @@ int main() {
         {"Scene validation", TestSceneRejectsInvalidCablePortsAndTypes},
         {"Bundled level validation", TestBundledLevelsPassSceneValidation},
         {"Level 17 RSVP-TE solution", TestLevel17RequiresAndAcceptsBandwidthDetour},
+        {"Level 18 SR-MPLS solution", TestLevel18RequiresNodeAndAdjacencySidSteering},
         {"Dynamic level catalog", TestLevelCatalogDiscoversMetadataWithoutFixedLimit},
         {"Audio fallback", TestAudioCallsAreSafeWithoutADevice},
     };

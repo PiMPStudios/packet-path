@@ -1,0 +1,119 @@
+{
+  "id": 18,
+  "title": "SID Steering",
+  "briefing": "OSPF normally sends RTR-1 traffic to RTR-5 over the short upper path through RTR-3. Build SR Policy-1 on RTR-1 to steer it over the lower path instead. In the SR tab, set Dest to 10.0.35.2 and enter these comma-separated segments: 2.2.2.2, adj:2.2.2.2:1, 5.5.5.5. The first Node SID reaches RTR-2 along SPF, the adjacency SID forces RTR-2 Gi0/1 toward RTR-4, and the final Node SID carries the packet to RTR-5. Send a packet from RTR-1 to RTR-5 when the policy is ACTIVE.",
+  "devices": [
+    {
+      "id": 1,
+      "label": "RTR-1",
+      "type": "ROUTER",
+      "x": -360,
+      "y": 0,
+      "portIp0": "10.0.13.1/30",
+      "portIp1": "10.0.12.1/30",
+      "ospfEnabled": true,
+      "routerId": "1.1.1.1",
+      "srEnabled": true,
+      "nodeSid": 1
+    },
+    {
+      "id": 2,
+      "label": "RTR-2",
+      "type": "ROUTER",
+      "x": -150,
+      "y": 150,
+      "portIp0": "10.0.12.2/30",
+      "portIp1": "10.0.24.1/30",
+      "ospfEnabled": true,
+      "routerId": "2.2.2.2",
+      "srEnabled": true,
+      "nodeSid": 2
+    },
+    {
+      "id": 3,
+      "label": "RTR-3",
+      "type": "ROUTER",
+      "x": -80,
+      "y": -140,
+      "portIp0": "10.0.13.2/30",
+      "portIp1": "10.0.35.1/30",
+      "ospfEnabled": true,
+      "routerId": "3.3.3.3",
+      "srEnabled": true,
+      "nodeSid": 3
+    },
+    {
+      "id": 4,
+      "label": "RTR-4",
+      "type": "ROUTER",
+      "x": 120,
+      "y": 150,
+      "portIp0": "10.0.24.2/30",
+      "portIp1": "10.0.45.1/30",
+      "ospfEnabled": true,
+      "routerId": "4.4.4.4",
+      "srEnabled": true,
+      "nodeSid": 4
+    },
+    {
+      "id": 5,
+      "label": "RTR-5",
+      "type": "ROUTER",
+      "x": 360,
+      "y": 0,
+      "portIp0": "10.0.35.2/30",
+      "portIp1": "10.0.45.2/30",
+      "ospfEnabled": true,
+      "routerId": "5.5.5.5",
+      "srEnabled": true,
+      "nodeSid": 5
+    }
+  ],
+  "cables": [
+    {
+      "from": 1,
+      "fromPort": 0,
+      "to": 3,
+      "toPort": 0
+    },
+    {
+      "from": 3,
+      "fromPort": 1,
+      "to": 5,
+      "toPort": 0
+    },
+    {
+      "from": 1,
+      "fromPort": 1,
+      "to": 2,
+      "toPort": 0
+    },
+    {
+      "from": 2,
+      "fromPort": 1,
+      "to": 4,
+      "toPort": 0
+    },
+    {
+      "from": 4,
+      "fromPort": 1,
+      "to": 5,
+      "toPort": 1
+    }
+  ],
+  "winConditions": [
+    {
+      "src": "RTR-1",
+      "dst": "RTR-5",
+      "description": "SR Policy-1 uses Node and adjacency SIDs to steer through RTR-4",
+      "requiresSrPolicyOnDevice": "RTR-1",
+      "requiresSrPolicyId": 1,
+      "requiresSrSegments": [
+        "2.2.2.2",
+        "adj:2.2.2.2:1",
+        "5.5.5.5"
+      ],
+      "requiresSrPathVia": "RTR-4"
+    }
+  ]
+}

@@ -15,6 +15,10 @@ struct WinCondition {
     uint32_t    requiresTeMinBandwidth = 0;   // Mbps
     std::string requiresTePathVia;             // optional device label in activePath
     std::string requiresTeMode;                // "cspf", "explicit", or empty
+    std::string requiresSrPolicyOnDevice;
+    int         requiresSrPolicyId = 0;        // 0 = any active policy on the device
+    std::vector<std::string> requiresSrSegments;
+    std::string requiresSrPathVia;              // optional device label in activePath
 };
 
 struct LevelDef {

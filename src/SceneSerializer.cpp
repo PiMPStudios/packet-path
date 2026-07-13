@@ -239,6 +239,16 @@ bool LoadLevel(const std::string& path, LevelDef& out) {
             condition.requiresTePathVia =
                 wc.value("requiresTePathVia", std::string{});
             condition.requiresTeMode = wc.value("requiresTeMode", std::string{});
+            condition.requiresSrPolicyOnDevice =
+                wc.value("requiresSrPolicyOnDevice", std::string{});
+            condition.requiresSrPolicyId = wc.value("requiresSrPolicyId", 0);
+            const json requiredSegments =
+                wc.value("requiresSrSegments", json::array());
+            if (!requiredSegments.is_array()) return false;
+            for (const auto& segment : requiredSegments)
+                condition.requiresSrSegments.push_back(segment.get<std::string>());
+            condition.requiresSrPathVia =
+                wc.value("requiresSrPathVia", std::string{});
             if (condition.requiresTeTunnelId < 0 ||
                 condition.requiresTeTunnelId > 255 ||
                 (!condition.requiresTeMode.empty() &&
@@ -249,6 +259,14 @@ bool LoadLevel(const std::string& path, LevelDef& out) {
                   condition.requiresTeMinBandwidth != 0 ||
                   !condition.requiresTePathVia.empty() ||
                   !condition.requiresTeMode.empty()))) {
+                return false;
+            }
+            if (condition.requiresSrPolicyId < 0 ||
+                condition.requiresSrPolicyId > 255 ||
+                (condition.requiresSrPolicyOnDevice.empty() &&
+                 (condition.requiresSrPolicyId != 0 ||
+                  !condition.requiresSrSegments.empty() ||
+                  !condition.requiresSrPathVia.empty()))) {
                 return false;
             }
             parsed.winConditions.push_back(std::move(condition));

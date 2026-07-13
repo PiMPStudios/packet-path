@@ -42,6 +42,12 @@ It is not a toy model. The simulation engine runs real protocol behavior: OSPF S
 | 14 | Link Down | Failure detection, OSPF reconvergence |
 | 15 | Dual Failure | Multi-failure troubleshooting |
 | 16 | VLAN Gateway Down | Failure isolation, partial connectivity |
+| 17 | Bandwidth Detour | RSVP-TE, OSPF-based CSPF, bandwidth reservations, PATH/RESV replay |
+| 18 | SID Steering | SR-MPLS, Node SIDs, adjacency SIDs, explicit link steering |
+
+Level 17 presents two OSPF paths to the same tail-end: a short 200 Mbps route and a longer 1 Gbps route. The player creates a 400 Mbps CSPF tunnel, watches RSVP PATH/RESV signaling, and verifies that labeled traffic follows the only bandwidth-feasible path.
+
+Level 18 contrasts SR segment types. A Node SID carries traffic to an OSPF-selected waypoint, an adjacency SID forces one exact egress interface, and a final Node SID completes the label-stack journey to the tail-end.
 
 ---
 
@@ -172,6 +178,7 @@ The simulator is built against published RFCs. Key references in `docs/RFCs/`:
 | RFC 4271 / 4760 | BGP-4 / Multiprotocol BGP |
 | RFC 3031 / 3032 | MPLS Architecture / Label Stack |
 | RFC 5036 | LDP |
+| RFC 3209 / 4090 / 8426 | RSVP-TE, fast reroute, and MPLS traffic-engineering guidance |
 | RFC 7348 | VXLAN |
 | RFC 7432 / 8365 / 9135 | BGP EVPN |
 | RFC 8402 / 8660 / 8754 | Segment Routing / SRv6 |
@@ -181,7 +188,7 @@ The simulator is built against published RFCs. Key references in `docs/RFCs/`:
 
 ## Roadmap
 
-The core engine, 17 levels, and all UI features listed above are implemented and working on macOS. Active development continues.
+The core engine, 18 levels, and all UI features listed above are implemented and working on macOS. Active development continues.
 
 ### Protocol engine
 
@@ -193,16 +200,16 @@ The core engine, 17 levels, and all UI features listed above are implemented and
 - [x] VXLAN + BGP EVPN
 - [x] ACLs and NAT
 - [x] RSVP-TE — OSPF-based CSPF, explicit paths, bandwidth reservations, and setup replay
-- [x] Segment Routing — SR-MPLS Node/adjacency SID allocation and label-stack steering (in testing)
+- [x] Segment Routing — SR-MPLS Node/adjacency SID allocation and label-stack steering
 - [ ] SRv6
 - [ ] IS-IS — L1/L2, TLVs, SPF
 - [ ] SD-WAN — policy-based path selection, SLA thresholds
 
 ### Levels & content
 
-- [x] Levels 1–17 (beginner through advanced, see table above)
+- [x] Levels 1–18 (beginner through advanced, see table above)
 - [x] Level 17: RSVP-TE traffic engineering
-- [ ] Level 18: Segment Routing SR-MPLS
+- [x] Level 18: Segment Routing SR-MPLS
 - [ ] Level 19: SRv6
 - [ ] Level 20: SD-WAN dual-WAN policy
 - [ ] Level 21: Complex multi-failure troubleshooting

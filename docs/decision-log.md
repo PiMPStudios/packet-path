@@ -1,5 +1,15 @@
 # Packet Path Decision Log
 
+## 2026-07-12 — Level 18 SR-MPLS teaching contract
+
+- **What we chose:** SR-aware win conditions require an active policy on a named head-end, an optional policy ID, an exact ordered segment list, a required path waypoint, and proof that forwarding used the policy.
+- **Why:** Ordinary OSPF reachability or a Node-SID-only policy must not complete a lesson about adjacency SID link steering.
+- **Trade-offs:** Exact segment matching keeps campaign objectives deterministic; sandbox policies remain unrestricted.
+
+- **What we chose:** Level 18 preconfigures OSPF, SR-MPLS, and unique Node SIDs, then asks the player to build one policy containing a Node SID, an adjacency SID, and a final Node SID.
+- **Why:** The lesson focuses on the semantic difference between reaching a node along SPF and forcing a specific interface, without repeating protocol-enablement setup.
+- **Trade-offs:** The adjacency segment uses the simulator's `adj:<router-ip>:<port>` syntax and globally unique adjacency labels rather than modeling per-router label significance.
+
 ## 2026-07-12 — Level 17 RSVP-TE teaching contract
 
 - **What we chose:** RSVP CSPF reads the head-end router's live OSPF area LSDBs, uses advertised adjacency costs, and then prunes links that cannot satisfy the requested reservation.

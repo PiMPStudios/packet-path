@@ -52,6 +52,44 @@ bool MeetsTeRequirement(const WinCondition& condition,
     return false;
 }
 
+bool MeetsSrRequirement(const WinCondition& condition,
+                        const ForwardResult& result,
+                        const std::vector<DeviceNode>& nodes) {
+    if (condition.requiresSrPolicyOnDevice.empty()) return true;
+
+    const DeviceNode* head = FindNodeByLabel(nodes, condition.requiresSrPolicyOnDevice);
+    if (!head) return false;
+
+    int requiredViaId = -1;
+    if (!condition.requiresSrPathVia.empty()) {
+        const DeviceNode* via = FindNodeByLabel(nodes, condition.requiresSrPathVia);
+        if (!via) return false;
+        requiredViaId = via->id;
+    }
+
+    for (const auto& policy : head->srPolicies) {
+        if (!policy.isActive ||
+            (condition.requiresSrPolicyId != 0 &&
+             policy.id != condition.requiresSrPolicyId) ||
+            (!condition.requiresSrSegments.empty() &&
+             policy.segmentIps != condition.requiresSrSegments)) {
+            continue;
+        }
+        if (requiredViaId >= 0 &&
+            std::find(policy.activePath.begin(), policy.activePath.end(), requiredViaId) ==
+                policy.activePath.end()) {
+            continue;
+        }
+
+        const bool usedForForwarding =
+            std::any_of(result.hops.begin(), result.hops.end(), [&](const auto& hop) {
+                return hop.nodeId == head->id && hop.policyId == policy.id;
+            });
+        if (usedForForwarding) return true;
+    }
+    return false;
+}
+
 }  // namespace
 
 void ApplyLevel(const LevelDef& def,
@@ -84,6 +122,7 @@ int CheckWinConditions(const LevelDef& def,
         ForwardResult fr = SimulateForward(src->id, dstIp, nodes, cables, wcsrcIp);
         if (fr.success) {
             if (!MeetsTeRequirement(wc, fr, nodes)) continue;
+            if (!MeetsSrRequirement(wc, fr, nodes)) continue;
             if (!wc.requiresNatOnDevice.empty()) {
                 bool natOk = false;
                 for (const auto& nd : nodes)

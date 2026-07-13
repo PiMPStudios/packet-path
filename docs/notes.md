@@ -2,7 +2,7 @@
 
 Updated: 2026-07-12
 
-The original six-phase MVP plan is complete. Packet Path currently ships 17 JSON-driven scenarios covering IP forwarding, VLANs, OSPF, BGP, ACL/NAT, VXLAN/EVPN, MPLS/LDP, RSVP-TE, and failure troubleshooting. The level selector discovers validated `level_*.json` files, so later scenarios require no code catalog update.
+The original six-phase MVP plan is complete. Packet Path currently ships 18 JSON-driven scenarios covering IP forwarding, VLANs, OSPF, BGP, ACL/NAT, VXLAN/EVPN, MPLS/LDP, RSVP-TE, SR-MPLS, and failure troubleshooting. The level selector discovers validated `level_*.json` files, so later scenarios require no code catalog update.
 
 ## Current protocol status
 
@@ -14,7 +14,7 @@ The original six-phase MVP plan is complete. Packet Path currently ships 17 JSON
 | BGP | Implemented and tested | eBGP, iBGP, route reflection, link-failure withdrawal |
 | MPLS / LDP | Implemented and tested | Push, transit labels, and implicit-null/PHP |
 | RSVP-TE | Implemented and tested | OSPF-based CSPF, explicit paths, bandwidth reservations, setup replay, event logs, TE-aware level objectives |
-| SR-MPLS | Implemented, in testing | Node SIDs, duplicate detection, adjacency SID steering, policy forwarding |
+| SR-MPLS | Implemented and tested | Node SIDs, duplicate detection, adjacency SID steering, policy forwarding, SR-aware level objectives |
 | SRv6 | Not implemented | Planned after SR-MPLS scenarios |
 | IS-IS / SD-WAN | Not implemented | Longer-term roadmap |
 
@@ -27,7 +27,6 @@ The original six-phase MVP plan is complete. Packet Path currently ships 17 JSON
 
 ## Next product work
 
-1. Add Level 18 for SR-MPLS, teaching Node SID versus adjacency SID steering.
-2. Continue extracting generic input and remaining protocol panel rendering from `main.cpp` and `NetworkCanvas.cpp`.
-3. Rerun the three-platform CI workflow after the next push to verify the Windows C++17 portability fix.
-4. Add SRv6 only after the SR-MPLS scenarios and tests are stable.
+1. Design and implement Level 19 for SRv6.
+2. Playtest Levels 17 and 18 for briefing clarity and panel-input pacing.
+3. Continue extracting generic input and remaining protocol panel rendering from `main.cpp` and `NetworkCanvas.cpp`.
