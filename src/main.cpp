@@ -11,6 +11,7 @@
 #include "EvpnEngine.h"
 #include "Level.h"
 #include "LevelCatalog.h"
+#include "Campaign.h"
 #include "SceneSerializer.h"
 #include "SdwanEngine.h"
 #include "GameUI.h"
@@ -61,6 +62,7 @@ int main() {
     int         lastConditionsPassed = 0;
     int         failedAttempts       = 0;
     int         starsEarned          = 0;
+    bool        campaignRun          = false;
     bool          troubleshootMode = false;
     bool          traceModalOpen = false;
     ForwardResult activeTrace;
@@ -83,6 +85,15 @@ int main() {
     float       fileOpTimer = 0.f;
 
     const std::vector<LevelCatalogEntry> levelCatalog = DiscoverLevels("levels");
+    CampaignDefinition campaignDefinition;
+    const bool campaignAvailable = LoadCampaignDefinition(
+        "levels/campaign.json", levelCatalog, campaignDefinition);
+    CampaignProgress campaignProgress;
+    const std::string campaignProgressPath = DefaultCampaignProgressPath();
+    LoadCampaignProgress(campaignProgressPath, campaignProgress);
+    LevelSelectView levelSelectView = campaignAvailable
+        ? LEVEL_SELECT_CAMPAIGN : LEVEL_SELECT_FREEPLAY;
+    bool campaignResetConfirmation = false;
 
     // Populate supported resolutions from monitor max
     {
@@ -115,6 +126,9 @@ int main() {
         lastConditionsPassed = 0;
         failedAttempts       = 0;
         starsEarned          = 0;
+        campaignRun          = false;
+        levelSelectView      = LEVEL_SELECT_FREEPLAY;
+        campaignResetConfirmation = false;
         gameMode             = GAME_SANDBOX;
         ps                   = PanelState{};
         simState             = SimState{};
@@ -133,6 +147,48 @@ int main() {
         activeTrace          = {};
         briefingVisible = false;
         briefingCard    = BriefingCardState{};
+    };
+
+    auto startLevel = [&](const LevelCatalogEntry& entry, bool fromCampaign) {
+        LevelDef definition;
+        if (!LoadLevel(entry.path, definition)) return false;
+
+        currentLevel         = entry.number;
+        activeLevelDef       = definition;
+        ApplyLevel(definition, nodes, cables, selectedId);
+        ps                   = PanelState{};
+        simState             = SimState{};
+        rsvpReplay           = RsvpReplayState{};
+        logEntries.clear();
+        lastConditionsPassed = 0;
+        failedAttempts       = 0;
+        starsEarned          = 0;
+        campaignRun          = fromCampaign;
+        levelSelectView      = fromCampaign
+            ? LEVEL_SELECT_CAMPAIGN : LEVEL_SELECT_FREEPLAY;
+        campaignResetConfirmation = false;
+        gameMode             = GAME_PLAYING;
+        dragging             = false;
+        connecting           = false;
+        connectFromId        = -1;
+        connectFromPort      = -1;
+        hoverNodeId          = -1;
+        hoverPort            = -1;
+        contextMenu.visible  = false;
+        troubleshootMode     = false;
+        traceModalOpen       = false;
+        failAnnotationTimer  = 0.f;
+        lastFailedTrace      = {};
+        activeTrace          = {};
+        logScrollOffset      = 0;
+        prevLogSize          = 0;
+        briefingVisible      = true;
+        briefingCard.pos       = BriefingDefaultPos();
+        briefingCard.collapsed = false;
+        briefingCard.dragging  = false;
+        briefingCard.cardHeight = BriefingComputeHeight(activeLevelDef);
+        helpVisible          = false;
+        return true;
     };
 
     while (!WindowShouldClose() && !shouldQuit) {
@@ -191,6 +247,8 @@ int main() {
                         lastConditionsPassed = 0;
                         failedAttempts       = 0;
                         starsEarned          = 0;
+                        campaignRun          = false;
+                        levelSelectView      = LEVEL_SELECT_FREEPLAY;
                         gameMode             = GAME_SANDBOX;
                         dragging             = false;
                         connecting           = false;
@@ -384,6 +442,9 @@ int main() {
                 } else if (CheckCollisionPointRec(screenMouse, ML.levelSelect)) {
                     menuVisible = false;
                     gameMode    = GAME_LEVEL_SELECT;
+                    levelSelectView = (campaignAvailable && campaignRun)
+                        ? LEVEL_SELECT_CAMPAIGN : LEVEL_SELECT_FREEPLAY;
+                    campaignResetConfirmation = false;
                 } else if (CheckCollisionPointRec(screenMouse, ML.fullscreen)) {
                     gameSettings.fullscreen = !gameSettings.fullscreen;
                     ToggleFullscreen();
@@ -492,35 +553,12 @@ int main() {
                     briefingCard.cardHeight = BriefingComputeHeight(activeLevelDef);
                     helpVisible          = false;
                 } else if (CheckCollisionPointRec(screenMouse, WinNextBtnRect())) {
-                    const LevelCatalogEntry* next = FindNextLevel(levelCatalog, currentLevel);
-                    LevelDef def;
-                    if (next && LoadLevel(next->path, def)) {
-                        currentLevel         = next->number;
-                        activeLevelDef       = def;
-                        ApplyLevel(def, nodes, cables, selectedId);
-                        ps                   = PanelState{};
-                        simState             = SimState{};
-                        logEntries.clear();
-                        lastConditionsPassed = 0;
-                        failedAttempts       = 0;
-                        starsEarned          = 0;
-                        gameMode             = GAME_PLAYING;
-                        dragging             = false;
-                        connecting           = false;
-                        hoverNodeId          = -1;
-                        hoverPort            = -1;
-                        contextMenu.visible  = false;
-                        troubleshootMode     = false;
-                        traceModalOpen       = false;
-                        failAnnotationTimer  = 0.f;
-                        lastFailedTrace      = {};
-                        briefingVisible      = true;
-                        briefingCard.pos       = BriefingDefaultPos();
-                        briefingCard.collapsed = false;
-                        briefingCard.dragging  = false;
-                        briefingCard.cardHeight = BriefingComputeHeight(activeLevelDef);
-                        helpVisible          = false;
-                    }
+                    const int nextCampaignLevel = campaignRun
+                        ? FindNextCampaignLevel(campaignDefinition, currentLevel) : 0;
+                    const LevelCatalogEntry* next = campaignRun
+                        ? FindLevel(levelCatalog, nextCampaignLevel)
+                        : FindNextLevel(levelCatalog, currentLevel);
+                    if (next) startLevel(*next, campaignRun);
                 }
                 // any other click on the WIN screen is silently consumed
             } else if (traceModalOpen) {
@@ -530,43 +568,62 @@ int main() {
                     traceModalOpen = false;
                 // all clicks consumed while modal is open
             } else if (gameMode == GAME_LEVEL_SELECT) {
-                for (int i = 0; i < (int)levelCatalog.size(); ++i) {
-                    if (CheckCollisionPointRec(screenMouse,
-                                               LevelSelectCardRect(i, (int)levelCatalog.size()))) {
-                        LevelDef def;
-                        if (LoadLevel(levelCatalog[i].path, def)) {
-                            currentLevel         = levelCatalog[i].number;
-                            activeLevelDef       = def;
-                            ApplyLevel(def, nodes, cables, selectedId);
-                            ps                   = PanelState{};
-                            simState             = SimState{};
-                            logEntries.clear();
-                            lastConditionsPassed = 0;
-                            failedAttempts       = 0;
-                            starsEarned          = 0;
-                            gameMode             = GAME_PLAYING;
-                            dragging             = false;
-                            connecting           = false;
-                            hoverNodeId          = -1;
-                            hoverPort            = -1;
-                            contextMenu.visible  = false;
-                            troubleshootMode     = false;
-                            traceModalOpen       = false;
-                            failAnnotationTimer  = 0.f;
-                            lastFailedTrace      = {};
-                            briefingVisible      = true;
-                            briefingCard.pos       = BriefingDefaultPos();
-                            briefingCard.collapsed = false;
-                            briefingCard.dragging  = false;
-                            briefingCard.cardHeight = BriefingComputeHeight(activeLevelDef);
-                            helpVisible          = false;
+                if (campaignAvailable &&
+                    CheckCollisionPointRec(screenMouse, LevelSelectCampaignTabRect())) {
+                    levelSelectView = LEVEL_SELECT_CAMPAIGN;
+                    campaignResetConfirmation = false;
+                } else if (CheckCollisionPointRec(screenMouse, LevelSelectFreeplayTabRect())) {
+                    levelSelectView = LEVEL_SELECT_FREEPLAY;
+                    campaignResetConfirmation = false;
+                } else if (levelSelectView == LEVEL_SELECT_CAMPAIGN && campaignAvailable) {
+                    if (CheckCollisionPointRec(screenMouse, CampaignContinueBtnRect())) {
+                        const int continueLevel = FindCampaignContinueLevel(
+                            campaignDefinition, campaignProgress);
+                        const LevelCatalogEntry* entry = FindLevel(levelCatalog, continueLevel);
+                        if (entry) startLevel(*entry, true);
+                    } else if (CheckCollisionPointRec(screenMouse, CampaignResetBtnRect())) {
+                        if (!campaignResetConfirmation) {
+                            campaignResetConfirmation = true;
+                        } else {
+                            CampaignProgress emptyProgress;
+                            if (SaveCampaignProgress(campaignProgressPath, emptyProgress)) {
+                                campaignProgress = std::move(emptyProgress);
+                                fileOpMsg = "Campaign progress reset";
+                            } else {
+                                fileOpMsg = "Error: campaign progress could not be reset";
+                            }
+                            fileOpTimer = 3.f;
+                            campaignResetConfirmation = false;
+                        }
+                    } else {
+                        const std::vector<int> missionOrder =
+                            CampaignMissionOrder(campaignDefinition);
+                        for (int i = 0; i < static_cast<int>(missionOrder.size()); ++i) {
+                            const int levelNumber = missionOrder[i];
+                            if (!IsCampaignLevelUnlocked(
+                                    campaignDefinition, campaignProgress, levelNumber)) continue;
+                            if (!CheckCollisionPointRec(
+                                    screenMouse,
+                                    CampaignMissionCardRect(i, (int)missionOrder.size()))) continue;
+                            const LevelCatalogEntry* entry = FindLevel(levelCatalog, levelNumber);
+                            if (entry) startLevel(*entry, true);
                             break;
                         }
                     }
+                } else {
+                    for (int i = 0; i < (int)levelCatalog.size(); ++i) {
+                        if (CheckCollisionPointRec(
+                                screenMouse,
+                                LevelSelectCardRect(i, (int)levelCatalog.size()))) {
+                            startLevel(levelCatalog[i], false);
+                            break;
+                        }
+                    }
+                    if (CheckCollisionPointRec(
+                            screenMouse,
+                            LevelSelectSandboxBtnRect((int)levelCatalog.size())))
+                        goSandbox();
                 }
-                if (CheckCollisionPointRec(screenMouse,
-                                           LevelSelectSandboxBtnRect((int)levelCatalog.size())))
-                    goSandbox();
             } else {
             // ── Briefing card interactions (non-consuming) ─────────────────
             bool cardConsumedClick = false;
@@ -734,6 +791,15 @@ int main() {
                         if (passed == (int)activeLevelDef.winConditions.size()) {
                             gameMode    = GAME_WIN;
                             starsEarned = ComputeStars(failedAttempts);
+                            if (campaignRun && campaignAvailable &&
+                                RecordCampaignCompletion(
+                                    campaignDefinition, campaignProgress,
+                                    currentLevel, starsEarned) &&
+                                !SaveCampaignProgress(
+                                    campaignProgressPath, campaignProgress)) {
+                                fileOpMsg = "Error: campaign progress could not be saved";
+                                fileOpTimer = 3.f;
+                            }
                         }
                     }
                     if (simState.mode != SIM_ANIMATING) {
@@ -1699,12 +1765,21 @@ int main() {
                 DrawReplayHUD(simState.anim.paused, simState.anim.speedMult);
             if (gameMode == GAME_WIN)
                 DrawWinOverlay(activeLevelDef,
-                               FindNextLevel(levelCatalog, currentLevel) != nullptr,
+                               campaignRun
+                                   ? FindNextCampaignLevel(
+                                         campaignDefinition, currentLevel) != 0
+                                   : FindNextLevel(
+                                         levelCatalog, currentLevel) != nullptr,
                                starsEarned);
 
             // Level-select overlay (drawn last so it sits above everything)
-            if (gameMode == GAME_LEVEL_SELECT)
-                DrawLevelSelectScreen(levelCatalog);
+            if (gameMode == GAME_LEVEL_SELECT) {
+                if (levelSelectView == LEVEL_SELECT_CAMPAIGN && campaignAvailable)
+                    DrawCampaignScreen(campaignDefinition, campaignProgress,
+                                       levelCatalog, campaignResetConfirmation);
+                else
+                    DrawLevelSelectScreen(levelCatalog, campaignAvailable);
+            }
 
             // HUD — screen space, outside camera
             if (gameSettings.showFps) {

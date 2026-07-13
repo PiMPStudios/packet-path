@@ -87,25 +87,81 @@ static int LevelGridColumns() {
     return CANVAS_W() >= 1000 ? 5 : 4;
 }
 
-Rectangle LevelSelectCardRect(int i, int levelCount) {
-    (void)levelCount;
+static Rectangle GridCardRect(int i, int itemCount, float top,
+                              float reservedBottom, float maximumHeight) {
     const int columns = LevelGridColumns();
-    const float gapX = 10.f, gapY = 10.f;
+    const int rows = std::max(1, (itemCount + columns - 1) / columns);
+    const float gapX = 10.f, gapY = 8.f;
     const float gridW = std::min(940.f, (float)CANVAS_W() - 16.f);
     const float cardW = (gridW - (columns - 1) * gapX) / columns;
-    const float cardH = 72.f;
-    float xs = std::max(8.f, ((float)CANVAS_W() - gridW) / 2.f);
-    int col = i % columns, row = i / columns;
-    return {xs + col * (cardW + gapX), 90.f + row * (cardH + gapY), cardW, cardH};
+    const float available = std::max(1.f, (float)SCREEN_H() - top - reservedBottom);
+    const float cardH = std::clamp(
+        (available - (rows - 1) * gapY) / rows, 44.f, maximumHeight);
+    const float xs = std::max(8.f, ((float)CANVAS_W() - gridW) / 2.f);
+    const int col = i % columns, row = i / columns;
+    return {xs + col * (cardW + gapX), top + row * (cardH + gapY), cardW, cardH};
+}
+
+Rectangle LevelSelectCampaignTabRect() {
+    const float center = CANVAS_W() * 0.5f;
+    return {center - 150.f, 12.f, 146.f, 28.f};
+}
+
+Rectangle LevelSelectFreeplayTabRect() {
+    const float center = CANVAS_W() * 0.5f;
+    return {center + 4.f, 12.f, 146.f, 28.f};
+}
+
+static void DrawLevelSelectTabs(LevelSelectView active, bool campaignAvailable) {
+    const Vector2 mouse = GetMousePosition();
+    const Rectangle campaign = LevelSelectCampaignTabRect();
+    const Rectangle freeplay = LevelSelectFreeplayTabRect();
+
+    auto drawTab = [&](Rectangle rect, const char* label, bool selected, bool enabled) {
+        const bool hovered = enabled && CheckCollisionPointRec(mouse, rect);
+        const Color bg = selected ? Color{30, 58, 138, 255}
+                         : hovered ? Color{30, 41, 59, 255}
+                                   : Color{15, 23, 42, 255};
+        const Color border = selected ? Color{59, 130, 246, 255}
+                             : Color{51, 65, 85, 255};
+        DrawRectangleRounded(rect, 0.25f, 4, bg);
+        DrawRectangleRoundedLinesEx(rect, 0.25f, 4, 1.f, border);
+        const Color text = enabled ? Color{226, 232, 240, 255}
+                                   : Color{71, 85, 105, 255};
+        const float width = TW(label, 11);
+        DrawTextEx(GFont(), label,
+                   {rect.x + (rect.width - width) * 0.5f, rect.y + 8.f},
+                   FS(11), Sp(FS(11)), text);
+    };
+
+    drawTab(campaign, "CAMPAIGN", active == LEVEL_SELECT_CAMPAIGN,
+            campaignAvailable);
+    drawTab(freeplay, "FREEPLAY", active == LEVEL_SELECT_FREEPLAY, true);
+}
+
+Rectangle LevelSelectCardRect(int i, int levelCount) {
+    return GridCardRect(i, levelCount, 94.f, 64.f, 90.f);
 }
 
 Rectangle LevelSelectSandboxBtnRect(int levelCount) {
-    const int columns = LevelGridColumns();
-    const float cardH = 72.f, gapY = 10.f;
     const float gridW = std::min(940.f, (float)CANVAS_W() - 16.f);
-    float xs = std::max(8.f, ((float)CANVAS_W() - gridW) / 2.f);
-    const int rows = std::max(1, (levelCount + columns - 1) / columns);
-    return {xs, 90.f + rows * (cardH + gapY), gridW, 44.f};
+    const float xs = std::max(8.f, ((float)CANVAS_W() - gridW) / 2.f);
+    const Rectangle lastCard = LevelSelectCardRect(std::max(0, levelCount - 1),
+                                                   levelCount);
+    return {xs, lastCard.y + lastCard.height + 10.f, gridW, 42.f};
+}
+
+Rectangle CampaignContinueBtnRect() {
+    const float width = std::min(620.f, (float)CANVAS_W() - 32.f);
+    return {((float)CANVAS_W() - width) * 0.5f, 112.f, width, 38.f};
+}
+
+Rectangle CampaignMissionCardRect(int i, int missionCount) {
+    return GridCardRect(i, missionCount, 164.f, 48.f, 90.f);
+}
+
+Rectangle CampaignResetBtnRect() {
+    return {12.f, (float)SCREEN_H() - 36.f, 150.f, 24.f};
 }
 
 void DrawSandboxHUD() {
@@ -125,15 +181,18 @@ void DrawSandboxHUD() {
                FS(10), Sp(FS(10)), Color{148, 163, 184, 255});
 }
 
-void DrawLevelSelectScreen(const std::vector<LevelCatalogEntry>& levels) {
+void DrawLevelSelectScreen(const std::vector<LevelCatalogEntry>& levels,
+                           bool campaignAvailable) {
     // Dim the entire screen (canvas + panel)
     DrawRectangle(0, 0, SCREEN_W(), SCREEN_H(), Color{0, 0, 0, 225});
+
+    DrawLevelSelectTabs(LEVEL_SELECT_FREEPLAY, campaignAvailable);
 
     // Title
     const char* hdr = "SELECT A LEVEL";
     int hdw = (int)TW(hdr, 18);
     DrawTextEx(GFont(), hdr,
-               {(float)((CANVAS_W() - hdw) / 2.f), 50.f},
+               {(float)((CANVAS_W() - hdw) / 2.f), 58.f},
                FS(18), Sp(FS(18)), WHITE);
 
     Vector2 mouse = GetMousePosition();
@@ -176,6 +235,150 @@ void DrawLevelSelectScreen(const std::vector<LevelCatalogEntry>& levels) {
                {sr.x + (sr.width - stw) / 2.f,
                 sr.y + (sr.height - 13.f) / 2.f - 2.f},
                FS(13), Sp(FS(13)), Color{204, 251, 241, 255});
+}
+
+void DrawCampaignScreen(const CampaignDefinition& campaign,
+                        const CampaignProgress& progress,
+                        const std::vector<LevelCatalogEntry>& levels,
+                        bool resetConfirmation) {
+    DrawRectangle(0, 0, SCREEN_W(), SCREEN_H(), Color{0, 0, 0, 230});
+    DrawLevelSelectTabs(LEVEL_SELECT_CAMPAIGN, true);
+
+    const float titleWidth = TW(campaign.title.c_str(), 19);
+    DrawTextEx(GFont(), campaign.title.c_str(),
+               {((float)CANVAS_W() - titleWidth) * 0.5f, 48.f},
+               FS(19), Sp(FS(19)), WHITE);
+
+    std::string subtitle = campaign.subtitle;
+    if ((int)subtitle.size() > 92) subtitle = subtitle.substr(0, 89) + "...";
+    const float subtitleWidth = TW(subtitle.c_str(), 10);
+    DrawTextEx(GFont(), subtitle.c_str(),
+               {((float)CANVAS_W() - subtitleWidth) * 0.5f, 74.f},
+               FS(10), Sp(FS(10)), Color{148, 163, 184, 255});
+
+    const int missions = CampaignMissionCount(campaign);
+    const int completed = CampaignCompletedCount(campaign, progress);
+    const int totalStars = CampaignTotalStars(campaign, progress);
+    char summary[64];
+    std::snprintf(summary, sizeof(summary), "%d/%d MISSIONS   %d/%d STARS",
+                  completed, missions, totalStars, missions * 3);
+    DrawTextEx(GFont(), summary, {16.f, 94.f}, FS(9), Sp(FS(9)),
+               Color{148, 163, 184, 255});
+
+    const float progressWidth = std::max(120.f, (float)CANVAS_W() - 32.f);
+    DrawRectangleRounded({16.f, 104.f, progressWidth, 4.f}, 1.f, 2,
+                         Color{30, 41, 59, 255});
+    const float ratio = missions > 0 ? (float)completed / (float)missions : 0.f;
+    DrawRectangleRounded({16.f, 104.f, progressWidth * ratio, 4.f}, 1.f, 2,
+                         Color{34, 197, 94, 255});
+
+    const int continueLevel = FindCampaignContinueLevel(campaign, progress);
+    const LevelCatalogEntry* continueEntry = FindLevel(levels, continueLevel);
+    const Rectangle continueButton = CampaignContinueBtnRect();
+    const bool canContinue = continueEntry != nullptr;
+    const bool continueHover = canContinue &&
+        CheckCollisionPointRec(GetMousePosition(), continueButton);
+    const Color continueBg = !canContinue ? Color{30, 41, 59, 255}
+                             : continueHover ? Color{22, 163, 74, 255}
+                                             : Color{21, 128, 61, 255};
+    DrawRectangleRounded(continueButton, 0.22f, 6, continueBg);
+    DrawRectangleRoundedLinesEx(continueButton, 0.22f, 6, 1.5f,
+                                canContinue ? Color{74, 222, 128, 255}
+                                            : Color{71, 85, 105, 255});
+    const std::string continueLabel = canContinue
+        ? "CONTINUE: LVL " + std::to_string(continueLevel) + "  " + continueEntry->title
+        : "CAMPAIGN COMPLETE";
+    const float continueWidth = TW(continueLabel.c_str(), canContinue ? 11 : 12);
+    DrawTextEx(GFont(), continueLabel.c_str(),
+               {continueButton.x + (continueButton.width - continueWidth) * 0.5f,
+                continueButton.y + (canContinue ? 7.f : 12.f)},
+               FS(canContinue ? 11 : 12), Sp(FS(canContinue ? 11 : 12)),
+               canContinue ? Color{220, 252, 231, 255}
+                           : Color{100, 116, 139, 255});
+    if (canContinue) {
+        const CampaignChapter* chapter = FindCampaignChapter(campaign, continueLevel);
+        if (chapter) {
+            const float chapterWidth = TW(chapter->title.c_str(), 8);
+            DrawTextEx(GFont(), chapter->title.c_str(),
+                       {continueButton.x + (continueButton.width - chapterWidth) * 0.5f,
+                        continueButton.y + 23.f},
+                       FS(8), Sp(FS(8)), Color{187, 247, 208, 255});
+        }
+    }
+
+    const std::vector<int> order = CampaignMissionOrder(campaign);
+    const Color chapterColors[] = {
+        Color{30, 58, 138, 255}, Color{49, 46, 129, 255},
+        Color{88, 28, 135, 255}, Color{112, 26, 117, 255},
+        Color{120, 53, 15, 255}
+    };
+    const Vector2 mouse = GetMousePosition();
+    for (int i = 0; i < static_cast<int>(order.size()); ++i) {
+        const int levelNumber = order[i];
+        const LevelCatalogEntry* entry = FindLevel(levels, levelNumber);
+        if (!entry) continue;
+
+        const Rectangle rect = CampaignMissionCardRect(i, (int)order.size());
+        const bool unlocked = IsCampaignLevelUnlocked(campaign, progress, levelNumber);
+        const bool hovered = unlocked && CheckCollisionPointRec(mouse, rect);
+        const int chapterIndex = CampaignChapterIndex(campaign, levelNumber);
+        const Color base = chapterColors[std::clamp(chapterIndex, 0, 4)];
+        const Color bg = !unlocked ? Color{15, 23, 42, 255}
+                         : hovered ? Color{base.r, base.g, base.b, 255}
+                                   : Color{(unsigned char)(base.r * 0.68f),
+                                           (unsigned char)(base.g * 0.68f),
+                                           (unsigned char)(base.b * 0.68f), 255};
+        const Color border = unlocked ? Color{96, 165, 250, 255}
+                                      : Color{51, 65, 85, 255};
+        DrawRectangleRounded(rect, 0.12f, 4, bg);
+        DrawRectangleRoundedLinesEx(rect, 0.12f, 4, 1.25f, border);
+
+        char missionLabel[24];
+        std::snprintf(missionLabel, sizeof(missionLabel), "LVL %d   CH %d",
+                      levelNumber, chapterIndex + 1);
+        DrawTextEx(GFont(), missionLabel, {rect.x + 9.f, rect.y + 8.f},
+                   FS(9), Sp(FS(9)), unlocked ? Color{191, 219, 254, 255}
+                                              : Color{71, 85, 105, 255});
+
+        if (!unlocked) {
+            const float lockWidth = TW("LOCKED", 10);
+            DrawTextEx(GFont(), "LOCKED",
+                       {rect.x + (rect.width - lockWidth) * 0.5f, rect.y + 28.f},
+                       FS(10), Sp(FS(10)), Color{71, 85, 105, 255});
+            continue;
+        }
+
+        std::string title = entry->title;
+        if ((int)title.size() > 23) title = title.substr(0, 20) + "...";
+        DrawTextEx(GFont(), title.c_str(), {rect.x + 9.f, rect.y + 27.f},
+                   FS(10), Sp(FS(10)), Color{226, 232, 240, 255});
+
+        const int best = CampaignBestStars(progress, levelNumber);
+        for (int star = 0; star < 3; ++star) {
+            const float cx = rect.x + rect.width - 39.f + star * 12.f;
+            const float cy = rect.y + rect.height - 10.f;
+            if (star < best)
+                DrawCircle((int)cx, (int)cy, 3.5f, Color{234, 179, 8, 255});
+            else
+                DrawCircleLines((int)cx, (int)cy, 3.5f, Color{71, 85, 105, 255});
+        }
+    }
+
+    const Rectangle reset = CampaignResetBtnRect();
+    const bool resetHover = CheckCollisionPointRec(mouse, reset);
+    const Color resetBg = resetConfirmation ? Color{127, 29, 29, 255}
+                          : resetHover ? Color{69, 10, 10, 255}
+                                       : Color{30, 41, 59, 255};
+    DrawRectangleRounded(reset, 0.2f, 4, resetBg);
+    DrawRectangleRoundedLinesEx(reset, 0.2f, 4, 1.f,
+                                resetConfirmation ? Color{248, 113, 113, 255}
+                                                  : Color{71, 85, 105, 255});
+    const char* resetLabel = resetConfirmation ? "CONFIRM RESET" : "RESET PROGRESS";
+    const float resetWidth = TW(resetLabel, 9);
+    DrawTextEx(GFont(), resetLabel,
+               {reset.x + (reset.width - resetWidth) * 0.5f, reset.y + 7.f},
+               FS(9), Sp(FS(9)), resetConfirmation ? Color{254, 202, 202, 255}
+                                                    : Color{148, 163, 184, 255});
 }
 
 void DrawLevelHUD(int levelId, const std::string& title,

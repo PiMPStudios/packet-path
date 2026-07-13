@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "id": "build-your-own-isp",
+  "title": "Build Your Own ISP",
+  "subtitle": "Grow a neighborhood network into a resilient, traffic-engineered service provider.",
+  "chapters": [
+    {
+      "id": "first-customers",
+      "title": "Chapter 1: First Customers",
+      "description": "Bring the first LAN online, segment customers safely, and connect their gateways.",
+      "levels": [1, 2, 3, 4]
+    },
+    {
+      "id": "regional-backbone",
+      "title": "Chapter 2: Regional Backbone",
+      "description": "Replace hand-built paths with OSPF and BGP as the network expands across regions.",
+      "levels": [5, 6, 7, 8, 9]
+    },
+    {
+      "id": "managed-services",
+      "title": "Chapter 3: Managed Services",
+      "description": "Protect customers, translate edge traffic, and carry tenant networks across the fabric.",
+      "levels": [10, 11, 12]
+    },
+    {
+      "id": "provider-core",
+      "title": "Chapter 4: Provider Core",
+      "description": "Build the labeled core, survive failures, reserve capacity, and steer exact paths.",
+      "levels": [13, 14, 15, 16, 17, 18, 19]
+    },
+    {
+      "id": "network-operations",
+      "title": "Chapter 5: Network Operations",
+      "description": "Operate application-aware WAN paths and restore every service during a compound outage.",
+      "levels": [20, 21]
+    }
+  ]
+}

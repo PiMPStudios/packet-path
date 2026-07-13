@@ -1,4 +1,5 @@
 #pragma once
+#include "Campaign.h"
 #include "Level.h"
 #include "LevelCatalog.h"
 #include "raylib.h"
@@ -8,6 +9,7 @@
 
 enum GameMode    { GAME_SANDBOX, GAME_PLAYING, GAME_WIN, GAME_LEVEL_SELECT };
 enum FileOpState { FILEOP_NONE, FILEOP_SAVING, FILEOP_LOADING };
+enum LevelSelectView { LEVEL_SELECT_CAMPAIGN, LEVEL_SELECT_FREEPLAY };
 
 Rectangle WinOverlayRect();
 Rectangle WinRetryBtnRect();
@@ -41,10 +43,22 @@ Rectangle LevelHudMenuBtnRect();     // {252,8,52,22}
 Rectangle LevelHudSandboxBtnRect();  // {308,8,72,22}
 
 // ── Level-select overlay ──────────────────────────────────────────────────
-// Full-screen overlay populated from discovered level metadata.
-void DrawLevelSelectScreen(const std::vector<LevelCatalogEntry>& levels);
+// Full-screen freeplay overlay populated from discovered level metadata.
+void DrawLevelSelectScreen(const std::vector<LevelCatalogEntry>& levels,
+                           bool campaignAvailable);
 Rectangle LevelSelectCardRect(int i, int levelCount);
 Rectangle LevelSelectSandboxBtnRect(int levelCount);
+Rectangle LevelSelectCampaignTabRect();
+Rectangle LevelSelectFreeplayTabRect();
+
+// Persistent, linearly unlocked campaign presentation over the level catalog.
+void DrawCampaignScreen(const CampaignDefinition& campaign,
+                        const CampaignProgress& progress,
+                        const std::vector<LevelCatalogEntry>& levels,
+                        bool resetConfirmation);
+Rectangle CampaignContinueBtnRect();
+Rectangle CampaignMissionCardRect(int i, int missionCount);
+Rectangle CampaignResetBtnRect();
 
 // ── Replay controls HUD ───────────────────────────────────────────────────
 // Shown at y=58 when SIM_ANIMATING. PAUSED badge + four speed buttons.

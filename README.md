@@ -58,6 +58,8 @@ Level 20 introduces application-aware WAN selection. A nominal primary path viol
 
 Level 21 is the troubleshooting capstone. Three independent faults affect the upper core, lower backup path, and branch access; the player must isolate and clear every fault, wait for OSPF reconvergence, and prove bidirectional recovery for both HQ and branch services.
 
+Campaign mode connects all 21 scenarios into **Build Your Own ISP**, a five-chapter progression from first-customer LANs through backbone routing, managed services, provider-core engineering, and production operations. Completion unlocks the next mission, saves the best star rating per level, and resumes at the first incomplete mission; Freeplay and Sandbox remain unrestricted.
+
 ---
 
 ## Features
@@ -89,6 +91,7 @@ Level 21 is the troubleshooting capstone. Three independent faults affect the up
 - Packet trace modal: step-by-step hop decisions with MPLS, SRH, ACL, and NAT annotations
 - Log console with mouse-wheel scroll and auto-height
 - Star rating (1–3) based on solution efficiency
+- Persistent Build Your Own ISP campaign with chapter progression, mission locks, best-star replay, and Continue
 - Slow-motion replay
 - Save/load topology
 - Sandbox mode (free play, no objectives)
@@ -224,7 +227,7 @@ The core engine, 21 levels, and all UI features listed above are implemented and
 - [x] Level 19: SRv6 segment-list steering
 - [x] Level 20: SD-WAN dual-WAN SLA policy
 - [x] Level 21: Complex multi-failure troubleshooting
-- [ ] Campaign mode — "Build your own ISP" narrative arc
+- [x] Campaign mode — "Build your own ISP" narrative arc with persistent unlocks and best-star progress
 
 ### Platform
 

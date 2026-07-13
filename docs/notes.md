@@ -2,7 +2,7 @@
 
 Updated: 2026-07-13
 
-The original six-phase MVP plan is complete. Packet Path currently ships 21 JSON-driven scenarios covering IP forwarding, VLANs, OSPF, BGP, ACL/NAT, VXLAN/EVPN, MPLS/LDP, RSVP-TE, SR-MPLS, SRv6, SD-WAN, and failure troubleshooting. The level selector discovers validated `level_*.json` files, so later scenarios require no code catalog update.
+The original six-phase MVP plan is complete. Packet Path currently ships 21 JSON-driven scenarios covering IP forwarding, VLANs, OSPF, BGP, ACL/NAT, VXLAN/EVPN, MPLS/LDP, RSVP-TE, SR-MPLS, SRv6, SD-WAN, and failure troubleshooting. The Build Your Own ISP campaign groups them into five persistent chapters, while the level selector still discovers validated `level_*.json` files for unrestricted Freeplay.
 
 ## Current protocol status
 
@@ -21,13 +21,13 @@ The original six-phase MVP plan is complete. Packet Path currently ships 21 JSON
 
 ## Engineering status
 
-- The automated simulator suite covers IP parsing/LPM, packet forwarding, VLANs, OSPF/BGP failure behavior, LDP, RSVP, SR-MPLS, SRv6, SD-WAN, complete multi-failure recovery, scene validation, save/load round trips, dynamic level discovery, and audio fallback.
+- The automated simulator suite covers IP parsing/LPM, packet forwarding, VLANs, OSPF/BGP failure behavior, LDP, RSVP, SR-MPLS, SRv6, SD-WAN, complete multi-failure recovery, campaign unlock/persistence behavior, scene validation, save/load round trips, dynamic level discovery, and audio fallback.
 - CMake builds, tests, installs resources, and creates ZIP packages. GitHub Actions is configured for macOS, Ubuntu, and Windows.
 - `main.cpp` has dedicated units for level discovery, scene serialization, RSVP replay, and TE/SR panel input. TE/SR world overlays have moved out of `NetworkCanvas.cpp`.
 - Audio is optional: a missing device disables sound calls without stopping the simulator.
 
 ## Next product work
 
-1. Playtest Levels 17–21 for briefing clarity, panel-input pacing, and troubleshooting difficulty.
-2. Decide whether Level 22 should introduce IS-IS or begin the campaign-mode narrative arc.
+1. Playtest the full campaign for chapter pacing, briefing clarity, and reset/continue discoverability.
+2. Decide whether Level 22 should introduce IS-IS or deepen the campaign with chapter-specific narrative events.
 3. Continue extracting generic input and remaining protocol panel rendering from `main.cpp` and `NetworkCanvas.cpp`.

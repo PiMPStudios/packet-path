@@ -1,5 +1,19 @@
 # Packet Path Decision Log
 
+## 2026-07-13 — Build Your Own ISP campaign contract
+
+- **What we chose:** Campaign structure is a validated `levels/campaign.json` manifest that references the discovered level catalog, rather than hard-coded ranges in C++ or duplicated campaign fields in every level file.
+- **Why:** Curriculum order and chapter framing are content decisions; keeping them data-driven lets later levels enter Freeplay before the campaign is revised and keeps the UI independent of a fixed level count.
+- **Trade-offs:** The first campaign is linear. Branching missions, prerequisites beyond the previous mission, and alternate campaigns require a future schema revision.
+
+- **What we chose:** Campaign progress stores the best one-to-three-star result per mission in a versioned, per-user JSON file; only campaign-launched completions update it, while Freeplay and Sandbox remain unrestricted.
+- **Why:** Unlocks and a reliable Continue target create progression without introducing an economy or changing the simulator's technical objectives. Best-score persistence makes replay rewarding without punishing experimentation.
+- **Trade-offs:** The first slice has one local profile with no Steam Cloud, achievements, currency, skill tree, or cross-device synchronization.
+
+- **What we chose:** The level selector exposes separate Campaign and Freeplay views. Campaign shows chapter-coded mission cards, locks, saved stars, overall progress, Continue, and a two-click progress reset.
+- **Why:** Players need a legible journey and an obvious next action, while experienced users still need immediate access to any scenario.
+- **Trade-offs:** Narrative is delivered through chapter framing and existing mission briefings rather than new cutscene, dialogue, or character systems.
+
 ## 2026-07-13 — Level 21 multi-failure troubleshooting contract
 
 - **What we chose:** Level objectives may opt into `requiresAllFaultsCleared`, which blocks completion while any device remains crashed or any link remains broken; older reachability-only failure levels retain their existing behavior.

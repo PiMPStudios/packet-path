@@ -1,5 +1,6 @@
 #include "Cable.h"
 #include "BgpEngine.h"
+#include "Campaign.h"
 #include "LdpEngine.h"
 #include "Level.h"
 #include "LevelCatalog.h"
@@ -1015,6 +1016,64 @@ void TestLevel21RequiresCompleteMultiFailureRecovery() {
            "Every Level 21 objective should pass only after complete recovery");
 }
 
+void TestCampaignUnlocksAndPersistsBestStars() {
+    const auto catalog = DiscoverLevels("levels");
+    CampaignDefinition campaign;
+    Expect(LoadCampaignDefinition("levels/campaign.json", catalog, campaign),
+           "The bundled campaign manifest should load against discovered levels");
+    Expect(CampaignMissionCount(campaign) == 21,
+           "The ISP campaign should contain all 21 current missions");
+
+    CampaignProgress progress;
+    Expect(FindCampaignContinueLevel(campaign, progress) == 1,
+           "A new campaign should begin with Level 1");
+    Expect(IsCampaignLevelUnlocked(campaign, progress, 1) &&
+               !IsCampaignLevelUnlocked(campaign, progress, 2),
+           "Only the first mission should be unlocked for a new profile");
+    Expect(!RecordCampaignCompletion(campaign, progress, 999, 3),
+           "Freeplay levels outside the campaign must not alter campaign progress");
+
+    Expect(RecordCampaignCompletion(campaign, progress, 1, 2),
+           "Completing the first mission should record its star rating");
+    Expect(IsCampaignLevelUnlocked(campaign, progress, 2) &&
+               FindCampaignContinueLevel(campaign, progress) == 2,
+           "Completing a mission should unlock and continue to the next mission");
+    Expect(RecordCampaignCompletion(campaign, progress, 1, 3) &&
+               !RecordCampaignCompletion(campaign, progress, 1, 1),
+           "Campaign replay should improve but never reduce the best star rating");
+    Expect(CampaignCompletedCount(campaign, progress) == 1 &&
+               CampaignTotalStars(campaign, progress) == 3,
+           "Campaign summary values should reflect best recorded results");
+    Expect(CampaignChapterIndex(campaign, 13) == 3 &&
+               FindCampaignChapter(campaign, 13)->id == "provider-core",
+           "Campaign missions should resolve to their data-driven chapters");
+
+    const std::string path = TempPath("packet-path-campaign-progress.json");
+    std::filesystem::remove(path);
+    Expect(SaveCampaignProgress(path, progress),
+           "Campaign progress should save to a caller-selected profile path");
+    CampaignProgress loaded;
+    Expect(LoadCampaignProgress(path, loaded) &&
+               CampaignBestStars(loaded, 1) == 3,
+           "Campaign progress should preserve best stars across a save/load round trip");
+
+    {
+        std::ofstream corrupt(path, std::ios::trunc);
+        corrupt << R"({"version":1,"bestStars":{"1":99}})";
+    }
+    Expect(!LoadCampaignProgress(path, loaded) &&
+               CampaignBestStars(loaded, 1) == 3,
+           "Invalid progress must be rejected without replacing the active profile");
+    std::filesystem::remove(path);
+
+    for (const int levelNumber : CampaignMissionOrder(campaign))
+        RecordCampaignCompletion(campaign, progress, levelNumber, 1);
+    Expect(CampaignCompletedCount(campaign, progress) == 21 &&
+               FindCampaignContinueLevel(campaign, progress) == 0 &&
+               FindNextCampaignLevel(campaign, 21) == 0,
+           "A completed campaign should have no Continue or next mission target");
+}
+
 void TestLevelCatalogDiscoversMetadataWithoutFixedLimit() {
     const std::filesystem::path directory =
         std::filesystem::temp_directory_path() / "packet-path-level-catalog";
@@ -1083,6 +1142,7 @@ int main() {
         {"Level 19 SRv6 solution", TestLevel19RequiresSrv6SegmentSteering},
         {"Level 20 SD-WAN solution", TestLevel20RequiresSlaBasedBackupPath},
         {"Level 21 multi-failure recovery", TestLevel21RequiresCompleteMultiFailureRecovery},
+        {"Campaign progression round-trip", TestCampaignUnlocksAndPersistsBestStars},
         {"Dynamic level catalog", TestLevelCatalogDiscoversMetadataWithoutFixedLimit},
         {"Audio fallback", TestAudioCallsAreSafeWithoutADevice},
     };

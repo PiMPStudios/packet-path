@@ -88,7 +88,7 @@
 
 - Sandbox mode with no restrictions
 - Failure injection (random link cuts, device crashes)
-- "Build your own ISP" campaign mode
+- "Build your own ISP" campaign mode — implemented as five persistent chapters across Levels 1–21
 
 ## Project Structure (C++ + raylib)
 

@@ -33,6 +33,7 @@ set(PACKET_PATH_SOURCES
     src/AclEngine.cpp
     src/BgpEngine.cpp
     src/Cable.cpp
+    src/Campaign.cpp
     src/ConfigPanel.cpp
     src/Device.cpp
     src/EvpnEngine.cpp
