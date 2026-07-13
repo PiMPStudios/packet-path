@@ -84,6 +84,18 @@ struct SrPolicy {
     std::string      statusMsg;     // "Active" / "Segment N unreachable" / "No SID for X"
 };
 
+struct Srv6Policy {
+    int         id = 0;                 // 1-255, unique per router
+    std::string destIp;                 // encapsulated IPv4 payload destination
+    std::vector<std::string> segmentSids;  // policy order, first SID processed first
+
+    // Computed by UpdateSrv6; never serialized as configuration.
+    std::vector<int> segmentHops;
+    bool             isActive = false;
+    std::vector<int> activePath;
+    std::string      statusMsg;
+};
+
 // ── BGP types ─────────────────────────────────────────────────────────────
 struct BgpNeighbor {
     std::string neighborIp;        // peer's port IP on shared cable (no mask)
@@ -187,6 +199,10 @@ struct HopDecision {
     int tunnelId = 0;   // non-zero = this hop is inside a named TE tunnel
     int policyId     = 0;   // non-zero = this hop is inside a named SR policy
     int segmentIndex = 0;   // which segment of the policy this hop belongs to (0-based)
+    int         srv6PolicyId    = 0;  // non-zero = SRv6 policy encapsulation is active
+    int         srv6SegmentIndex = -1;
+    int         srv6SegmentsLeft = -1;
+    std::string srv6ActiveSid;
 };
 
 struct ForwardResult {
@@ -270,6 +286,10 @@ struct DeviceNode {
     std::unordered_map<uint32_t, SrLfibEntry> srFib;      // key = inLabel
     std::vector<SrPolicy>                     srPolicies;
     std::unordered_map<int, uint32_t>         adjSids;    // key = port index; value = adj SID label
+    // SRv6 (routers only). The IPv4 underlay carries an IPv6/SRH encapsulated payload.
+    bool                    srv6Enabled = false;
+    std::string             srv6Sid;
+    std::vector<Srv6Policy> srv6Policies;
 };
 
 // ── Device geometry helpers (no draw calls) ───────────────────────────────

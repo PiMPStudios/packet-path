@@ -23,3 +23,7 @@ void UpdateSegmentRoutingPanelInput(int selectedId,
                                     std::vector<DeviceNode>& nodes,
                                     const std::vector<Cable>& cables,
                                     PanelState& panel);
+void HandleSrv6PanelClick(Vector2 mouse, int selectedId,
+                          std::vector<DeviceNode>& nodes, PanelState& panel);
+void UpdateSrv6PanelInput(int selectedId, std::vector<DeviceNode>& nodes,
+                          PanelState& panel);

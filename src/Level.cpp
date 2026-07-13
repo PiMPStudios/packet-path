@@ -90,6 +90,38 @@ bool MeetsSrRequirement(const WinCondition& condition,
     return false;
 }
 
+bool MeetsSrv6Requirement(const WinCondition& condition,
+                          const ForwardResult& result,
+                          const std::vector<DeviceNode>& nodes) {
+    if (condition.requiresSrv6PolicyOnDevice.empty()) return true;
+    const DeviceNode* head = FindNodeByLabel(nodes, condition.requiresSrv6PolicyOnDevice);
+    if (!head) return false;
+
+    int requiredViaId = -1;
+    if (!condition.requiresSrv6PathVia.empty()) {
+        const DeviceNode* via = FindNodeByLabel(nodes, condition.requiresSrv6PathVia);
+        if (!via) return false;
+        requiredViaId = via->id;
+    }
+
+    for (const auto& policy : head->srv6Policies) {
+        if (!policy.isActive ||
+            (condition.requiresSrv6PolicyId != 0 &&
+             policy.id != condition.requiresSrv6PolicyId) ||
+            (!condition.requiresSrv6Segments.empty() &&
+             policy.segmentSids != condition.requiresSrv6Segments)) continue;
+        if (requiredViaId >= 0 &&
+            std::find(policy.activePath.begin(), policy.activePath.end(), requiredViaId) ==
+                policy.activePath.end()) continue;
+        const bool used = std::any_of(result.hops.begin(), result.hops.end(),
+            [&](const HopDecision& hop) {
+                return hop.nodeId == head->id && hop.srv6PolicyId == policy.id;
+            });
+        if (used) return true;
+    }
+    return false;
+}
+
 }  // namespace
 
 void ApplyLevel(const LevelDef& def,
@@ -123,6 +155,7 @@ int CheckWinConditions(const LevelDef& def,
         if (fr.success) {
             if (!MeetsTeRequirement(wc, fr, nodes)) continue;
             if (!MeetsSrRequirement(wc, fr, nodes)) continue;
+            if (!MeetsSrv6Requirement(wc, fr, nodes)) continue;
             if (!wc.requiresNatOnDevice.empty()) {
                 bool natOk = false;
                 for (const auto& nd : nodes)

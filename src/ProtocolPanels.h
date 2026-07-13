@@ -5,3 +5,4 @@
 
 void DrawTeTab(const DeviceNode* node, const PanelState& panel);
 void DrawSrTab(const DeviceNode* node, const PanelState& panel);
+void DrawSrv6Tab(const DeviceNode* node, const PanelState& panel);

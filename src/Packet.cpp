@@ -72,16 +72,22 @@ void UpdatePacketAnim(PacketAnim& anim, float dt,
             anim.currentLabel = (raw == MPLS_IMPLICIT_NULL) ? 0 : raw;
             anim.currentVlan  = anim.result.hops[anim.hop].vlanTag;
             anim.currentVni   = anim.result.hops[anim.hop].vxlanVni;
+            anim.currentSrv6Sid = anim.result.hops[anim.hop].srv6ActiveSid;
+            anim.currentSrv6SegmentsLeft = anim.result.hops[anim.hop].srv6SegmentsLeft;
         } else {
             anim.currentLabel = 0;
             anim.currentVlan  = 0;
             anim.currentVni   = 0;
+            anim.currentSrv6Sid.clear();
+            anim.currentSrv6SegmentsLeft = -1;
         }
         if (anim.hop >= (int)path.size() - 1) {
             anim.done = true;
             anim.currentLabel = 0;
             anim.currentVlan  = 0;
             anim.currentVni   = 0;
+            anim.currentSrv6Sid.clear();
+            anim.currentSrv6SegmentsLeft = -1;
             if (anim.result.success) anim.successPulse = 0.5f;
             else                     anim.failPulse    = 0.5f;
         }
@@ -104,16 +110,22 @@ void StepForwardAnim(PacketAnim& anim) {
         anim.currentLabel = (raw == MPLS_IMPLICIT_NULL) ? 0 : raw;
         anim.currentVlan  = anim.result.hops[anim.hop].vlanTag;
         anim.currentVni   = anim.result.hops[anim.hop].vxlanVni;
+        anim.currentSrv6Sid = anim.result.hops[anim.hop].srv6ActiveSid;
+        anim.currentSrv6SegmentsLeft = anim.result.hops[anim.hop].srv6SegmentsLeft;
     } else {
         anim.currentLabel = 0;
         anim.currentVlan  = 0;
         anim.currentVni   = 0;
+        anim.currentSrv6Sid.clear();
+        anim.currentSrv6SegmentsLeft = -1;
     }
     if (anim.hop >= (int)path.size() - 1) {
         anim.done         = true;
         anim.currentLabel = 0;
         anim.currentVlan  = 0;
         anim.currentVni   = 0;
+        anim.currentSrv6Sid.clear();
+        anim.currentSrv6SegmentsLeft = -1;
         if (anim.result.success) anim.successPulse = 0.5f;
         else                     anim.failPulse    = 0.5f;
     }

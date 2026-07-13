@@ -53,6 +53,7 @@ set(PACKET_PATH_SOURCES
     src/SimulationEngine.cpp
     src/SoundEngine.cpp
     src/SrEngine.cpp
+    src/Srv6Engine.cpp
     src/TraceModal.cpp
     src/UI.cpp)
 

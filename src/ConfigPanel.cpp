@@ -192,7 +192,7 @@ static const TabInfo kSwTabs[] = {
     {TAB_VLAN,   "VLAN", Color{245,158,11,255}, Color{245,158,11,255}},
     {TAB_ACL,    "ACL",  Color{59,130,246,255}, Color{239,68,68,255}},
 };
-// Router: 12 tabs (VLAN omitted — routers use Sub-ifaces for inter-VLAN)
+// Router: VLAN omitted — routers use Sub-ifaces for inter-VLAN.
 static const TabInfo kRtTabs[] = {
     {TAB_CONFIG, "Cfg",  Color{59,130,246,255}, WHITE},
     {TAB_ROUTES, "Rte",  Color{59,130,246,255}, WHITE},
@@ -206,12 +206,13 @@ static const TabInfo kRtTabs[] = {
     {TAB_NAT,    "NAT",  Color{59,130,246,255}, Color{234,179,8,255}},
     {TAB_TE,     "TE",   Color{251,191,36,255}, Color{251,191,36,255}},
     {TAB_SR,     "SR",   Color{59,130,246,255}, Color{59,130,246,255}},
+    {TAB_SRV6,   "V6",   Color{217,70,239,255}, Color{217,70,239,255}},
 };
 
 int PnlTabCount(DeviceType t) {
     if (t == PC)     return 3;
     if (t == SWITCH) return 3;
-    return 12;
+    return 13;
 }
 float PnlTabWFor(DeviceType t) {
     int n = PnlTabCount(t);
@@ -278,4 +279,24 @@ Rectangle PnlSrPolicyRowRect(int idx) {
 Rectangle PnlSrAddBtnRect(int count) {
     float y = SrListBaseY() + (float)count * SrRowH() + 4.0f;
     return {(float)(CANVAS_W() + 12), y, (float)(PANEL_W - 24), 26.0f};
+}
+
+// ── SRv6 tab helpers and rects ───────────────────────────────────────────
+float Srv6ListBaseY() { return 216.0f; }
+float Srv6RowH()      { return 28.0f; }
+float Srv6FormH()     { return 116.0f; }
+Rectangle PnlSrv6ToggleRect() {
+    return {(float)(CANVAS_W() + 12), 120.0f, (float)(PANEL_W - 24), 26.0f};
+}
+Rectangle PnlSrv6SidRect() {
+    return {(float)(CANVAS_W() + 72), 154.0f, (float)(PANEL_W - 84), 22.0f};
+}
+Rectangle PnlSrv6PolicyRowRect(int idx) {
+    return {(float)(CANVAS_W() + 12), Srv6ListBaseY() + idx * Srv6RowH(),
+            (float)(PANEL_W - 24), Srv6RowH() - 2.0f};
+}
+Rectangle PnlSrv6AddBtnRect(int count) {
+    return {(float)(CANVAS_W() + 12),
+            Srv6ListBaseY() + count * Srv6RowH() + 4.0f,
+            (float)(PANEL_W - 24), 26.0f};
 }

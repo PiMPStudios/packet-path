@@ -1,5 +1,15 @@
 # Packet Path Decision Log
 
+## 2026-07-12 — Level 19 SRv6 teaching contract
+
+- **What we chose:** The first SRv6 slice encapsulates the simulator's existing IPv4 payload over an IPv4/OSPF underlay, maps configured 128-bit IPv6 SIDs to SRv6-enabled routers, and exposes the active SID and SRH Segments Left at each steered hop.
+- **Why:** This isolates the SRv6 data-plane concept from a simultaneous native-IPv6 routing lesson while still making the configured segment list control real packet forwarding.
+- **Trade-offs:** Native IPv6 forwarding, OSPFv3, SRv6 endpoint behaviors such as End.DX4, TLVs, HMAC, and reduced SRH are deferred.
+
+- **What we chose:** Level 19 reuses Level 18's short upper path and longer lower path, with preconfigured unique router SIDs and a player-created three-SID policy through RTR-2, RTR-4, and RTR-5.
+- **Why:** Reusing the topology makes the contrast explicit: SR-MPLS steers with a label stack, while SRv6 steers with an IPv6 destination and SRH state.
+- **Trade-offs:** The objective requires the exact human-readable SID order even though RFC 8754 encodes the Segment List in reverse order on the wire.
+
 ## 2026-07-12 — Level 18 SR-MPLS teaching contract
 
 - **What we chose:** SR-aware win conditions require an active policy on a named head-end, an optional policy ID, an exact ordered segment list, a required path waypoint, and proof that forwarding used the policy.

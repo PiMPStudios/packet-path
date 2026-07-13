@@ -135,3 +135,48 @@ void DrawSrPolicyOverlays(const std::vector<DeviceNode>& nodes,
         }
     }
 }
+
+void DrawSrv6PolicyOverlays(const std::vector<DeviceNode>& nodes,
+                            const std::vector<Cable>& cables) {
+    const Color color = {217, 70, 239, 210};
+    for (const auto& node : nodes) {
+        if (!node.srv6Enabled) continue;
+        for (const auto& policy : node.srv6Policies) {
+            if (!policy.isActive || policy.activePath.size() < 2) continue;
+            for (std::size_t hop = 0; hop + 1 < policy.activePath.size(); ++hop) {
+                const int fromId = policy.activePath[hop];
+                const int toId = policy.activePath[hop + 1];
+                const DeviceNode* from = FindNode(nodes, fromId);
+                const DeviceNode* to = FindNode(nodes, toId);
+                const Cable* cable = FindCable(cables, fromId, toId);
+                if (!from || !to || !cable) continue;
+                const int fromPort = cable->fromId == fromId ? cable->fromPort : cable->toPort;
+                const int toPort = cable->fromId == toId ? cable->fromPort : cable->toPort;
+                const Vector2 start = GetPortPosition(*from, fromPort);
+                const Vector2 end = GetPortPosition(*to, toPort);
+                const Vector2 control1 = BezierCtrl(start, fromPort);
+                const Vector2 control2 = BezierCtrl(end, toPort);
+                for (int part = 1; part < 24; part += 3) {
+                    const Vector2 a = EvaluateCubicBezier(start, control1, control2, end,
+                                                          part / 24.f);
+                    const Vector2 b = EvaluateCubicBezier(start, control1, control2, end,
+                                                          (part + 1) / 24.f);
+                    DrawLineEx(a, b, 4.f, color);
+                }
+            }
+            const DeviceNode* head = FindNode(nodes, policy.activePath.front());
+            if (!head) continue;
+            char badge[64];
+            std::snprintf(badge, sizeof(badge), "SRv6 Policy-%d  SRH:%zu",
+                          policy.id, policy.segmentSids.size());
+            const float width = TW(badge, 10) + 10.f;
+            const Rectangle box = {head->position.x - width * 0.5f,
+                                   head->position.y + NODE_H * 0.5f + 10.f,
+                                   width, 18.f};
+            DrawRectangleRounded(box, 0.4f, 4, Color{15,23,42,230});
+            DrawRectangleRoundedLinesEx(box, 0.4f, 4, 1.5f, color);
+            DrawTextEx(GFont(), badge, {box.x + 5.f, box.y + 4.f},
+                       FS(10), Sp(FS(10)), color);
+        }
+    }
+}

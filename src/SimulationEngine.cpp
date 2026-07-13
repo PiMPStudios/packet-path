@@ -342,6 +342,12 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
     std::vector<uint32_t> srLabelStack;   // SR label stack (innermost first, outermost at back())
     int  srSegmentIdx = 0;
     int  srPolicyId   = 0;
+    int  srv6PolicyId = 0;
+    int  srv6SegmentIdx = 0;
+    std::size_t srv6PathIndex = 0;
+    std::vector<std::string> srv6SegmentSids;
+    std::vector<int> srv6SegmentHops;
+    std::vector<int> srv6Path;
 
     for (int i = 0; i < MAX_HOPS; ++i) {
         const DeviceNode* cur = FindNode(nodes, currentId);
@@ -361,6 +367,103 @@ ForwardResult SimulateForward(int srcId, const std::string& destIp,
             }
         }
         // ── end ACL inbound ────────────────────────────────────────────────
+
+        // ── SRv6 policy encapsulation / SRH steering ─────────────────────
+        if (srv6PolicyId == 0 && cur->srv6Enabled) {
+            for (const auto& policy : cur->srv6Policies) {
+                if (!policy.isActive || policy.destIp != destIp ||
+                    policy.activePath.size() < 2) continue;
+                srv6PolicyId    = policy.id;
+                srv6SegmentSids = policy.segmentSids;
+                srv6SegmentHops = policy.segmentHops;
+                srv6Path        = policy.activePath;
+                srv6PathIndex   = 0;
+                srv6SegmentIdx  = 0;
+                break;
+            }
+        }
+
+        if (srv6PolicyId != 0 && srv6PathIndex + 1 < srv6Path.size()) {
+            while (srv6SegmentIdx < static_cast<int>(srv6SegmentHops.size()) &&
+                   currentId == srv6SegmentHops[srv6SegmentIdx]) {
+                ++srv6SegmentIdx;
+            }
+            if (srv6SegmentIdx >= static_cast<int>(srv6SegmentSids.size())) {
+                result.reason = "SRv6 policy ended before its path";
+                return result;
+            }
+
+            const int nextId = srv6Path[srv6PathIndex + 1];
+            const auto l2Path = FindL2Path(currentId, nextId, nodes, cables);
+            if (l2Path.size() < 2) {
+                result.reason = "SRv6 underlay path unavailable";
+                return result;
+            }
+            if (visited.count(nextId)) {
+                result.reason = "loop detected";
+                return result;
+            }
+
+            const Cable* firstCable = FindCableL2(cables, l2Path[0], l2Path[1]);
+            HopDecision hop;
+            hop.nodeId          = currentId;
+            hop.nodeLabel       = cur->label;
+            hop.routeType       = "SRv6";
+            hop.destPrefix      = destIp + "/32";
+            const DeviceNode* nextNode = FindNode(nodes, nextId);
+            hop.nextHopIp       = nextNode ? nextNode->label : "SRv6 next-hop";
+            hop.outPort         = firstCable
+                ? (firstCable->fromId == currentId ? firstCable->fromPort : firstCable->toPort)
+                : -1;
+            hop.srv6PolicyId     = srv6PolicyId;
+            hop.srv6SegmentIndex = srv6SegmentIdx;
+            hop.srv6SegmentsLeft = static_cast<int>(srv6SegmentSids.size()) -
+                                   srv6SegmentIdx - 1;
+            hop.srv6ActiveSid    = srv6SegmentSids[srv6SegmentIdx];
+
+            if (!cur->aclRules.empty() && cur->aclOutPort == hop.outPort) {
+                const AclRule* rule = MatchAcl(cur->aclRules, srcIp, destIp, dstPort);
+                if (!rule || rule->action == ACL_DENY) {
+                    const std::string why = rule
+                        ? "ACL seq " + std::to_string(rule->seq) + " deny"
+                        : "ACL implicit deny";
+                    result.reason = why + ": " + srcIp + " \xe2\x86\x92 " + destIp;
+                    return result;
+                }
+                hop.aclResult = "PERMIT seq:" + std::to_string(rule->seq);
+            }
+            result.hops.push_back(hop);
+
+            for (std::size_t index = 1; index + 1 < l2Path.size(); ++index) {
+                const int switchId = l2Path[index];
+                const int switchNextId = l2Path[index + 1];
+                const DeviceNode* switchNode = FindNode(nodes, switchId);
+                const DeviceNode* switchNext = FindNode(nodes, switchNextId);
+                const Cable* cable = FindCableL2(cables, switchId, switchNextId);
+                HopDecision switchHop;
+                switchHop.nodeId = switchId;
+                switchHop.nodeLabel = switchNode ? switchNode->label : "";
+                switchHop.routeType = "SW";
+                switchHop.destPrefix = destIp + "/32";
+                switchHop.nextHopIp = switchNext ? switchNext->label : "";
+                if (cable) switchHop.outPort = cable->fromId == switchId
+                    ? cable->fromPort : cable->toPort;
+                result.hops.push_back(switchHop);
+                result.path.push_back(switchId);
+                visited.insert(switchId);
+            }
+
+            result.path.push_back(nextId);
+            visited.insert(nextId);
+            const Cable* ingress = FindCableL2(cables, l2Path[l2Path.size() - 2], nextId);
+            lastIngressPort = ingress
+                ? (ingress->fromId == nextId ? ingress->fromPort : ingress->toPort)
+                : -1;
+            currentId = nextId;
+            ++srv6PathIndex;
+            continue;
+        }
+        // ── end SRv6 steering ─────────────────────────────────────────────
 
         // Labeled transit is driven by the LFIB and must not require an IP
         // route to the payload destination on intermediate LSRs.

@@ -303,6 +303,21 @@ void DrawPacketAnim(const PacketAnim& anim,
         DrawTextEx(GFont(), vnibuf, {(float)(int)(bx + 5.f), (float)(int)(by + 3.f)}, FS(10), Sp(FS(10)), WHITE);
     }
 
+    if (!anim.currentSrv6Sid.empty()) {
+        std::string text = "SRH " + anim.currentSrv6Sid +
+                           " SL:" + std::to_string(anim.currentSrv6SegmentsLeft);
+        const int badgeWidth = static_cast<int>(TW(text.c_str(), 9)) + 10;
+        float badgeY = pos.y - 30.f;
+        if (anim.currentLabel != 0) badgeY -= 20.f;
+        if (anim.currentVlan != 0) badgeY -= 20.f;
+        if (anim.currentVni != 0) badgeY -= 20.f;
+        const float badgeX = pos.x - badgeWidth * 0.5f;
+        DrawRectangleRounded({badgeX, badgeY, static_cast<float>(badgeWidth), 16.f},
+                             0.5f, 4, Color{217,70,239,225});
+        DrawTextEx(GFont(), text.c_str(), {badgeX + 5.f, badgeY + 3.f},
+                   FS(9), Sp(FS(9)), WHITE);
+    }
+
     // Core dot color: use overrideColor if set (alpha != 0), else default green
     Color core  = (anim.overrideColor.a != 0) ? anim.overrideColor
                                                : Color{34, 197, 94, 255};
@@ -1351,6 +1366,7 @@ void DrawPanel(int selectedId, const std::vector<DeviceNode>& nodes,
     else if (ps.activeTab == TAB_NAT)  DrawNatTab(n, ps);
     else if (ps.activeTab == TAB_TE)   DrawTeTab(n, ps);
     else if (ps.activeTab == TAB_SR)   DrawSrTab(n, ps);
+    else if (ps.activeTab == TAB_SRV6) DrawSrv6Tab(n, ps);
 }
 
 // ── Context menu draw ────────────────────────────────────────────────────

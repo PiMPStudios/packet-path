@@ -184,6 +184,25 @@ bool LoadLevel(const std::string& path, LevelDef& out) {
                 n.srPolicies.push_back(std::move(policy));
             }
 
+            n.srv6Enabled = d.value("srv6Enabled", false);
+            n.srv6Sid = d.value("srv6Sid", std::string{});
+            const json srv6Policies = d.value("srv6Policies", json::array());
+            if (!srv6Policies.is_array()) return false;
+            std::unordered_set<int> srv6PolicyIds;
+            for (const auto& pj : srv6Policies) {
+                if (!pj.is_object()) return false;
+                Srv6Policy policy;
+                policy.id = pj.value("id", 0);
+                if (policy.id < 1 || policy.id > 255 ||
+                    !srv6PolicyIds.insert(policy.id).second) return false;
+                policy.destIp = pj.value("destIp", "");
+                const json segments = pj.value("segmentSids", json::array());
+                if (!segments.is_array()) return false;
+                for (const auto& segment : segments)
+                    policy.segmentSids.push_back(segment.get<std::string>());
+                n.srv6Policies.push_back(std::move(policy));
+            }
+
             maxId = std::max(maxId, n.id);
             parsed.devices.push_back(std::move(n));
         }
@@ -249,6 +268,16 @@ bool LoadLevel(const std::string& path, LevelDef& out) {
                 condition.requiresSrSegments.push_back(segment.get<std::string>());
             condition.requiresSrPathVia =
                 wc.value("requiresSrPathVia", std::string{});
+            condition.requiresSrv6PolicyOnDevice =
+                wc.value("requiresSrv6PolicyOnDevice", std::string{});
+            condition.requiresSrv6PolicyId = wc.value("requiresSrv6PolicyId", 0);
+            const json requiredSrv6Segments =
+                wc.value("requiresSrv6Segments", json::array());
+            if (!requiredSrv6Segments.is_array()) return false;
+            for (const auto& segment : requiredSrv6Segments)
+                condition.requiresSrv6Segments.push_back(segment.get<std::string>());
+            condition.requiresSrv6PathVia =
+                wc.value("requiresSrv6PathVia", std::string{});
             if (condition.requiresTeTunnelId < 0 ||
                 condition.requiresTeTunnelId > 255 ||
                 (!condition.requiresTeMode.empty() &&
@@ -269,6 +298,12 @@ bool LoadLevel(const std::string& path, LevelDef& out) {
                   !condition.requiresSrPathVia.empty()))) {
                 return false;
             }
+            if (condition.requiresSrv6PolicyId < 0 ||
+                condition.requiresSrv6PolicyId > 255 ||
+                (condition.requiresSrv6PolicyOnDevice.empty() &&
+                 (condition.requiresSrv6PolicyId != 0 ||
+                  !condition.requiresSrv6Segments.empty() ||
+                  !condition.requiresSrv6PathVia.empty()))) return false;
             parsed.winConditions.push_back(std::move(condition));
         }
 
@@ -395,6 +430,23 @@ bool SaveScene(const std::string& path,
                     policies.push_back(std::move(pj));
                 }
                 d["srPolicies"] = std::move(policies);
+            }
+        }
+
+        if (n.srv6Enabled || !n.srv6Sid.empty() || !n.srv6Policies.empty()) {
+            if (n.srv6Enabled) d["srv6Enabled"] = true;
+            if (!n.srv6Sid.empty()) d["srv6Sid"] = n.srv6Sid;
+            if (!n.srv6Policies.empty()) {
+                json policies = json::array();
+                for (const auto& policy : n.srv6Policies) {
+                    json pj;
+                    pj["id"] = policy.id;
+                    pj["destIp"] = policy.destIp;
+                    if (!policy.segmentSids.empty())
+                        pj["segmentSids"] = policy.segmentSids;
+                    policies.push_back(std::move(pj));
+                }
+                d["srv6Policies"] = std::move(policies);
             }
         }
 

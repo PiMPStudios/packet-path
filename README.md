@@ -44,10 +44,13 @@ It is not a toy model. The simulation engine runs real protocol behavior: OSPF S
 | 16 | VLAN Gateway Down | Failure isolation, partial connectivity |
 | 17 | Bandwidth Detour | RSVP-TE, OSPF-based CSPF, bandwidth reservations, PATH/RESV replay |
 | 18 | SID Steering | SR-MPLS, Node SIDs, adjacency SIDs, explicit link steering |
+| 19 | Segments Left | SRv6, IPv6 SIDs, Segment Routing Header, segment-list steering |
 
 Level 17 presents two OSPF paths to the same tail-end: a short 200 Mbps route and a longer 1 Gbps route. The player creates a 400 Mbps CSPF tunnel, watches RSVP PATH/RESV signaling, and verifies that labeled traffic follows the only bandwidth-feasible path.
 
 Level 18 contrasts SR segment types. A Node SID carries traffic to an OSPF-selected waypoint, an adjacency SID forces one exact egress interface, and a final Node SID completes the label-stack journey to the tail-end.
+
+Level 19 carries the existing IPv4 payload inside an SRv6 policy. The player enters an ordered IPv6 SID list, watches the active destination advance through the list, and sees the SRH Segments Left value count down while the packet avoids the ordinary OSPF path.
 
 ---
 
@@ -63,6 +66,7 @@ Level 18 contrasts SR segment types. A Node SID carries traffic to an OSPF-selec
 - MPLS/LDP: label distribution, push/swap/pop at each LSR
 - RSVP-TE: bandwidth reservations, CSPF/explicit paths, rerouting, and setup replay
 - SR-MPLS: Node and adjacency SIDs, label-stack steering, and duplicate-SID validation
+- SRv6: IPv6 SID validation, SRH segment-list steering, duplicate-SID detection, and Segments Left traces
 - 802.1Q: trunk/access ports, VLAN tag handling, frame forwarding
 - VXLAN + BGP EVPN: overlay encapsulation, MAC/IP route advertisement
 - ACL: ordered permit/deny rules applied per interface/direction
@@ -73,9 +77,9 @@ Level 18 contrasts SR segment types. A Node SID carries traffic to an OSPF-selec
 - Infinite pan/zoom canvas (Camera2D)
 - Drag-and-drop devices (PC, Router, Switch, PE)
 - Click-to-wire bezier cable connections
-- Side config panel: IP addresses, routing, OSPF, BGP, ACL, NAT, VLAN per device
+- Side config panel: IP addresses, routing, OSPF, BGP, ACL, NAT, VLAN, TE, SR-MPLS, and SRv6 per device
 - Floating, draggable mission briefing card (collapsible, auto-sizing)
-- Packet trace modal: step-by-step hop decisions with MPLS/ACL/NAT annotations
+- Packet trace modal: step-by-step hop decisions with MPLS, SRH, ACL, and NAT annotations
 - Log console with mouse-wheel scroll and auto-height
 - Star rating (1–3) based on solution efficiency
 - Slow-motion replay
@@ -188,7 +192,7 @@ The simulator is built against published RFCs. Key references in `docs/RFCs/`:
 
 ## Roadmap
 
-The core engine, 18 levels, and all UI features listed above are implemented and working on macOS. Active development continues.
+The core engine, 19 levels, and all UI features listed above are implemented and working on macOS. Active development continues.
 
 ### Protocol engine
 
@@ -201,16 +205,16 @@ The core engine, 18 levels, and all UI features listed above are implemented and
 - [x] ACLs and NAT
 - [x] RSVP-TE — OSPF-based CSPF, explicit paths, bandwidth reservations, and setup replay
 - [x] Segment Routing — SR-MPLS Node/adjacency SID allocation and label-stack steering
-- [ ] SRv6
+- [x] SRv6 — IPv4 payload encapsulation, IPv6 SID lists, SRH trace state, and policy steering
 - [ ] IS-IS — L1/L2, TLVs, SPF
 - [ ] SD-WAN — policy-based path selection, SLA thresholds
 
 ### Levels & content
 
-- [x] Levels 1–18 (beginner through advanced, see table above)
+- [x] Levels 1–19 (beginner through advanced, see table above)
 - [x] Level 17: RSVP-TE traffic engineering
 - [x] Level 18: Segment Routing SR-MPLS
-- [ ] Level 19: SRv6
+- [x] Level 19: SRv6 segment-list steering
 - [ ] Level 20: SD-WAN dual-WAN policy
 - [ ] Level 21: Complex multi-failure troubleshooting
 - [ ] Campaign mode — "Build your own ISP" narrative arc

@@ -5,7 +5,8 @@
 #include <vector>
 
 enum PanelTab { TAB_CONFIG, TAB_ROUTES, TAB_ARP, TAB_OSPF, TAB_MPLS, TAB_BGP,
-                TAB_VLAN, TAB_SUB, TAB_VXLAN, TAB_ACL, TAB_NAT, TAB_TE, TAB_SR };
+                TAB_VLAN, TAB_SUB, TAB_VXLAN, TAB_ACL, TAB_NAT, TAB_TE, TAB_SR,
+                TAB_SRV6 };
 
 struct TabInfo {
     PanelTab    tab;
@@ -69,6 +70,14 @@ struct PanelState {
     int         srActiveField    = -1;
     std::string srDestBuf;
     std::string srSegsBuf;
+
+    // SRv6 tab
+    bool        srv6SidEditing = false;
+    std::string srv6SidBuf;
+    int         srv6ExpandedIdx = -1;
+    int         srv6ActiveField = -1;
+    std::string srv6DestBuf;
+    std::string srv6SegsBuf;
 };
 
 // Layout rect helpers
@@ -138,6 +147,14 @@ Rectangle PnlSrToggleRect();
 Rectangle PnlSrNodeSidRect();
 Rectangle PnlSrPolicyRowRect(int idx);
 Rectangle PnlSrAddBtnRect(int count);
+// SRv6 tab
+float     Srv6ListBaseY();
+float     Srv6RowH();
+float     Srv6FormH();
+Rectangle PnlSrv6ToggleRect();
+Rectangle PnlSrv6SidRect();
+Rectangle PnlSrv6PolicyRowRect(int idx);
+Rectangle PnlSrv6AddBtnRect(int count);
 Rectangle PnlRouteDeleteRect(int rowIdx);
 Rectangle PnlRouteDestRect();
 Rectangle PnlRouteNextRect();

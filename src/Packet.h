@@ -18,6 +18,8 @@ struct PacketAnim {
     uint32_t currentLabel = 0;
     int      currentVlan  = 0;
     uint32_t currentVni   = 0;
+    std::string currentSrv6Sid;
+    int         currentSrv6SegmentsLeft = -1;
     bool     paused       = false;
     float    speedMult    = 1.f;
     Color    overrideColor = {0, 0, 0, 0};  // {0,0,0,0} = use default green

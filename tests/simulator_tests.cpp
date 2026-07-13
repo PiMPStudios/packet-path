@@ -9,6 +9,7 @@
 #include "SimulationEngine.h"
 #include "SoundEngine.h"
 #include "SrEngine.h"
+#include "Srv6Engine.h"
 
 #include <cstdio>
 #include <filesystem>
@@ -677,6 +678,14 @@ void TestSceneRoundTripsTeAndSrConfiguration() {
     policy.segmentIps = {"10.0.2.2", "10.0.9.9"};
     r1.srPolicies.push_back(policy);
 
+    r1.srv6Enabled = true;
+    r1.srv6Sid = "2001:db8:1::1";
+    Srv6Policy srv6Policy;
+    srv6Policy.id = 9;
+    srv6Policy.destIp = "198.51.100.2";
+    srv6Policy.segmentSids = {"2001:db8:2::1", "2001:db8:3::1"};
+    r1.srv6Policies.push_back(srv6Policy);
+
     const std::string path = TempPath("packet-path-roundtrip.json");
     Expect(SaveScene(path, {r1}, {}), "Scene save should succeed");
 
@@ -696,6 +705,10 @@ void TestSceneRoundTripsTeAndSrConfiguration() {
     Expect(restored.srPolicies.size() == 1 &&
                restored.srPolicies[0].segmentIps.size() == 2,
            "Round-trip should preserve SR policies");
+    Expect(restored.srv6Enabled && restored.srv6Sid == "2001:db8:1::1" &&
+               restored.srv6Policies.size() == 1 &&
+               restored.srv6Policies[0].segmentSids.size() == 2,
+           "Round-trip should preserve SRv6 SID and policy configuration");
 }
 
 void TestSceneRejectsInvalidCablePortsAndTypes() {
@@ -818,6 +831,75 @@ void TestLevel18RequiresNodeAndAdjacencySidSteering() {
            "The intended Node plus adjacency SID policy should complete Level 18");
 }
 
+void TestSrv6SidValidationAndDuplicateDetection() {
+    std::string keyA;
+    std::string keyB;
+    Expect(NormalizeIpv6Sid("2001:db8::1", keyA) &&
+               NormalizeIpv6Sid("2001:0db8:0:0:0:0:0:1", keyB) && keyA == keyB,
+           "Equivalent compressed and expanded IPv6 SIDs should normalize identically");
+    Expect(!NormalizeIpv6Sid("2001:db8:::1", keyA),
+           "Malformed IPv6 SIDs should be rejected");
+
+    auto r1 = MakeRouter(1, "R1");
+    auto r2 = MakeRouter(2, "R2");
+    r1.portIp[0] = "10.0.12.1/30";
+    r2.portIp[0] = "10.0.12.2/30";
+    r1.srv6Enabled = r2.srv6Enabled = true;
+    r1.srv6Sid = "2001:db8::1";
+    r2.srv6Sid = "2001:0db8:0:0:0:0:0:1";
+    Srv6Policy policy;
+    policy.id = 1;
+    policy.destIp = "10.0.12.2";
+    policy.segmentSids = {r2.srv6Sid};
+    r1.srv6Policies.push_back(policy);
+    std::vector<DeviceNode> nodes = {r1, r2};
+    UpdateSrv6(nodes, {Link(1, 0, 2, 0)});
+    Expect(!nodes[0].srv6Policies[0].isActive &&
+               nodes[0].srv6Policies[0].statusMsg == "Duplicate SRv6 SID",
+           "Equivalent duplicate SRv6 SIDs must make the policy inactive");
+}
+
+void TestLevel19RequiresSrv6SegmentSteering() {
+    LevelDef level;
+    Expect(LoadLevel("levels/level_19.json", level),
+           "Level 19 should load through the production scene parser");
+    std::vector<DeviceNode> nodes = level.devices;
+    const std::vector<Cable> cables = level.cables;
+    ConvergeOspf(nodes, cables);
+    UpdateSrv6(nodes, cables);
+
+    const ForwardResult baseline =
+        SimulateForward(1, "10.0.35.2", nodes, cables, "10.0.13.1");
+    Expect(baseline.success && baseline.path == std::vector<int>({1, 3, 5}),
+           "Level 19 should begin on the shorter OSPF path");
+    Expect(CheckWinConditions(level, nodes, cables) == 0,
+           "Ordinary reachability must not complete the SRv6 lesson");
+
+    DeviceNode* head = FindNodeMut(nodes, 1);
+    Expect(head != nullptr, "Level 19 should contain the RTR-1 SRv6 head-end");
+    Srv6Policy policy;
+    policy.id = 1;
+    policy.destIp = "10.0.35.2";
+    policy.segmentSids = {
+        "2001:db8:2::1", "2001:db8:4::1", "2001:db8:5::1",
+    };
+    head->srv6Policies.push_back(policy);
+    UpdateSrv6(nodes, cables);
+
+    const ForwardResult steered =
+        SimulateForward(1, "10.0.35.2", nodes, cables, "10.0.13.1");
+    Expect(steered.success && steered.path == std::vector<int>({1, 2, 4, 5}),
+           "The SRv6 segment list should steer the payload over the lower path");
+    Expect(steered.hops.size() >= 3 &&
+               steered.hops[0].srv6ActiveSid == "2001:db8:2::1" &&
+               steered.hops[0].srv6SegmentsLeft == 2 &&
+               steered.hops[1].srv6SegmentsLeft == 1 &&
+               steered.hops[2].srv6SegmentsLeft == 0,
+           "SRH trace state should advance the active SID and count Segments Left down");
+    Expect(CheckWinConditions(level, nodes, cables) == 1,
+           "The intended SRv6 policy should complete Level 19");
+}
+
 void TestLevelCatalogDiscoversMetadataWithoutFixedLimit() {
     const std::filesystem::path directory =
         std::filesystem::temp_directory_path() / "packet-path-level-catalog";
@@ -877,11 +959,13 @@ int main() {
         {"RSVP CSPF cost and bandwidth", TestRsvpCspfUsesOspfCostAndBandwidth},
         {"RSVP-aware level objective", TestTeWinConditionRequiresConfiguredForwardingPath},
         {"Duplicate SR SID validation", TestDuplicateSrNodeSidsAreRejected},
-        {"TE/SR scene round-trip", TestSceneRoundTripsTeAndSrConfiguration},
+        {"SRv6 SID validation", TestSrv6SidValidationAndDuplicateDetection},
+        {"TE/SR/SRv6 scene round-trip", TestSceneRoundTripsTeAndSrConfiguration},
         {"Scene validation", TestSceneRejectsInvalidCablePortsAndTypes},
         {"Bundled level validation", TestBundledLevelsPassSceneValidation},
         {"Level 17 RSVP-TE solution", TestLevel17RequiresAndAcceptsBandwidthDetour},
         {"Level 18 SR-MPLS solution", TestLevel18RequiresNodeAndAdjacencySidSteering},
+        {"Level 19 SRv6 solution", TestLevel19RequiresSrv6SegmentSteering},
         {"Dynamic level catalog", TestLevelCatalogDiscoversMetadataWithoutFixedLimit},
         {"Audio fallback", TestAudioCallsAreSafeWithoutADevice},
     };

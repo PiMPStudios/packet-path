@@ -1,0 +1,94 @@
+{
+  "id": 19,
+  "title": "Segments Left",
+  "briefing": "The same underlay still prefers RTR-1 -> RTR-3 -> RTR-5, but SRv6 steers an IPv4 payload with an IPv6 Segment Routing Header instead of MPLS labels. Open RTR-1's V6 tab and add Policy-1. Set Dest to 10.0.35.2 and enter these comma-separated SIDs in policy order: 2001:db8:2::1, 2001:db8:4::1, 2001:db8:5::1. The SRH is encoded in reverse on the wire, while the active IPv6 destination advances through this human-readable order and Segments Left counts down. Send a packet from RTR-1 to RTR-5 when the policy is ACTIVE.",
+  "devices": [
+    {
+      "id": 1,
+      "label": "RTR-1",
+      "type": "ROUTER",
+      "x": -360,
+      "y": 0,
+      "portIp0": "10.0.13.1/30",
+      "portIp1": "10.0.12.1/30",
+      "ospfEnabled": true,
+      "routerId": "1.1.1.1",
+      "srv6Enabled": true,
+      "srv6Sid": "2001:db8:1::1"
+    },
+    {
+      "id": 2,
+      "label": "RTR-2",
+      "type": "ROUTER",
+      "x": -150,
+      "y": 150,
+      "portIp0": "10.0.12.2/30",
+      "portIp1": "10.0.24.1/30",
+      "ospfEnabled": true,
+      "routerId": "2.2.2.2",
+      "srv6Enabled": true,
+      "srv6Sid": "2001:db8:2::1"
+    },
+    {
+      "id": 3,
+      "label": "RTR-3",
+      "type": "ROUTER",
+      "x": -80,
+      "y": -140,
+      "portIp0": "10.0.13.2/30",
+      "portIp1": "10.0.35.1/30",
+      "ospfEnabled": true,
+      "routerId": "3.3.3.3",
+      "srv6Enabled": true,
+      "srv6Sid": "2001:db8:3::1"
+    },
+    {
+      "id": 4,
+      "label": "RTR-4",
+      "type": "ROUTER",
+      "x": 120,
+      "y": 150,
+      "portIp0": "10.0.24.2/30",
+      "portIp1": "10.0.45.1/30",
+      "ospfEnabled": true,
+      "routerId": "4.4.4.4",
+      "srv6Enabled": true,
+      "srv6Sid": "2001:db8:4::1"
+    },
+    {
+      "id": 5,
+      "label": "RTR-5",
+      "type": "ROUTER",
+      "x": 360,
+      "y": 0,
+      "portIp0": "10.0.35.2/30",
+      "portIp1": "10.0.45.2/30",
+      "ospfEnabled": true,
+      "routerId": "5.5.5.5",
+      "srv6Enabled": true,
+      "srv6Sid": "2001:db8:5::1"
+    }
+  ],
+  "cables": [
+    {"from": 1, "fromPort": 0, "to": 3, "toPort": 0},
+    {"from": 3, "fromPort": 1, "to": 5, "toPort": 0},
+    {"from": 1, "fromPort": 1, "to": 2, "toPort": 0},
+    {"from": 2, "fromPort": 1, "to": 4, "toPort": 0},
+    {"from": 4, "fromPort": 1, "to": 5, "toPort": 1}
+  ],
+  "winConditions": [
+    {
+      "src": "RTR-1",
+      "dst": "RTR-5",
+      "description": "SRv6 Policy-1 carries an SRH through RTR-2 and RTR-4",
+      "requiresSrv6PolicyOnDevice": "RTR-1",
+      "requiresSrv6PolicyId": 1,
+      "requiresSrv6Segments": [
+        "2001:db8:2::1",
+        "2001:db8:4::1",
+        "2001:db8:5::1"
+      ],
+      "requiresSrv6PathVia": "RTR-4"
+    }
+  ]
+}

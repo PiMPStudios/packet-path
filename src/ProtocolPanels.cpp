@@ -313,3 +313,98 @@ void DrawSrTab(const DeviceNode* n, const PanelState& ps)
                {addBtn.x + (addBtn.width - atw) * 0.5f, addBtn.y + 6.0f},
                FS(11), Sp(FS(11)), WHT);
 }
+
+void DrawSrv6Tab(const DeviceNode* n, const PanelState& ps) {
+    const float x = CANVAS_W() + 12.f;
+    const float width = PANEL_W - 24.f;
+    const Color dim = {100, 116, 139, 255};
+    const Color accent = {217, 70, 239, 255};
+    const Color on = {34, 197, 94, 255};
+    if (!n) {
+        DrawTextEx(GFont(), "No device selected", {x, 130.f}, FS(11), Sp(FS(11)), dim);
+        return;
+    }
+    if (n->type != ROUTER) {
+        DrawTextEx(GFont(), "SRv6: routers only", {x, 130.f}, FS(11), Sp(FS(11)), dim);
+        return;
+    }
+
+    const char* toggle = n->srv6Enabled ? "srv6  ON" : "srv6  OFF";
+    const Color toggleColor = n->srv6Enabled ? on : dim;
+    DrawRectangleRoundedLines(PnlSrv6ToggleRect(), 0.4f, 4, toggleColor);
+    DrawTextEx(GFont(), toggle,
+               {x + (width - TW(toggle, 12)) * 0.5f, 126.f},
+               FS(12), Sp(FS(12)), toggleColor);
+    if (!n->srv6Enabled) return;
+
+    DrawTextEx(GFont(), "Local SID:", {x, 159.f}, FS(10), Sp(FS(10)), dim);
+    const Rectangle sidRect = PnlSrv6SidRect();
+    DrawRectangleRec(sidRect, Color{30, 41, 59, 255});
+    DrawRectangleLinesEx(sidRect, 1.f, ps.srv6SidEditing ? accent : Color{51,65,85,255});
+    const std::string& sidText = ps.srv6SidEditing ? ps.srv6SidBuf : n->srv6Sid;
+    DrawTextEx(GFont(), sidText.c_str(), {sidRect.x + 4.f, sidRect.y + 4.f},
+               FS(9), Sp(FS(9)), WHITE);
+    DrawTextEx(GFont(), "SRH policies (IPv4 payload over IPv6)",
+               {x, 190.f}, FS(9), Sp(FS(9)), dim);
+
+    for (int index = 0; index < static_cast<int>(n->srv6Policies.size()); ++index) {
+        const auto& policy = n->srv6Policies[index];
+        const bool expanded = ps.srv6ExpandedIdx == index;
+        Rectangle row = PnlSrv6PolicyRowRect(index);
+        if (ps.srv6ExpandedIdx >= 0 && ps.srv6ExpandedIdx < index)
+            row.y += Srv6FormH();
+        DrawRectangleRounded(row, 0.3f, 4, Color{21, 30, 47, 255});
+        DrawRectangle(static_cast<int>(row.x), static_cast<int>(row.y), 3,
+                      static_cast<int>(row.height), accent);
+        char label[96];
+        std::snprintf(label, sizeof(label), "%s Policy-%d  ->%s",
+                      expanded ? "v" : ">", policy.id,
+                      policy.destIp.empty() ? "?" : policy.destIp.c_str());
+        DrawTextEx(GFont(), label, {row.x + 8.f, row.y + 7.f}, FS(10), Sp(FS(10)), WHITE);
+        const char* status = policy.isActive ? "ACTIVE" :
+            (policy.statusMsg.empty() ? "DOWN" : policy.statusMsg.c_str());
+        const Color statusColor = policy.isActive ? on : Color{239,68,68,255};
+        DrawTextEx(GFont(), status,
+                   {row.x + row.width - TW(status, 9) - 4.f, row.y + 8.f},
+                   FS(9), Sp(FS(9)), statusColor);
+        if (!expanded) continue;
+
+        float fieldY = row.y + Srv6RowH();
+        auto field = [&](const char* name, const std::string& value, bool active) {
+            DrawTextEx(GFont(), name, {x + 4.f, fieldY}, FS(10), Sp(FS(10)), dim);
+            Rectangle rect = {x + 52.f, fieldY - 2.f, width - 56.f, 20.f};
+            DrawRectangleRec(rect, Color{30, 41, 59, 255});
+            DrawRectangleLinesEx(rect, 1.f, active ? accent : Color{51,65,85,255});
+            DrawTextEx(GFont(), value.c_str(), {rect.x + 4.f, rect.y + 4.f},
+                       FS(8), Sp(FS(8)), WHITE);
+            fieldY += 24.f;
+        };
+        field("Dest:", ps.srv6ActiveField == 0 ? ps.srv6DestBuf : policy.destIp,
+              ps.srv6ActiveField == 0);
+        std::string segments;
+        if (ps.srv6ActiveField == 1) segments = ps.srv6SegsBuf;
+        else for (std::size_t segment = 0; segment < policy.segmentSids.size(); ++segment) {
+            if (segment) segments += ", ";
+            segments += policy.segmentSids[segment];
+        }
+        field("SIDs:", segments, ps.srv6ActiveField == 1);
+        const std::string preview = "SRH: " + std::to_string(policy.segmentSids.size()) +
+                                    " segments, reverse wire encoding";
+        DrawTextEx(GFont(), preview.c_str(), {x + 4.f, fieldY}, FS(8), Sp(FS(8)), accent);
+        fieldY += 16.f;
+        const float deleteWidth = (width - 8.f) * 0.40f;
+        DrawRectangleRounded({x + width - deleteWidth, fieldY, deleteWidth, 22.f},
+                             0.4f, 4, Color{127,29,29,255});
+        DrawTextEx(GFont(), "Del", {x + width - deleteWidth + 4.f, fieldY + 4.f},
+                   FS(10), Sp(FS(10)), WHITE);
+    }
+
+    const int visible = static_cast<int>(n->srv6Policies.size()) +
+                        (ps.srv6ExpandedIdx >= 0 ? 1 : 0);
+    Rectangle add = PnlSrv6AddBtnRect(visible);
+    if (ps.srv6ExpandedIdx >= 0) add.y += Srv6FormH() - Srv6RowH();
+    DrawRectangleRounded(add, 0.4f, 4, Color{21,128,61,200});
+    DrawTextEx(GFont(), "+ Add SRv6 Policy",
+               {add.x + (add.width - TW("+ Add SRv6 Policy", 11)) * 0.5f, add.y + 6.f},
+               FS(11), Sp(FS(11)), WHITE);
+}

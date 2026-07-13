@@ -303,3 +303,128 @@ void UpdateSegmentRoutingPanelInput(int selectedId,
     if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_TAB) || IsKeyPressed(KEY_ESCAPE))
         panel.srActiveField = -1;
 }
+
+void HandleSrv6PanelClick(Vector2 mouse, int selectedId,
+                          std::vector<DeviceNode>& nodes, PanelState& panel) {
+    DeviceNode* node = SelectedRouter(selectedId, nodes);
+    if (!node) return;
+    if (CheckCollisionPointRec(mouse, PnlSrv6ToggleRect())) {
+        node->srv6Enabled = !node->srv6Enabled;
+        return;
+    }
+    if (!node->srv6Enabled) return;
+    if (CheckCollisionPointRec(mouse, PnlSrv6SidRect())) {
+        panel.srv6SidEditing = true;
+        panel.srv6SidBuf = node->srv6Sid;
+        return;
+    }
+
+    for (int index = 0; index < static_cast<int>(node->srv6Policies.size()); ++index) {
+        Rectangle row = PnlSrv6PolicyRowRect(index);
+        if (panel.srv6ExpandedIdx >= 0 && panel.srv6ExpandedIdx < index)
+            row.y += Srv6FormH();
+        if (!CheckCollisionPointRec(mouse, row)) continue;
+        if (panel.srv6ExpandedIdx == index) {
+            panel.srv6ExpandedIdx = -1;
+            panel.srv6ActiveField = -1;
+        } else {
+            panel.srv6ExpandedIdx = index;
+            panel.srv6ActiveField = -1;
+            panel.srv6DestBuf = node->srv6Policies[index].destIp;
+            panel.srv6SegsBuf.clear();
+            for (std::size_t segment = 0;
+                 segment < node->srv6Policies[index].segmentSids.size(); ++segment) {
+                if (segment) panel.srv6SegsBuf += ", ";
+                panel.srv6SegsBuf += node->srv6Policies[index].segmentSids[segment];
+            }
+        }
+        return;
+    }
+
+    if (panel.srv6ExpandedIdx >= 0 &&
+        panel.srv6ExpandedIdx < static_cast<int>(node->srv6Policies.size())) {
+        float y = PnlSrv6PolicyRowRect(panel.srv6ExpandedIdx).y + Srv6RowH();
+        const float x = CANVAS_W() + 12.f;
+        const float width = PANEL_W - 24.f;
+        if (CheckCollisionPointRec(mouse, {x + 52.f, y - 2.f, width - 56.f, 20.f})) {
+            panel.srv6ActiveField = 0;
+            return;
+        }
+        y += 24.f;
+        if (CheckCollisionPointRec(mouse, {x + 52.f, y - 2.f, width - 56.f, 20.f})) {
+            panel.srv6ActiveField = 1;
+            return;
+        }
+        y += 16.f;
+        const float deleteWidth = (width - 8.f) * 0.40f;
+        if (CheckCollisionPointRec(mouse,
+            {x + width - deleteWidth, y, deleteWidth, 22.f})) {
+            node->srv6Policies.erase(node->srv6Policies.begin() + panel.srv6ExpandedIdx);
+            panel.srv6ExpandedIdx = -1;
+            panel.srv6ActiveField = -1;
+            return;
+        }
+    }
+
+    const int visible = static_cast<int>(node->srv6Policies.size()) +
+                        (panel.srv6ExpandedIdx >= 0 ? 1 : 0);
+    Rectangle addButton = PnlSrv6AddBtnRect(visible);
+    if (panel.srv6ExpandedIdx >= 0)
+        addButton.y += Srv6FormH() - Srv6RowH();
+    if (CheckCollisionPointRec(mouse, addButton)) {
+        Srv6Policy policy;
+        for (const auto& existing : node->srv6Policies)
+            policy.id = std::max(policy.id, existing.id);
+        if (++policy.id <= 255) {
+            node->srv6Policies.push_back(policy);
+            panel.srv6ExpandedIdx = static_cast<int>(node->srv6Policies.size()) - 1;
+            panel.srv6ActiveField = 0;
+            panel.srv6DestBuf.clear();
+            panel.srv6SegsBuf.clear();
+        }
+    }
+}
+
+void UpdateSrv6PanelInput(int selectedId, std::vector<DeviceNode>& nodes,
+                          PanelState& panel) {
+    DeviceNode* node = SelectedRouter(selectedId, nodes);
+    if (!node) return;
+    if (panel.srv6SidEditing) {
+        UpdateTextField(panel.srv6SidBuf, 48);
+        if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_TAB) || IsKeyPressed(KEY_ESCAPE)) {
+            node->srv6Sid = panel.srv6SidBuf;
+            panel.srv6SidEditing = false;
+        }
+        return;
+    }
+    if (panel.srv6ExpandedIdx < 0 ||
+        panel.srv6ExpandedIdx >= static_cast<int>(node->srv6Policies.size()) ||
+        panel.srv6ActiveField < 0) return;
+
+    auto& policy = node->srv6Policies[panel.srv6ExpandedIdx];
+    std::string& buffer = panel.srv6ActiveField == 0
+        ? panel.srv6DestBuf : panel.srv6SegsBuf;
+    UpdateTextField(buffer, panel.srv6ActiveField == 0 ? 15 : 220);
+    if (panel.srv6ActiveField == 0) {
+        if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_TAB)) {
+            policy.destIp = panel.srv6DestBuf;
+            panel.srv6ActiveField = 1;
+        } else if (IsKeyPressed(KEY_ESCAPE)) {
+            policy.destIp = panel.srv6DestBuf;
+            panel.srv6ActiveField = -1;
+        }
+        return;
+    }
+
+    policy.segmentSids.clear();
+    std::istringstream input(panel.srv6SegsBuf);
+    std::string token;
+    while (std::getline(input, token, ',')) {
+        const auto start = token.find_first_not_of(" \t");
+        const auto end = token.find_last_not_of(" \t");
+        if (start != std::string::npos)
+            policy.segmentSids.push_back(token.substr(start, end - start + 1));
+    }
+    if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_TAB) || IsKeyPressed(KEY_ESCAPE))
+        panel.srv6ActiveField = -1;
+}

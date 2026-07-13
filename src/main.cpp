@@ -6,6 +6,7 @@
 #include "ProtocolPanelController.h"
 #include "ProtocolOverlays.h"
 #include "SrEngine.h"
+#include "Srv6Engine.h"
 #include "BgpEngine.h"
 #include "EvpnEngine.h"
 #include "Level.h"
@@ -696,6 +697,10 @@ int main() {
                             simState.anim = PacketAnim{};
                             simState.anim.result       = fr;
                             simState.anim.currentLabel = seed;
+                            if (!fr.hops.empty()) {
+                                simState.anim.currentSrv6Sid = fr.hops[0].srv6ActiveSid;
+                                simState.anim.currentSrv6SegmentsLeft = fr.hops[0].srv6SegmentsLeft;
+                            }
                             simState.anim.currentVlan  = vlanSeed;
                         }
                         le.success     = fr.success;
@@ -1218,6 +1223,9 @@ int main() {
                 if (ps.activeTab == TAB_SR && selectedId != -1) {
                     HandleSegmentRoutingPanelClick(screenMouse, selectedId, nodes, ps);
                 }
+                if (ps.activeTab == TAB_SRV6 && selectedId != -1) {
+                    HandleSrv6PanelClick(screenMouse, selectedId, nodes, ps);
+                }
             }
         }
 
@@ -1464,6 +1472,9 @@ int main() {
         if (ps.activeTab == TAB_SR && selectedId != -1) {
             UpdateSegmentRoutingPanelInput(selectedId, nodes, cables, ps);
         }
+        if (ps.activeTab == TAB_SRV6 && selectedId != -1) {
+            UpdateSrv6PanelInput(selectedId, nodes, ps);
+        }
 
         // Reset active field when selection changes
         if (selectedId != prevSelectedId) {
@@ -1495,6 +1506,12 @@ int main() {
             ps.srActiveField       = -1;
             ps.srDestBuf.clear();
             ps.srSegsBuf.clear();
+            ps.srv6SidEditing      = false;
+            ps.srv6SidBuf.clear();
+            ps.srv6ExpandedIdx     = -1;
+            ps.srv6ActiveField     = -1;
+            ps.srv6DestBuf.clear();
+            ps.srv6SegsBuf.clear();
             prevSelectedId         = selectedId;
         }
 
@@ -1507,6 +1524,7 @@ int main() {
             UpdateLdp(nodes, cables);   // recompute LFIB after each OSPF tick
             auto rsvpEvents = UpdateRsvp(nodes, cables);
             UpdateSr(nodes, cables);
+            UpdateSrv6(nodes, cables);
             UpdateBgp(nodes, cables);   // recompute BGP RIB every frame
             BuildEvpnRoutes(nodes);
             auto pushLog = [&](LogEntry entry) {
@@ -1558,6 +1576,7 @@ int main() {
                 DrawAllCables(cables, nodes);
                 DrawTeTunnelOverlays(nodes, cables);
                 DrawSrPolicyOverlays(nodes, cables);
+                DrawSrv6PolicyOverlays(nodes, cables);
                 // Annotation first (background layer) — packet anim renders on top
                 if (failAnnotationTimer > 0.f)
                     DrawBrokenPath(nodes, cables, lastFailedTrace);

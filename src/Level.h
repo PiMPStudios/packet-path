@@ -19,6 +19,10 @@ struct WinCondition {
     int         requiresSrPolicyId = 0;        // 0 = any active policy on the device
     std::vector<std::string> requiresSrSegments;
     std::string requiresSrPathVia;              // optional device label in activePath
+    std::string requiresSrv6PolicyOnDevice;
+    int         requiresSrv6PolicyId = 0;
+    std::vector<std::string> requiresSrv6Segments;
+    std::string requiresSrv6PathVia;
 };
 
 struct LevelDef {
