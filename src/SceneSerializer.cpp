@@ -228,6 +228,29 @@ bool LoadLevel(const std::string& path, LevelDef& out) {
             condition.requiresFix = wc.value("requiresFix", false);
             condition.requiresNatOnDevice =
                 wc.value("requiresNatOnDevice", std::string{});
+            condition.requiresTeTunnelOnDevice =
+                wc.value("requiresTeTunnelOnDevice", std::string{});
+            condition.requiresTeTunnelId = wc.value("requiresTeTunnelId", 0);
+            const uint64_t minimumBandwidth =
+                wc.value("requiresTeMinBandwidth", 0ull);
+            if (minimumBandwidth > std::numeric_limits<uint32_t>::max()) return false;
+            condition.requiresTeMinBandwidth =
+                static_cast<uint32_t>(minimumBandwidth);
+            condition.requiresTePathVia =
+                wc.value("requiresTePathVia", std::string{});
+            condition.requiresTeMode = wc.value("requiresTeMode", std::string{});
+            if (condition.requiresTeTunnelId < 0 ||
+                condition.requiresTeTunnelId > 255 ||
+                (!condition.requiresTeMode.empty() &&
+                 condition.requiresTeMode != "cspf" &&
+                 condition.requiresTeMode != "explicit") ||
+                (condition.requiresTeTunnelOnDevice.empty() &&
+                 (condition.requiresTeTunnelId != 0 ||
+                  condition.requiresTeMinBandwidth != 0 ||
+                  !condition.requiresTePathVia.empty() ||
+                  !condition.requiresTeMode.empty()))) {
+                return false;
+            }
             parsed.winConditions.push_back(std::move(condition));
         }
 

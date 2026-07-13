@@ -1,5 +1,19 @@
 # Packet Path Decision Log
 
+## 2026-07-12 — Level 17 RSVP-TE teaching contract
+
+- **What we chose:** RSVP CSPF reads the head-end router's live OSPF area LSDBs, uses advertised adjacency costs, and then prunes links that cannot satisfy the requested reservation.
+- **Why:** A traffic-engineering lesson should build on the control-plane topology rather than treating every physical cable and device as a valid MPLS path.
+- **Trade-offs:** Inter-area TE remains limited to topology visible in the head-end's area LSDBs, and parallel cables still share the existing node-pair bandwidth key.
+
+- **What we chose:** Level win conditions can require an UP tunnel on a named head-end, a tunnel ID, minimum bandwidth, CSPF or explicit mode, an active-path waypoint, and proof that forwarding actually used the tunnel.
+- **Why:** Reachability alone cannot prove that the player learned or configured RSVP-TE.
+- **Trade-offs:** The schema intentionally validates the lesson's observable outcome rather than every RSVP signaling detail.
+
+- **What we chose:** Level 17 teaches one new idea: a 400 Mbps CSPF tunnel must avoid a shorter 200 Mbps path and use the longer feasible route; PATH/RESV replay is the visual confirmation.
+- **Why:** Bandwidth-constrained path selection is the clearest first RSVP-TE lesson and avoids combining explicit routing, failure recovery, and preemption in one scenario.
+- **Trade-offs:** Explicit-path configuration and RSVP failure recovery remain available in the sandbox but are deferred as campaign objectives.
+
 ## 2026-07-12 — TE/SR forwarding and scene boundaries
 
 - **What we chose:** SR-MPLS and RSVP-TE resolve their label-selected egress before ordinary IP next-hop resolution. Labeled transit uses the LFIB without requiring an IP route to the payload destination.

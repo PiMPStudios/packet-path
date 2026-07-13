@@ -19,14 +19,21 @@ static int FindNodeIdByIp(const std::vector<DeviceNode>& nodes,
     return -1;
 }
 
+static int FindNodeIdByRouterId(const std::vector<DeviceNode>& nodes,
+                                const std::string& routerId)
+{
+    for (const auto& node : nodes)
+        if (node.routerId == routerId) return node.id;
+    return -1;
+}
+
 // Returns ordered node IDs [head, ..., tail], or empty if no BW-constrained path exists.
-// Walks the cable graph (not the OSPF LSDB) for simplicity; cost = hop count.
+// Walks the head-end router's OSPF LSDBs and prunes links without reservable bandwidth.
 static std::vector<int> CspfDijkstra(
     int headId,
     const std::string& destIp,
     uint32_t requiredBw,
     const std::vector<DeviceNode>& nodes,
-    const std::vector<Cable>& cables,
     const std::unordered_map<uint64_t, uint32_t>& availBwMap,
     std::function<uint64_t(int,int)> cableKey)
 {
@@ -34,7 +41,32 @@ static std::vector<int> CspfDijkstra(
     if (tailId == -1 || tailId == headId) return {};
     const DeviceNode* head = FindNode(nodes, headId);
     const DeviceNode* tail = FindNode(nodes, tailId);
-    if (!head || !tail || head->crashed || tail->crashed) return {};
+    if (!head || !tail || head->crashed || tail->crashed ||
+        !head->ospfEnabled || !tail->ospfEnabled ||
+        head->type != ROUTER || tail->type != ROUTER ||
+        head->routerId.empty() || tail->routerId.empty()) {
+        return {};
+    }
+
+    std::unordered_map<int, std::vector<std::pair<int, int>>> graph;
+    for (const auto& areaEntry : head->areaLsdbs) {
+        const auto& lsdb = areaEntry.second;
+        for (const auto& lsaEntry : lsdb) {
+            const RouterLsa& lsa = lsaEntry.second;
+            const int fromId = FindNodeIdByRouterId(nodes, lsa.routerId);
+            const DeviceNode* from = FindNode(nodes, fromId);
+            if (!from || from->crashed || !from->ospfEnabled || from->type != ROUTER)
+                continue;
+
+            for (const auto& adjacency : lsa.adjacencies) {
+                const int toId = FindNodeIdByRouterId(nodes, adjacency.neighborRouterId);
+                const DeviceNode* to = FindNode(nodes, toId);
+                if (!to || to->crashed || !to->ospfEnabled || to->type != ROUTER)
+                    continue;
+                graph[fromId].push_back({toId, std::max(1, adjacency.cost)});
+            }
+        }
+    }
 
     // Dijkstra: dist + prev maps
     std::unordered_map<int, int> dist, prev;
@@ -50,16 +82,14 @@ static std::vector<int> CspfDijkstra(
     while (!pq.empty()) {
         auto [d, u] = pq.top(); pq.pop();
         if (d > dist[u]) continue;
-        for (const auto& c : cables) {
-            if (c.broken) continue;
-            int v = (c.fromId == u) ? c.toId : (c.toId == u) ? c.fromId : -1;
-            if (v < 0) continue;
-            const DeviceNode* nbr = FindNode(nodes, v);
-            if (!nbr || nbr->crashed) continue;
+        const auto neighbors = graph.find(u);
+        if (neighbors == graph.end()) continue;
+        for (const auto& edge : neighbors->second) {
+            const int v = edge.first;
             // Prune links without enough BW
             auto it = availBwMap.find(cableKey(u, v));
             if (it == availBwMap.end() || it->second < requiredBw) continue;
-            int nd = dist[u] + 1;
+            int nd = dist[u] + edge.second;
             if (nd < dist[v]) {
                 dist[v] = nd;
                 prev[v] = u;
@@ -200,7 +230,7 @@ std::vector<std::string> UpdateRsvp(std::vector<DeviceNode>& nodes,
             if (!t.useExplicit) {
                 // CSPF
                 newPath = CspfDijkstra(n.id, t.destIp, t.bandwidth,
-                                       nodes, cables, availBwMap, cableKey);
+                                       nodes, availBwMap, cableKey);
                 if (newPath.empty()) failureStatus = "No CSPF path";
             } else {
                 // Explicit hops are waypoints; append the configured tail when

@@ -693,8 +693,10 @@ int main() {
                             uint32_t seed    = (!fr.hops.empty()) ? fr.hops[0].outLabel : 0u;
                             if (seed == MPLS_IMPLICIT_NULL) seed = 0u;
                             int vlanSeed = fr.hops.empty() ? 0 : fr.hops[0].vlanTag;
-                            simState.anim = PacketAnim{.result = fr, .currentLabel = seed,
-                                                       .currentVlan = vlanSeed};
+                            simState.anim = PacketAnim{};
+                            simState.anim.result       = fr;
+                            simState.anim.currentLabel = seed;
+                            simState.anim.currentVlan  = vlanSeed;
                         }
                         le.success     = fr.success;
                         le.pathStr     = BuildPathStr(fr.path, nodes);

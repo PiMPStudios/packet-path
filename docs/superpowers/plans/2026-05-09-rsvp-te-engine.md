@@ -263,7 +263,7 @@ Insert before the `UpdateRsvp` function:
 
 ```cpp
 // Returns ordered node IDs [head, ..., tail], or empty if no BW-constrained path exists.
-// Walks the cable graph (not the OSPF LSDB) for simplicity; cost = hop count.
+// Walks the head-end router's OSPF LSDBs and prunes links without reservable bandwidth.
 static std::vector<int> CspfDijkstra(
     int headId,
     const std::string& destIp,

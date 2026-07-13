@@ -3,6 +3,57 @@
 #include "UI.h"
 #include <algorithm>
 
+namespace {
+
+const DeviceNode* FindNodeByLabel(const std::vector<DeviceNode>& nodes,
+                                  const std::string& label) {
+    const auto found = std::find_if(nodes.begin(), nodes.end(), [&](const auto& node) {
+        return node.label == label;
+    });
+    return found == nodes.end() ? nullptr : &*found;
+}
+
+bool MeetsTeRequirement(const WinCondition& condition,
+                        const ForwardResult& result,
+                        const std::vector<DeviceNode>& nodes) {
+    if (condition.requiresTeTunnelOnDevice.empty()) return true;
+
+    const DeviceNode* head = FindNodeByLabel(nodes, condition.requiresTeTunnelOnDevice);
+    if (!head) return false;
+
+    int requiredViaId = -1;
+    if (!condition.requiresTePathVia.empty()) {
+        const DeviceNode* via = FindNodeByLabel(nodes, condition.requiresTePathVia);
+        if (!via) return false;
+        requiredViaId = via->id;
+    }
+
+    for (const auto& tunnel : head->teTunnels) {
+        if (!tunnel.isUp ||
+            (condition.requiresTeTunnelId != 0 &&
+             tunnel.id != condition.requiresTeTunnelId) ||
+            tunnel.bandwidth < condition.requiresTeMinBandwidth ||
+            (condition.requiresTeMode == "cspf" && tunnel.useExplicit) ||
+            (condition.requiresTeMode == "explicit" && !tunnel.useExplicit)) {
+            continue;
+        }
+        if (requiredViaId >= 0 &&
+            std::find(tunnel.activePath.begin(), tunnel.activePath.end(), requiredViaId) ==
+                tunnel.activePath.end()) {
+            continue;
+        }
+
+        const bool usedForForwarding =
+            std::any_of(result.hops.begin(), result.hops.end(), [&](const auto& hop) {
+                return hop.nodeId == head->id && hop.tunnelId == tunnel.id;
+            });
+        if (usedForForwarding) return true;
+    }
+    return false;
+}
+
+}  // namespace
+
 void ApplyLevel(const LevelDef& def,
                 std::vector<DeviceNode>& nodes,
                 std::vector<Cable>& cables,
@@ -32,6 +83,7 @@ int CheckWinConditions(const LevelDef& def,
         std::string wcsrcIp = GetFirstValidIp(*src);
         ForwardResult fr = SimulateForward(src->id, dstIp, nodes, cables, wcsrcIp);
         if (fr.success) {
+            if (!MeetsTeRequirement(wc, fr, nodes)) continue;
             if (!wc.requiresNatOnDevice.empty()) {
                 bool natOk = false;
                 for (const auto& nd : nodes)

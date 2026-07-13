@@ -10,6 +10,11 @@ struct WinCondition {
     std::string description;
     bool        requiresFix = false;
     std::string requiresNatOnDevice;  // if non-empty, win also requires this device's natEnabled=true
+    std::string requiresTeTunnelOnDevice;
+    int         requiresTeTunnelId = 0;       // 0 = any UP tunnel on the required device
+    uint32_t    requiresTeMinBandwidth = 0;   // Mbps
+    std::string requiresTePathVia;             // optional device label in activePath
+    std::string requiresTeMode;                // "cspf", "explicit", or empty
 };
 
 struct LevelDef {

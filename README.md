@@ -181,7 +181,7 @@ The simulator is built against published RFCs. Key references in `docs/RFCs/`:
 
 ## Roadmap
 
-The core engine, 16 levels, and all UI features listed above are implemented and working on macOS. Active development continues.
+The core engine, 17 levels, and all UI features listed above are implemented and working on macOS. Active development continues.
 
 ### Protocol engine
 
@@ -192,7 +192,7 @@ The core engine, 16 levels, and all UI features listed above are implemented and
 - [x] 802.1Q VLANs and trunking
 - [x] VXLAN + BGP EVPN
 - [x] ACLs and NAT
-- [x] RSVP-TE — explicit path computation, bandwidth constraints (in testing)
+- [x] RSVP-TE — OSPF-based CSPF, explicit paths, bandwidth reservations, and setup replay
 - [x] Segment Routing — SR-MPLS Node/adjacency SID allocation and label-stack steering (in testing)
 - [ ] SRv6
 - [ ] IS-IS — L1/L2, TLVs, SPF
@@ -200,8 +200,8 @@ The core engine, 16 levels, and all UI features listed above are implemented and
 
 ### Levels & content
 
-- [x] Levels 1–16 (beginner through advanced, see table above)
-- [ ] Level 17: RSVP-TE traffic engineering
+- [x] Levels 1–17 (beginner through advanced, see table above)
+- [x] Level 17: RSVP-TE traffic engineering
 - [ ] Level 18: Segment Routing SR-MPLS
 - [ ] Level 19: SRv6
 - [ ] Level 20: SD-WAN dual-WAN policy

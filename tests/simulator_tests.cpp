@@ -55,6 +55,17 @@ std::string TempPath(const std::string& filename) {
     return (std::filesystem::temp_directory_path() / filename).string();
 }
 
+void ConvergeOspf(std::vector<DeviceNode>& nodes,
+                  const std::vector<Cable>& cables) {
+    for (auto& node : nodes) {
+        if (node.type != ROUTER) continue;
+        node.ospfEnabled = true;
+        if (node.routerId.empty())
+            node.routerId = "10.255.0." + std::to_string(node.id);
+    }
+    UpdateOspf(OSPF_HELLO_INTERVAL + 0.1f, nodes, cables);
+}
+
 void TestIpParsingAndSubnetBoundaries() {
     Expect(ValidateIPOnly("192.0.2.1"), "A valid host address should parse");
     Expect(!ValidateIPOnly("192.0.2.999"), "An out-of-range octet must fail");
@@ -383,6 +394,7 @@ void TestRsvpReservationDoesNotCountItself() {
 
     std::vector<DeviceNode> nodes = {r1, r2};
     std::vector<Cable> cables = {Link(1, 0, 2, 0)};
+    ConvergeOspf(nodes, cables);
 
     bool sawUpEvent = false;
     for (int tick = 0; tick < 5; ++tick) {
@@ -430,6 +442,7 @@ void TestRsvpWithdrawsAfterLinkFailure() {
     r1.teTunnels.push_back(tunnel);
     std::vector<DeviceNode> nodes = {r1, r2};
     std::vector<Cable> cables = {Link(1, 0, 2, 0)};
+    ConvergeOspf(nodes, cables);
     UpdateRsvp(nodes, cables);
     Expect(nodes[0].teTunnels[0].isUp, "The RSVP tunnel should initially be up");
 
@@ -484,11 +497,140 @@ void TestRsvpRetainsTransitLfibEntries() {
 
     std::vector<DeviceNode> nodes = {r1, r2, r3};
     std::vector<Cable> cables = {Link(1, 0, 2, 0), Link(2, 1, 3, 0)};
+    ConvergeOspf(nodes, cables);
     UpdateRsvp(nodes, cables);
 
     Expect(nodes[0].teTunnels[0].isUp, "Multi-hop RSVP tunnel should come up");
     Expect(!nodes[1].teLfib.empty(),
            "RSVP rebuild should retain the transit router's LFIB entry");
+}
+
+void TestRsvpCspfRequiresConvergedOspfTopology() {
+    auto r1 = MakeRouter(1, "R1");
+    auto r2 = MakeRouter(2, "R2");
+    r1.portIp[0] = "10.0.12.1/30";
+    r2.portIp[0] = "10.0.12.2/30";
+    r1.ospfEnabled = r2.ospfEnabled = true;
+    r1.routerId = "1.1.1.1";
+    r2.routerId = "2.2.2.2";
+    r1.rsvpEnabled = true;
+
+    TeTunnel tunnel;
+    tunnel.id = 1;
+    tunnel.destIp = "10.0.12.2";
+    tunnel.bandwidth = 100;
+    r1.teTunnels.push_back(tunnel);
+
+    std::vector<DeviceNode> nodes = {r1, r2};
+    const std::vector<Cable> cables = {Link(1, 0, 2, 0)};
+    UpdateRsvp(nodes, cables);
+    Expect(!nodes[0].teTunnels[0].isUp,
+           "CSPF must not use a physical link before OSPF has converged");
+
+    ConvergeOspf(nodes, cables);
+    UpdateRsvp(nodes, cables);
+    Expect(nodes[0].teTunnels[0].isUp,
+           "CSPF should use a live adjacency after OSPF converges");
+}
+
+void TestRsvpCspfUsesOspfCostAndBandwidth() {
+    auto r1 = MakeRouter(1, "R1");
+    auto r2 = MakeRouter(2, "R2");
+    auto r3 = MakeRouter(3, "R3");
+    auto r4 = MakeRouter(4, "R4");
+    r1.portIp[0] = "10.0.12.1/30";
+    r2.portIp[0] = "10.0.12.2/30";
+    r2.portIp[1] = "10.0.24.1/30";
+    r4.portIp[0] = "10.0.24.2/30";
+    r1.portIp[1] = "10.0.13.1/30";
+    r3.portIp[0] = "10.0.13.2/30";
+    r3.portIp[1] = "10.0.34.1/30";
+    r4.portIp[1] = "10.0.34.2/30";
+    r1.rsvpEnabled = true;
+
+    TeTunnel tunnel;
+    tunnel.id = 1;
+    tunnel.destIp = "10.0.24.2";
+    tunnel.bandwidth = 100;
+    r1.teTunnels.push_back(tunnel);
+
+    std::vector<DeviceNode> nodes = {r1, r2, r3, r4};
+    const std::vector<Cable> cables = {
+        Link(1, 0, 2, 0), Link(2, 1, 4, 0),
+        Link(1, 1, 3, 0), Link(3, 1, 4, 1),
+    };
+    ConvergeOspf(nodes, cables);
+
+    auto& lsdb = nodes[0].areaLsdbs[0];
+    for (auto& lsaEntry : lsdb) {
+        RouterLsa& lsa = lsaEntry.second;
+        for (auto& adjacency : lsa.adjacencies) {
+            const bool expensiveEdge =
+                (lsa.routerId == nodes[0].routerId &&
+                 adjacency.neighborRouterId == nodes[1].routerId) ||
+                (lsa.routerId == nodes[1].routerId &&
+                 adjacency.neighborRouterId == nodes[0].routerId) ||
+                (lsa.routerId == nodes[1].routerId &&
+                 adjacency.neighborRouterId == nodes[3].routerId) ||
+                (lsa.routerId == nodes[3].routerId &&
+                 adjacency.neighborRouterId == nodes[1].routerId);
+            adjacency.cost = expensiveEdge ? 10 : 1;
+        }
+    }
+
+    UpdateRsvp(nodes, cables);
+    Expect(nodes[0].teTunnels[0].activePath == std::vector<int>({1, 3, 4}),
+           "CSPF should prefer the lower OSPF-cost path");
+
+    nodes[0].portBandwidth[1] = 50;
+    UpdateRsvp(nodes, cables);
+    Expect(nodes[0].teTunnels[0].activePath == std::vector<int>({1, 2, 4}),
+           "CSPF should prune an inexpensive path that lacks reservable bandwidth");
+}
+
+void TestTeWinConditionRequiresConfiguredForwardingPath() {
+    auto r1 = MakeRouter(1, "R1");
+    auto r2 = MakeRouter(2, "R2");
+    auto r3 = MakeRouter(3, "R3");
+    r1.portIp[0] = "10.0.12.1/30";
+    r2.portIp[0] = "10.0.12.2/30";
+    r2.portIp[1] = "10.0.23.1/30";
+    r3.portIp[0] = "10.0.23.2/30";
+    r1.rsvpEnabled = true;
+
+    TeTunnel tunnel;
+    tunnel.id = 1;
+    tunnel.destIp = "10.0.23.2";
+    tunnel.bandwidth = 200;
+    r1.teTunnels.push_back(tunnel);
+
+    std::vector<DeviceNode> nodes = {r1, r2, r3};
+    const std::vector<Cable> cables = {Link(1, 0, 2, 0), Link(2, 1, 3, 0)};
+    ConvergeOspf(nodes, cables);
+    UpdateRsvp(nodes, cables);
+
+    LevelDef level;
+    WinCondition condition;
+    condition.srcLabel = "R1";
+    condition.dstLabel = "R3";
+    condition.requiresTeTunnelOnDevice = "R1";
+    condition.requiresTeTunnelId = 1;
+    condition.requiresTeMinBandwidth = 200;
+    condition.requiresTePathVia = "R2";
+    condition.requiresTeMode = "cspf";
+    level.winConditions.push_back(condition);
+
+    Expect(CheckWinConditions(level, nodes, cables) == 1,
+           "A matching UP CSPF tunnel used by forwarding should satisfy the objective");
+
+    level.winConditions[0].requiresTeMinBandwidth = 300;
+    Expect(CheckWinConditions(level, nodes, cables) == 0,
+           "Reachability alone must not satisfy an undersized TE objective");
+
+    level.winConditions[0].requiresTeMinBandwidth = 200;
+    level.winConditions[0].requiresTeMode = "explicit";
+    Expect(CheckWinConditions(level, nodes, cables) == 0,
+           "A CSPF lesson must not be completed with the wrong tunnel mode");
 }
 
 void TestDuplicateSrNodeSidsAreRejected() {
@@ -593,13 +735,42 @@ void TestSceneRejectsInvalidCablePortsAndTypes() {
 }
 
 void TestBundledLevelsPassSceneValidation() {
-    for (int level = 1; level <= 16; ++level) {
-        char path[64];
-        std::snprintf(path, sizeof(path), "levels/level_%02d.json", level);
+    const auto catalog = DiscoverLevels("levels");
+    Expect(!catalog.empty(), "The bundled level catalog should not be empty");
+    for (const auto& entry : catalog) {
         LevelDef loaded;
-        Expect(LoadLevel(path, loaded),
-               std::string("Bundled level should pass scene validation: ") + path);
+        Expect(LoadLevel(entry.path, loaded),
+               std::string("Bundled level should pass scene validation: ") + entry.path);
+        Expect(loaded.id == entry.number,
+               std::string("Bundled level id should match its filename: ") + entry.path);
     }
+}
+
+void TestLevel17RequiresAndAcceptsBandwidthDetour() {
+    LevelDef level;
+    Expect(LoadLevel("levels/level_17.json", level),
+           "Level 17 should load through the production scene parser");
+
+    std::vector<DeviceNode> nodes = level.devices;
+    const std::vector<Cable> cables = level.cables;
+    ConvergeOspf(nodes, cables);
+    Expect(CheckWinConditions(level, nodes, cables) == 0,
+           "Ordinary OSPF reachability must not complete the RSVP-TE lesson");
+
+    DeviceNode* head = FindNodeMut(nodes, 1);
+    Expect(head != nullptr, "Level 17 should contain the RTR-1 head-end");
+    TeTunnel tunnel;
+    tunnel.id = 1;
+    tunnel.destIp = "10.0.24.2";
+    tunnel.bandwidth = 400;
+    head->teTunnels.push_back(tunnel);
+    UpdateRsvp(nodes, cables);
+
+    Expect(head->teTunnels[0].isUp &&
+               head->teTunnels[0].activePath == std::vector<int>({1, 3, 5, 4}),
+           "Level 17 CSPF should avoid the 200 Mbps upper path");
+    Expect(CheckWinConditions(level, nodes, cables) == 1,
+           "The intended 400 Mbps bandwidth detour should complete Level 17");
 }
 
 void TestLevelCatalogDiscoversMetadataWithoutFixedLimit() {
@@ -657,10 +828,14 @@ int main() {
         {"RSVP link failure withdrawal", TestRsvpWithdrawsAfterLinkFailure},
         {"RSVP unresolved hop validation", TestRsvpRejectsUnresolvedExplicitHops},
         {"RSVP transit LFIB rebuild", TestRsvpRetainsTransitLfibEntries},
+        {"RSVP requires OSPF convergence", TestRsvpCspfRequiresConvergedOspfTopology},
+        {"RSVP CSPF cost and bandwidth", TestRsvpCspfUsesOspfCostAndBandwidth},
+        {"RSVP-aware level objective", TestTeWinConditionRequiresConfiguredForwardingPath},
         {"Duplicate SR SID validation", TestDuplicateSrNodeSidsAreRejected},
         {"TE/SR scene round-trip", TestSceneRoundTripsTeAndSrConfiguration},
         {"Scene validation", TestSceneRejectsInvalidCablePortsAndTypes},
         {"Bundled level validation", TestBundledLevelsPassSceneValidation},
+        {"Level 17 RSVP-TE solution", TestLevel17RequiresAndAcceptsBandwidthDetour},
         {"Dynamic level catalog", TestLevelCatalogDiscoversMetadataWithoutFixedLimit},
         {"Audio fallback", TestAudioCallsAreSafeWithoutADevice},
     };

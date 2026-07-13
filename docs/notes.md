@@ -2,7 +2,7 @@
 
 Updated: 2026-07-12
 
-The original six-phase MVP plan is complete. Packet Path currently ships 16 JSON-driven scenarios covering IP forwarding, VLANs, OSPF, BGP, ACL/NAT, VXLAN/EVPN, MPLS/LDP, and failure troubleshooting. The level selector now discovers validated `level_*.json` files, so Level 17 no longer requires a code catalog update.
+The original six-phase MVP plan is complete. Packet Path currently ships 17 JSON-driven scenarios covering IP forwarding, VLANs, OSPF, BGP, ACL/NAT, VXLAN/EVPN, MPLS/LDP, RSVP-TE, and failure troubleshooting. The level selector discovers validated `level_*.json` files, so later scenarios require no code catalog update.
 
 ## Current protocol status
 
@@ -13,7 +13,7 @@ The original six-phase MVP plan is complete. Packet Path currently ships 16 JSON
 | OSPF | Implemented and tested | Single/multi-area, SPF, adjacency and broken-link withdrawal |
 | BGP | Implemented and tested | eBGP, iBGP, route reflection, link-failure withdrawal |
 | MPLS / LDP | Implemented and tested | Push, transit labels, and implicit-null/PHP |
-| RSVP-TE | Implemented, in testing | CSPF, explicit paths, bandwidth reservations, setup replay, event logs |
+| RSVP-TE | Implemented and tested | OSPF-based CSPF, explicit paths, bandwidth reservations, setup replay, event logs, TE-aware level objectives |
 | SR-MPLS | Implemented, in testing | Node SIDs, duplicate detection, adjacency SID steering, policy forwarding |
 | SRv6 | Not implemented | Planned after SR-MPLS scenarios |
 | IS-IS / SD-WAN | Not implemented | Longer-term roadmap |
@@ -27,8 +27,7 @@ The original six-phase MVP plan is complete. Packet Path currently ships 16 JSON
 
 ## Next product work
 
-1. Add Level 17 for RSVP-TE using the discovered level catalog.
-2. Add an SR-MPLS scenario that teaches Node SID versus adjacency SID steering.
-3. Continue extracting generic input and remaining protocol panel rendering from `main.cpp` and `NetworkCanvas.cpp`.
-4. Run the new CI workflow in GitHub and address any platform-specific compiler or packaging failures.
-5. Add SRv6 only after the SR-MPLS scenarios and tests are stable.
+1. Add Level 18 for SR-MPLS, teaching Node SID versus adjacency SID steering.
+2. Continue extracting generic input and remaining protocol panel rendering from `main.cpp` and `NetworkCanvas.cpp`.
+3. Rerun the three-platform CI workflow after the next push to verify the Windows C++17 portability fix.
+4. Add SRv6 only after the SR-MPLS scenarios and tests are stable.
